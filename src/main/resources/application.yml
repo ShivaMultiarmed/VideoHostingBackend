@@ -1,0 +1,12 @@
+server:
+  port: 9999
+
+spring:
+  datasource:
+    username: mikhail_shell
+    password: BlackWater
+    url: jdbc:mysql://127.0.0.1:3306/video_hosting_db
+
+logging:
+  level:
+    org.springframework: DEBUG
