@@ -30,7 +30,7 @@ class VideoController @Autowired constructor(
         @PathVariable videoId: Long,
         @RequestParam userId: Long,
         @RequestParam liking: Boolean
-    ) : ResponseEntity<Boolean?> {
+    ) : ResponseEntity<ExtendedVideoInfo> {
         return ResponseEntity.ok(videoService.rate(videoId, userId, liking))
     }
 }

@@ -28,7 +28,7 @@ class VideoServiceImpl @Autowired constructor(
     }
 
     @Transactional
-    override fun rate(videoId: Long, userId: Long, liking: Boolean): Boolean? {
+    override fun rate(videoId: Long, userId: Long, liking: Boolean): ExtendedVideoInfo {
         val id = UserLikeVideoId(userId, videoId)
         val videoInfo = videoRepository.findById(videoId).orElseThrow()
         if (!userLikeVideoRepository.existsById(id)) {
@@ -36,7 +36,7 @@ class VideoServiceImpl @Autowired constructor(
             if (liking) {
                 videoRepository.save(videoInfo.copy(likes = videoInfo.likes + 1))
             } else {
-                videoRepository.save(videoInfo.copy(likes = videoInfo.dislikes + 1))
+                videoRepository.save(videoInfo.copy(dislikes = videoInfo.dislikes + 1))
             }
         } else {
             val likeRow = userLikeVideoRepository.findById(id).get()
@@ -44,7 +44,7 @@ class VideoServiceImpl @Autowired constructor(
                 if (liking) {
                     userLikeVideoRepository.deleteById(id)
                 } else {
-                    videoRepository.save(videoInfo.copy(likes = videoInfo.dislikes + 1))
+                    videoRepository.save(videoInfo.copy(dislikes = videoInfo.dislikes + 1))
                     userLikeVideoRepository.save(UserLikeVideo(id, false))
                 }
                 videoRepository.save(videoInfo.copy(likes = videoInfo.likes - 1))
@@ -55,10 +55,9 @@ class VideoServiceImpl @Autowired constructor(
                     videoRepository.save(videoInfo.copy(likes = videoInfo.likes + 1))
                     userLikeVideoRepository.save(UserLikeVideo(id, true))
                 }
-                videoRepository.save(videoInfo.copy(likes = videoInfo.dislikes - 1))
+                videoRepository.save(videoInfo.copy(dislikes = videoInfo.dislikes - 1))
             }
         }
-        val optionalResponse = userLikeVideoRepository.findById(id)
-        return optionalResponse.orElse(null)?.liking
+        return getExtendedVideoInfo(videoId, userId)
     }
 }
