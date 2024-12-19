@@ -2,7 +2,7 @@ package mikhail.shell.video.hosting.controllers
 
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
-import mikhail.shell.video.hosting.domain.ExtendedVideoInfo
+import mikhail.shell.video.hosting.dto.ExtendedVideoInfo
 import mikhail.shell.video.hosting.domain.VideoInfo
 import mikhail.shell.video.hosting.service.VideoService
 import org.springframework.beans.factory.annotation.Autowired
@@ -12,7 +12,6 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException
 import java.io.File
-import java.io.IOException
 import java.io.RandomAccessFile
 
 @RestController

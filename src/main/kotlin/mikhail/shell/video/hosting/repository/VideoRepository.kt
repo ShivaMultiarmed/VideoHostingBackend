@@ -1,6 +1,6 @@
 package mikhail.shell.video.hosting.repository
 
-import mikhail.shell.video.hosting.domain.ExtendedVideoInfo
+import mikhail.shell.video.hosting.dto.ExtendedVideoInfo
 import mikhail.shell.video.hosting.domain.VideoInfo
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
@@ -11,7 +11,7 @@ import java.util.*
 @Repository
 interface VideoRepository: JpaRepository<VideoInfo, Long> {
     @Query(
-        value = "SELECT new mikhail.shell.video.hosting.domain.ExtendedVideoInfo(" +
+        value = "SELECT new mikhail.shell.video.hosting.dto.ExtendedVideoInfo(" +
                 "new mikhail.shell.video.hosting.domain.VideoInfo(" +
                 "v.videoId, v.channelId, v.title, v.dateTime, v.views, v.likes, v.dislikes" +
                 ")," +

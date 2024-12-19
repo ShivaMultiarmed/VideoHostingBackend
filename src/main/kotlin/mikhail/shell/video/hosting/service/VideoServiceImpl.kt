@@ -1,7 +1,7 @@
 package mikhail.shell.video.hosting.service
 
 import jakarta.transaction.Transactional
-import mikhail.shell.video.hosting.domain.ExtendedVideoInfo
+import mikhail.shell.video.hosting.dto.ExtendedVideoInfo
 import mikhail.shell.video.hosting.domain.UserLikeVideo
 import mikhail.shell.video.hosting.domain.UserLikeVideoId
 import mikhail.shell.video.hosting.domain.VideoInfo

@@ -1,6 +1,6 @@
 package mikhail.shell.video.hosting.service
 
-import mikhail.shell.video.hosting.domain.ExtendedVideoInfo
+import mikhail.shell.video.hosting.dto.ExtendedVideoInfo
 import mikhail.shell.video.hosting.domain.VideoInfo
 
 interface VideoService {
