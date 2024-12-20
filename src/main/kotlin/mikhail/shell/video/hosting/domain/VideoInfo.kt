@@ -2,6 +2,7 @@ package mikhail.shell.video.hosting.domain
 
 import jakarta.persistence.*
 import java.time.LocalDateTime
+import kotlin.jvm.Transient
 
 @Entity
 @Table(name = "videos")
@@ -13,5 +14,5 @@ data class VideoInfo(
     val dateTime: LocalDateTime,
     val views: Long,
     val likes: Long,
-    val dislikes: Long
+    val dislikes: Long,
 )

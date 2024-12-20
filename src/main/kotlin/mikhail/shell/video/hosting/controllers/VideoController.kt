@@ -2,10 +2,13 @@ package mikhail.shell.video.hosting.controllers
 
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import mikhail.shell.video.hosting.domain.VideoDetails
 import mikhail.shell.video.hosting.dto.ExtendedVideoInfo
 import mikhail.shell.video.hosting.domain.VideoInfo
+import mikhail.shell.video.hosting.service.ChannelService
 import mikhail.shell.video.hosting.service.VideoService
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.data.repository.query.Param
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -17,7 +20,8 @@ import java.io.RandomAccessFile
 @RestController
 @RequestMapping("/api/v1/videos")
 class VideoController @Autowired constructor(
-    private val videoService: VideoService
+    private val videoService: VideoService,
+    private val channelService: ChannelService,
 ) {
     @GetMapping("/{videoId}")
     fun getVideoInfo(
@@ -27,11 +31,16 @@ class VideoController @Autowired constructor(
     }
 
     @GetMapping("/{videoId}/extended")
-    fun getVideoInfo(
+    fun getVideoDetails(
         @PathVariable videoId: Long,
         @RequestParam userId: Long
-    ): ResponseEntity<ExtendedVideoInfo> {
-        return ResponseEntity.ok(videoService.getExtendedVideoInfo(videoId, userId))
+    ): ResponseEntity<VideoDetails> {
+        return ResponseEntity.ok(
+            VideoDetails(
+                video = videoService.getExtendedVideoInfo(videoId, userId),
+                channel = channelService.getExtendedChannelInfo(videoId, userId)
+            )
+        )
     }
 
     @PatchMapping("/{videoId}/rate")
@@ -105,5 +114,15 @@ class VideoController @Autowired constructor(
             println("Client disconnected or stream terminated: ${e.message}")
         }
         return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT).build()
+    }
+
+    @GetMapping("/channel/{channelId}")
+    fun provideVideosFromChannel(
+        @PathVariable channelId: Long,
+        @Param("partSize") partSize: Int = 10,
+        @Param("partNumber") partNumber: Long = 1
+    ): ResponseEntity<List<VideoInfo>> {
+        val videoList = videoService.getVideosByChannelId(channelId, partSize, partNumber)
+        return ResponseEntity.status(HttpStatus.OK).body(videoList)
     }
 }

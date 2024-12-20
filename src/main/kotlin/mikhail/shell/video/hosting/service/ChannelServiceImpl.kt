@@ -24,9 +24,9 @@ class ChannelServiceImpl @Autowired constructor(
         return channelRepository.findById(channelId).orElseThrow()
     }
 
-    override fun providedExtendedChannelInfo(
+    override fun getExtendedChannelInfo(
         channelId: Long,
-         userId: Long
+        userId: Long
     ): ExtendedChannelInfo {
         val info = provideChannelInfo(channelId)
         val subscription = subscriberRepository.existsById(SubscriberId(channelId, userId))
