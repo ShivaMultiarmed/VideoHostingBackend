@@ -11,11 +11,13 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.data.repository.query.Param
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException
 import java.io.File
 import java.io.RandomAccessFile
+import java.net.InetAddress
 
 @RestController
 @RequestMapping("/api/v1/videos")
@@ -25,31 +27,36 @@ class VideoController @Autowired constructor(
 ) {
     @GetMapping("/{videoId}")
     fun getVideoInfo(
+        request: HttpServletRequest,
         @PathVariable videoId: Long
     ): ResponseEntity<VideoInfo> {
-        return ResponseEntity.ok(videoService.getVideoInfo(videoId))
+        var videoInfo = videoService.getVideoInfo(videoId)
+        //videoInfo.coverUrl
+        return ResponseEntity.ok(videoInfo)
     }
 
     @GetMapping("/{videoId}/extended")
     fun getVideoDetails(
+        request: HttpServletRequest,
         @PathVariable videoId: Long,
         @RequestParam userId: Long
     ): ResponseEntity<VideoDetails> {
-        return ResponseEntity.ok(
-            VideoDetails(
-                video = videoService.getExtendedVideoInfo(videoId, userId),
-                channel = channelService.getExtendedChannelInfo(videoId, userId)
-            )
-        )
+        var video = videoService.getExtendedVideoInfo(videoId, userId)
+        //video = video.insertCoverUrl(request)
+        val channel = channelService.getExtendedChannelInfo(videoId, userId)
+        return ResponseEntity.ok(VideoDetails(video, channel))
     }
 
     @PatchMapping("/{videoId}/rate")
     fun rateVideo(
+        request: HttpServletRequest,
         @PathVariable videoId: Long,
         @RequestParam userId: Long,
         @RequestParam liking: Boolean
     ): ResponseEntity<ExtendedVideoInfo> {
-        return ResponseEntity.ok(videoService.rate(videoId, userId, liking))
+        var extendedVideoInfo = videoService.rate(videoId, userId, liking)
+        // extendedVideoInfo = extendedVideoInfo.insertCoverUrl(request)
+        return ResponseEntity.ok(extendedVideoInfo)
     }
 
     @GetMapping("/{videoId}/play")
@@ -58,12 +65,11 @@ class VideoController @Autowired constructor(
         request: HttpServletRequest,
         response: HttpServletResponse
     ): ResponseEntity<Any> {
-        val file = File("D:/VideoHostingStorage/videos/$videoId.mp4")
+        val file = File("D:/VideoHostingStorage/videos/playables/$videoId.mp4")
         if (!file.exists()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build()
         }
         val rangeHeader = request.getHeader(HttpHeaders.RANGE)
-
 
         if (rangeHeader == null) {
             response.contentType = "video/mp4"
@@ -118,6 +124,7 @@ class VideoController @Autowired constructor(
 
     @GetMapping("/channel/{channelId}")
     fun provideVideosFromChannel(
+        request: HttpServletRequest,
         @PathVariable channelId: Long,
         @Param("partSize") partSize: Int = 10,
         @Param("partNumber") partNumber: Long = 1
@@ -125,4 +132,35 @@ class VideoController @Autowired constructor(
         val videoList = videoService.getVideosByChannelId(channelId, partSize, partNumber)
         return ResponseEntity.status(HttpStatus.OK).body(videoList)
     }
+
+    @GetMapping("/{videoId}/cover")
+    fun provideVideoCover(
+        request: HttpServletRequest,
+        @PathVariable videoId: Long
+    ): ResponseEntity<ByteArray> {
+        return try {
+            val image = File("D:/VideoHostingStorage/videos/covers/$videoId.png")
+            if (!image.exists()) {
+                ResponseEntity.status(HttpStatus.NOT_FOUND).build<ByteArray>()
+            }
+            ResponseEntity.status(HttpStatus.OK).contentType(MediaType.IMAGE_PNG)
+                .body(image.inputStream().readAllBytes())
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
+        }
+    }
 }
+
+//fun ExtendedVideoInfo.insertCoverUrl(request: HttpServletRequest): ExtendedVideoInfo {
+//    return this.copy(
+//        videoInfo = this.videoInfo.copy(
+//            coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${this.videoInfo.videoId}/cover"
+//        )
+//    )
+//}
+//
+//fun VideoInfo.insertCoverUrl(request: HttpServletRequest): VideoInfo {
+//    return this.copy(
+//        coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${this.videoId}/cover"
+//    )
+//}

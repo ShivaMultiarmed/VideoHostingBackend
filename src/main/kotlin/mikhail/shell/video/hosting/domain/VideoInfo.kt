@@ -15,4 +15,6 @@ data class VideoInfo(
     val views: Long,
     val likes: Long,
     val dislikes: Long,
+//    @Transient
+//    val coverUrl: String? = null
 )
