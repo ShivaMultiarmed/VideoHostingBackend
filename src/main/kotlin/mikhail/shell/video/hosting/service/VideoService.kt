@@ -7,6 +7,6 @@ import mikhail.shell.video.hosting.domain.VideoInfo
 interface VideoService {
     fun getVideoInfo(videoId: Long): VideoInfo
     fun checkVideoLikeState(videoId: Long, userId: Long): LikingState
-    fun rate(videoId: Long, userId: Long, likingState: LikingState): LikingState
+    fun rate(videoId: Long, userId: Long, likingState: LikingState): VideoInfo
     fun getVideosByChannelId(channelId: Long, partSize: Int, partNumber: Long): List<VideoInfo>
 }

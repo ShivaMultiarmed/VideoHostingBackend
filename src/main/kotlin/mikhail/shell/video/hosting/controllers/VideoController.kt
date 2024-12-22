@@ -61,9 +61,10 @@ class VideoController @Autowired constructor(
         @PathVariable videoId: Long,
         @RequestParam userId: Long,
         @RequestParam likingState: LikingState
-    ): ResponseEntity<LikingState> {
-
-        return ResponseEntity.ok(videoService.rate(videoId, userId, likingState))
+    ): ResponseEntity<VideoDto> {
+        val videoInfo = videoService.rate(videoId, userId, likingState)
+        val videoDto = constructVideoDto(videoInfo, userId, request)
+        return ResponseEntity.ok(videoDto)
     }
 
     @GetMapping("/{videoId}/play")

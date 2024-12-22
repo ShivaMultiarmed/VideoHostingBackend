@@ -77,7 +77,7 @@ class ChannelController @Autowired constructor(
         return channelInfo.toDto(
             subscription = subscriptionState,
             avatarUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${channelInfo.channelId}/avatar",
-            coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${channelInfo.channelId}/cover"
+            coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${channelInfo.channelId}/cover"
         )
     }
 }
