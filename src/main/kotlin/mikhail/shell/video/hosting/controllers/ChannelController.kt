@@ -1,7 +1,10 @@
 package mikhail.shell.video.hosting.controllers
 
+import jakarta.servlet.http.HttpServletRequest
 import mikhail.shell.video.hosting.domain.ChannelInfo
-import mikhail.shell.video.hosting.dto.ExtendedChannelInfo
+import mikhail.shell.video.hosting.domain.SubscriptionState
+import mikhail.shell.video.hosting.dto.ChannelDto
+import mikhail.shell.video.hosting.dto.toDto
 import mikhail.shell.video.hosting.service.ChannelService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.data.repository.query.Param
@@ -11,6 +14,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import java.io.File
 
@@ -21,23 +25,21 @@ class ChannelController @Autowired constructor(
 ) {
     @GetMapping("/{channelId}")
     fun provideChannelInfo(
+        request: HttpServletRequest,
+        @RequestParam userId: Long? = null,
         @PathVariable channelId: Long
-    ): ResponseEntity<ChannelInfo> {
-        return ResponseEntity.status(HttpStatus.OK).body(channelService.provideChannelInfo(channelId))
+    ): ResponseEntity<ChannelDto> {
+        val channelInfo = channelService.provideChannelInfo(channelId)
+        val channelDto = constructChannelDto(channelInfo, userId, request)
+        return ResponseEntity.status(HttpStatus.OK).body(channelDto)
     }
-    @GetMapping("/{channelId}/extended")
-    fun providedExtendedChannelInfo(
-        @PathVariable channelId: Long,
-        @Param("userId") userId: Long
-    ): ResponseEntity<ExtendedChannelInfo> {
-        return ResponseEntity.status(HttpStatus.OK).body(channelService.getExtendedChannelInfo(channelId, userId))
-    }
+
     @GetMapping("/{channelId}/cover")
     fun provideChannelCover(
         @PathVariable channelId: Long
     ): ResponseEntity<ByteArray> {
         return try {
-            val image = File("D:/VideoHostingStorage/channels/covers/1.png")
+            val image = File("D:/VideoHostingStorage/channels/covers/$channelId.png")
             if (!image.exists()) {
                 ResponseEntity.status(HttpStatus.NOT_FOUND).build<ByteArray>()
             }
@@ -51,7 +53,7 @@ class ChannelController @Autowired constructor(
         @PathVariable channelId: Long
     ): ResponseEntity<ByteArray> {
         return try {
-            val image = File("D:/VideoHostingStorage/channels/avatars/1.png")
+            val image = File("D:/VideoHostingStorage/channels/avatars/$channelId.png")
             if (!image.exists()) {
                 ResponseEntity.status(HttpStatus.NOT_FOUND).build<ByteArray>()
             }
@@ -59,5 +61,23 @@ class ChannelController @Autowired constructor(
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
         }
+    }
+    private fun constructChannelDto(
+        channelInfo: ChannelInfo,
+        userId: Long?,
+        request: HttpServletRequest
+    ): ChannelDto {
+        val channelId = channelInfo.channelId
+        val subscriptionState = if (userId != null) {
+            when(channelService.checkIfSubscribed(channelId, userId)) {
+                true -> SubscriptionState.SUBSCRIBED
+                false -> SubscriptionState.NOT_SUBSCRIBED
+            }
+        } else SubscriptionState.UNKNOWN
+        return channelInfo.toDto(
+            subscription = subscriptionState,
+            avatarUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${channelInfo.channelId}/avatar",
+            coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${channelInfo.channelId}/cover"
+        )
     }
 }

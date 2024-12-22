@@ -2,9 +2,14 @@ package mikhail.shell.video.hosting.controllers
 
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
-import mikhail.shell.video.hosting.domain.VideoDetails
-import mikhail.shell.video.hosting.dto.ExtendedVideoInfo
+import mikhail.shell.video.hosting.domain.ChannelInfo
+import mikhail.shell.video.hosting.domain.LikingState
+import mikhail.shell.video.hosting.domain.SubscriptionState
+import mikhail.shell.video.hosting.dto.VideoDto
 import mikhail.shell.video.hosting.domain.VideoInfo
+import mikhail.shell.video.hosting.dto.ChannelDto
+import mikhail.shell.video.hosting.dto.VideoDetailsDto
+import mikhail.shell.video.hosting.dto.toDto
 import mikhail.shell.video.hosting.service.ChannelService
 import mikhail.shell.video.hosting.service.VideoService
 import org.springframework.beans.factory.annotation.Autowired
@@ -17,7 +22,6 @@ import org.springframework.web.bind.annotation.*
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException
 import java.io.File
 import java.io.RandomAccessFile
-import java.net.InetAddress
 
 @RestController
 @RequestMapping("/api/v1/videos")
@@ -26,25 +30,29 @@ class VideoController @Autowired constructor(
     private val channelService: ChannelService,
 ) {
     @GetMapping("/{videoId}")
-    fun getVideoInfo(
+    fun getVideoDto(
         request: HttpServletRequest,
-        @PathVariable videoId: Long
-    ): ResponseEntity<VideoInfo> {
-        var videoInfo = videoService.getVideoInfo(videoId)
-        //videoInfo.coverUrl
-        return ResponseEntity.ok(videoInfo)
+        @PathVariable videoId: Long,
+        @RequestParam userId: Long? = null
+    ): ResponseEntity<VideoDto> {
+        val videoInfo = videoService.getVideoInfo(videoId)
+        val videoDto = constructVideoDto(videoInfo, userId, request)
+        return ResponseEntity.ok(videoDto)
     }
 
-    @GetMapping("/{videoId}/extended")
+    @GetMapping("/{videoId}/details")
     fun getVideoDetails(
         request: HttpServletRequest,
         @PathVariable videoId: Long,
         @RequestParam userId: Long
-    ): ResponseEntity<VideoDetails> {
-        var video = videoService.getExtendedVideoInfo(videoId, userId)
-        //video = video.insertCoverUrl(request)
-        val channel = channelService.getExtendedChannelInfo(videoId, userId)
-        return ResponseEntity.ok(VideoDetails(video, channel))
+    ): ResponseEntity<VideoDetailsDto> {
+        val videoInfo = videoService.getVideoInfo(videoId)
+        val channelInfo = channelService.provideChannelInfo(videoInfo.channelId)
+        val videoDetailsDto = VideoDetailsDto(
+            videoDto = constructVideoDto(videoInfo, userId, request),
+            channelDto = constructChannelDto(channelInfo, userId, request)
+        )
+        return ResponseEntity.ok(videoDetailsDto)
     }
 
     @PatchMapping("/{videoId}/rate")
@@ -52,11 +60,10 @@ class VideoController @Autowired constructor(
         request: HttpServletRequest,
         @PathVariable videoId: Long,
         @RequestParam userId: Long,
-        @RequestParam liking: Boolean
-    ): ResponseEntity<ExtendedVideoInfo> {
-        var extendedVideoInfo = videoService.rate(videoId, userId, liking)
-        // extendedVideoInfo = extendedVideoInfo.insertCoverUrl(request)
-        return ResponseEntity.ok(extendedVideoInfo)
+        @RequestParam likingState: LikingState
+    ): ResponseEntity<LikingState> {
+
+        return ResponseEntity.ok(videoService.rate(videoId, userId, likingState))
     }
 
     @GetMapping("/{videoId}/play")
@@ -128,9 +135,16 @@ class VideoController @Autowired constructor(
         @PathVariable channelId: Long,
         @Param("partSize") partSize: Int = 10,
         @Param("partNumber") partNumber: Long = 1
-    ): ResponseEntity<List<VideoInfo>> {
+    ): ResponseEntity<List<VideoDto>> {
         val videoList = videoService.getVideosByChannelId(channelId, partSize, partNumber)
-        return ResponseEntity.status(HttpStatus.OK).body(videoList)
+        val videoDtoList = videoList.map {
+            it.toDto(
+                liking = LikingState.UNKNOWN,
+                sourceUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${it.videoId}/play",
+                coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${it.videoId}/cover"
+            )
+        }
+        return ResponseEntity.status(HttpStatus.OK).body(videoDtoList)
     }
 
     @GetMapping("/{videoId}/cover")
@@ -149,7 +163,41 @@ class VideoController @Autowired constructor(
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
         }
     }
+
+    private fun constructVideoDto(
+        videoInfo: VideoInfo,
+        userId: Long?,
+        request: HttpServletRequest
+    ): VideoDto {
+        val videoId = videoInfo.videoId
+        val likeState = if (userId != null) videoService.checkVideoLikeState(videoId, userId) else LikingState.UNKNOWN
+        return videoInfo.toDto(
+            liking = likeState,
+            sourceUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${videoId}/play",
+            coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${videoId}/cover"
+        )
+    }
+
+    private fun constructChannelDto(
+        channelInfo: ChannelInfo,
+        userId: Long?,
+        request: HttpServletRequest
+    ): ChannelDto {
+        val channelId = channelInfo.channelId
+        val subscriptionState = if (userId != null) {
+            when (channelService.checkIfSubscribed(channelId, userId)) {
+                true -> SubscriptionState.SUBSCRIBED
+                false -> SubscriptionState.NOT_SUBSCRIBED
+            }
+        } else SubscriptionState.UNKNOWN
+        return channelInfo.toDto(
+            subscription = subscriptionState,
+            avatarUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${channelInfo.channelId}/avatar",
+            coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${channelInfo.channelId}/cover"
+        )
+    }
 }
+
 
 //fun ExtendedVideoInfo.insertCoverUrl(request: HttpServletRequest): ExtendedVideoInfo {
 //    return this.copy(

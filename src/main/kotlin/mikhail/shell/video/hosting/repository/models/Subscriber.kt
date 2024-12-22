@@ -1,4 +1,4 @@
-package mikhail.shell.video.hosting.domain
+package mikhail.shell.video.hosting.repository.models
 
 import jakarta.persistence.Embeddable
 import jakarta.persistence.EmbeddedId

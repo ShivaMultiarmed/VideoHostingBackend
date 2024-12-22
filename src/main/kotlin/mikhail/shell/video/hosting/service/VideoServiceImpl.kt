@@ -2,68 +2,64 @@ package mikhail.shell.video.hosting.service
 
 import jakarta.transaction.Transactional
 import mikhail.shell.video.hosting.domain.*
-import mikhail.shell.video.hosting.dto.ExtendedVideoInfo
+import mikhail.shell.video.hosting.dto.VideoDto
 import mikhail.shell.video.hosting.repository.ChannelRepository
 import mikhail.shell.video.hosting.repository.SubscriberRepository
 import mikhail.shell.video.hosting.repository.UserLikeVideoRepository
 import mikhail.shell.video.hosting.repository.VideoRepository
+import mikhail.shell.video.hosting.repository.models.UserLikeVideo
+import mikhail.shell.video.hosting.repository.models.UserLikeVideoId
+import mikhail.shell.video.hosting.repository.models.toDomain
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.data.domain.PageRequest
-import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 
 @Service
 class VideoServiceImpl @Autowired constructor(
     private val videoRepository: VideoRepository,
-    private val channelRepository: ChannelRepository,
-    private val userLikeVideoRepository: UserLikeVideoRepository,
-    private val subscriberRepository: SubscriberRepository
+    private val userLikeVideoRepository: UserLikeVideoRepository
 ) : VideoService {
     override fun getVideoInfo(videoId: Long): VideoInfo {
-        return videoRepository.findById(videoId).orElseThrow()
+        return videoRepository.findById(videoId).orElseThrow().toDomain()
     }
 
-    override fun getExtendedVideoInfo(videoId: Long, userId: Long): ExtendedVideoInfo {
+    override fun checkVideoLikeState(videoId: Long, userId: Long): LikingState {
         val id = UserLikeVideoId(userId, videoId)
-        val liking = if (userLikeVideoRepository.existsById(id))
-            userLikeVideoRepository.findById(id).orElseThrow().liking
-        else
-            null
-        return ExtendedVideoInfo(videoRepository.findById(videoId).orElseThrow(), liking)
+        return userLikeVideoRepository.findById(id).orElse(null)?.liking?: LikingState.NONE
     }
 
     @Transactional
-    override fun rate(videoId: Long, userId: Long, liking: Boolean): ExtendedVideoInfo {
+    override fun rate(videoId: Long, userId: Long, likingState: LikingState): LikingState {
         val id = UserLikeVideoId(userId, videoId)
-        val videoInfo = videoRepository.findById(videoId).orElseThrow()
-        if (!userLikeVideoRepository.existsById(id)) {
-            userLikeVideoRepository.save(UserLikeVideo(id, liking))
-            if (liking) {
-                videoRepository.save(videoInfo.copy(likes = videoInfo.likes + 1))
-            } else {
-                videoRepository.save(videoInfo.copy(dislikes = videoInfo.dislikes + 1))
-            }
+        val previousLikingState = checkVideoLikeState(videoId, userId)
+        val videoEntity = videoRepository.findById(videoId).orElseThrow()
+        if (likingState != LikingState.NONE) {
+            userLikeVideoRepository.save(UserLikeVideo(id, likingState))
+        } else if (userLikeVideoRepository.existsById(id)) {
+            userLikeVideoRepository.deleteById(id)
+        }
+        var newLikes = videoEntity.likes
+        var newDislikes = videoEntity.dislikes
+        if (likingState == LikingState.LIKED) {
+            if (previousLikingState != LikingState.LIKED)
+                newLikes += 1
+            if (previousLikingState == LikingState.DISLIKED)
+                newDislikes -= 1
+        } else if (likingState == LikingState.DISLIKED) {
+            if (previousLikingState != LikingState.DISLIKED)
+                newDislikes += 1
+            if (previousLikingState == LikingState.LIKED)
+                newLikes -= 1
         } else {
-            val likeRow = userLikeVideoRepository.findById(id).get()
-            if (likeRow.liking) {
-                if (liking) {
-                    userLikeVideoRepository.deleteById(id)
-                } else {
-                    videoRepository.save(videoInfo.copy(dislikes = videoInfo.dislikes + 1))
-                    userLikeVideoRepository.save(UserLikeVideo(id, false))
-                }
-                videoRepository.save(videoInfo.copy(likes = videoInfo.likes - 1))
-            } else {
-                if (!liking) {
-                    userLikeVideoRepository.deleteById(id)
-                } else {
-                    videoRepository.save(videoInfo.copy(likes = videoInfo.likes + 1))
-                    userLikeVideoRepository.save(UserLikeVideo(id, true))
-                }
-                videoRepository.save(videoInfo.copy(dislikes = videoInfo.dislikes - 1))
+            if (previousLikingState == LikingState.LIKED) {
+                newLikes -= 1
+            }
+            if (previousLikingState == LikingState.DISLIKED) {
+                newDislikes -= 1
             }
         }
-        return getExtendedVideoInfo(videoId, userId)
+        videoRepository.save(videoEntity.copy(likes = newLikes, dislikes = newDislikes))
+        return checkVideoLikeState(videoId, userId)
     }
 
     override fun getVideosByChannelId(
@@ -77,6 +73,8 @@ class VideoServiceImpl @Autowired constructor(
                 partNumber.toInt() - 1,
                 partSize
             )
-        )
+        ).map {
+            it.toDomain()
+        }
     }
 }
