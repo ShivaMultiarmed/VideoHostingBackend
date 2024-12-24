@@ -12,18 +12,15 @@ import org.springframework.stereotype.Service
 class AuthService (
     private val jwtTokenUtil: JwtTokenUtil,
     private val authRepository: AuthRepository,
-    private val userRepository: UserRepository,
     private val passwordEncoder: PasswordEncoder
 ) {
     fun validateUsernameAndPassword(
-        username: String,
+        userName: String,
         password: String
     ): String {
-        val userId = userRepository.findByName(username).orElseThrow().userId
-        val id = CredentialId(userId, AuthenticationMethod.PASSWORD)
-        val credentials = authRepository.findById(id).orElseThrow()
+        val credentials = authRepository.findByUserNameAndId_Method(userName, AuthenticationMethod.PASSWORD).orElseThrow()
         if (passwordEncoder.matches(password, credentials.credential)) {
-            return jwtTokenUtil.generateToken(username)
+            return jwtTokenUtil.generateToken(credentials.id.userId.toString())
         } else throw Exception()
     }
 }

@@ -15,7 +15,8 @@ data class UserEntity(
 data class Credential(
     @EmbeddedId
     val id: CredentialId,
-    val credential: String
+    val credential: String,
+    val userName: String
 )
 
 @Embeddable
