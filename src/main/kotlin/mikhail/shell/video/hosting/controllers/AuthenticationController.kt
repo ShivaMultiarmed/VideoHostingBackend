@@ -1,5 +1,6 @@
 package mikhail.shell.video.hosting.controllers
 
+import mikhail.shell.video.hosting.domain.AuthModel
 import mikhail.shell.video.hosting.service.AuthService
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
@@ -15,7 +16,7 @@ class AuthenticationController(
     fun signInWithPassword(
         @RequestParam username: String,
         @RequestParam password: String
-    ): String {
+    ): AuthModel {
         return authService.validateUsernameAndPassword(username, password)
     }
 }

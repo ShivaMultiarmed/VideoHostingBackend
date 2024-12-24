@@ -25,9 +25,11 @@ class HostingSecurityConfiguration(
         return httpSecurity
             .csrf {
                 it.disable()
-            }.cors {
-                it.configurationSource(corsConfigurationSource())
-            }.authorizeHttpRequests {
+            }
+//            .cors {
+//                it.configurationSource(corsConfigurationSource())
+//            }
+            .authorizeHttpRequests {
                 it.requestMatchers("/api/v1/auth/signin/**", "/api/v1/auth/signup/**").permitAll()
                 it.requestMatchers("/**").authenticated()
             }.addFilterBefore(

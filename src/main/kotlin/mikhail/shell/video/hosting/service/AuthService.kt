@@ -1,5 +1,6 @@
 package mikhail.shell.video.hosting.service
 
+import mikhail.shell.video.hosting.domain.AuthModel
 import mikhail.shell.video.hosting.repository.AuthRepository
 import mikhail.shell.video.hosting.repository.AuthenticationMethod
 import mikhail.shell.video.hosting.repository.CredentialId
@@ -17,10 +18,11 @@ class AuthService (
     fun validateUsernameAndPassword(
         userName: String,
         password: String
-    ): String {
+    ): AuthModel {
         val credentials = authRepository.findByUserNameAndId_Method(userName, AuthenticationMethod.PASSWORD).orElseThrow()
-        if (passwordEncoder.matches(password, credentials.credential)) {
-            return jwtTokenUtil.generateToken(credentials.id.userId.toString())
+        return if (passwordEncoder.matches(password, credentials.credential)) {
+            val token = jwtTokenUtil.generateToken(credentials.id.userId.toString())
+            AuthModel(token, credentials.id.userId)
         } else throw Exception()
     }
 }
