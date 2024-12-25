@@ -2,11 +2,8 @@ package mikhail.shell.video.hosting.controllers
 
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
-import mikhail.shell.video.hosting.domain.ChannelInfo
-import mikhail.shell.video.hosting.domain.LikingState
-import mikhail.shell.video.hosting.domain.SubscriptionState
+import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.dto.VideoDto
-import mikhail.shell.video.hosting.domain.VideoInfo
 import mikhail.shell.video.hosting.dto.ChannelDto
 import mikhail.shell.video.hosting.dto.VideoDetailsDto
 import mikhail.shell.video.hosting.dto.toDto
@@ -49,8 +46,8 @@ class VideoController @Autowired constructor(
         val videoInfo = videoService.getVideoInfo(videoId)
         val channelInfo = channelService.provideChannelInfo(videoInfo.channelId)
         val videoDetailsDto = VideoDetailsDto(
-            videoDto = constructVideoDto(videoInfo, userId, request),
-            channelDto = constructChannelDto(channelInfo, userId, request)
+            video = constructVideoDto(videoInfo, userId, request),
+            channel = constructChannelDto(channelInfo, userId, request)
         )
         return ResponseEntity.ok(videoDetailsDto)
     }
@@ -166,13 +163,13 @@ class VideoController @Autowired constructor(
     }
 
     private fun constructVideoDto(
-        videoInfo: VideoInfo,
+        video: Video,
         userId: String?,
         request: HttpServletRequest
     ): VideoDto {
-        val videoId = videoInfo.videoId
+        val videoId = video.videoId
         val likeState = if (userId != null) videoService.checkVideoLikeState(videoId, userId) else LikingState.UNKNOWN
-        return videoInfo.toDto(
+        return video.toDto(
             liking = likeState,
             sourceUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${videoId}/play",
             coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${videoId}/cover"
@@ -180,22 +177,31 @@ class VideoController @Autowired constructor(
     }
 
     private fun constructChannelDto(
-        channelInfo: ChannelInfo,
+        channel: Channel,
         userId: String?,
         request: HttpServletRequest
     ): ChannelDto {
-        val channelId = channelInfo.channelId
+        val channelId = channel.channelId
         val subscriptionState = if (userId != null) {
             when (channelService.checkIfSubscribed(channelId, userId)) {
                 true -> SubscriptionState.SUBSCRIBED
                 false -> SubscriptionState.NOT_SUBSCRIBED
             }
         } else SubscriptionState.UNKNOWN
-        return channelInfo.toDto(
+        return channel.toDto(
             subscription = subscriptionState,
-            avatarUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${channelInfo.channelId}/avatar",
-            coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${channelInfo.channelId}/cover"
+            avatarUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${channel.channelId}/avatar",
+            coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${channel.channelId}/cover"
         )
+    }
+    @GetMapping("/search")
+    fun searchForVideos(
+        @RequestParam query: String,
+        @RequestParam partSize: Int = 10,
+        @RequestParam partNumber: Long = 0
+    ): ResponseEntity<List<VideoWithChannel>> {
+        val videos = videoService.getVideosByQuery(query, partSize, partNumber)
+        return ResponseEntity.status(HttpStatus.OK).body(videos)
     }
 }
 

@@ -4,19 +4,22 @@ import jakarta.transaction.Transactional
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.repository.UserLikeVideoRepository
 import mikhail.shell.video.hosting.repository.VideoRepository
+import mikhail.shell.video.hosting.repository.VideoWithChannelsRepository
 import mikhail.shell.video.hosting.repository.models.UserLikeVideo
 import mikhail.shell.video.hosting.repository.models.UserLikeVideoId
+import mikhail.shell.video.hosting.repository.models.VideoEntity
 import mikhail.shell.video.hosting.repository.models.toDomain
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 
 @Service
-class VideoServiceImpl @Autowired constructor(
+class VideoServiceWithDB @Autowired constructor(
     private val videoRepository: VideoRepository,
+    private val videoWithChannelsRepository: VideoWithChannelsRepository,
     private val userLikeVideoRepository: UserLikeVideoRepository
 ) : VideoService {
-    override fun getVideoInfo(videoId: Long): VideoInfo {
+    override fun getVideoInfo(videoId: Long): Video {
         return videoRepository.findById(videoId).orElseThrow().toDomain()
     }
 
@@ -26,7 +29,7 @@ class VideoServiceImpl @Autowired constructor(
     }
 
     @Transactional
-    override fun rate(videoId: Long, userId: String, likingState: LikingState): VideoInfo {
+    override fun rate(videoId: Long, userId: String, likingState: LikingState): Video {
         val id = UserLikeVideoId(userId, videoId)
         val previousLikingState = checkVideoLikeState(videoId, userId)
         val videoEntity = videoRepository.findById(videoId).orElseThrow()
@@ -55,7 +58,17 @@ class VideoServiceImpl @Autowired constructor(
                 newDislikes -= 1
             }
         }
-        videoRepository.save(videoEntity.copy(likes = newLikes, dislikes = newDislikes))
+        videoRepository.save(
+            VideoEntity(
+                videoEntity.videoId,
+                videoEntity.channelId,
+                videoEntity.title,
+                videoEntity.dateTime,
+                videoEntity.views,
+                videoEntity.likes,
+                videoEntity.dislikes,
+            )
+        )
         return videoRepository.findById(videoId).orElseThrow().toDomain()
     }
 
@@ -63,7 +76,7 @@ class VideoServiceImpl @Autowired constructor(
         channelId: Long,
         partSize: Int,
         partNumber: Long
-    ): List<VideoInfo> {
+    ): List<Video> {
         return videoRepository.findByChannelId(
             channelId,
             PageRequest.of(
@@ -71,6 +84,16 @@ class VideoServiceImpl @Autowired constructor(
                 partSize
             )
         ).map {
+            it.toDomain()
+        }
+    }
+
+    override fun getVideosByQuery(
+        query: String,
+        partSize: Int,
+        partNumber: Long
+    ): List<VideoWithChannel> {
+        return videoWithChannelsRepository.findByTitleLike("%$query%").map {
             it.toDomain()
         }
     }

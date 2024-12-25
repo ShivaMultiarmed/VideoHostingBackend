@@ -1,7 +1,6 @@
 package mikhail.shell.video.hosting.dto
 
-
 data class VideoDetailsDto(
-    val videoDto: VideoDto,
-    val channelDto: ChannelDto,
+    val video: VideoDto,
+    val channel: ChannelDto,
 )

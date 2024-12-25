@@ -1,6 +1,6 @@
 package mikhail.shell.video.hosting.domain
 
-data class ChannelInfo(
+data class Channel(
     val channelId: Long,
     val ownerId: String,
     val title: String,

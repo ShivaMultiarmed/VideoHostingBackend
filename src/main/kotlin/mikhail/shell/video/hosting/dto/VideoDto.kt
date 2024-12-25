@@ -1,7 +1,7 @@
 package mikhail.shell.video.hosting.dto
 
 import mikhail.shell.video.hosting.domain.LikingState
-import mikhail.shell.video.hosting.domain.VideoInfo
+import mikhail.shell.video.hosting.domain.Video
 import java.time.LocalDateTime
 
 data class VideoDto(
@@ -17,7 +17,7 @@ data class VideoDto(
     val coverUrl: String
 )
 
-fun VideoInfo.toDto(
+fun Video.toDto(
     liking: LikingState,
     sourceUrl: String,
     coverUrl: String
@@ -34,7 +34,7 @@ fun VideoInfo.toDto(
     coverUrl
 )
 
-fun VideoDto.toDomain() = VideoInfo(
+fun VideoDto.toDomain() = Video(
     videoId,
     channelId,
     title,

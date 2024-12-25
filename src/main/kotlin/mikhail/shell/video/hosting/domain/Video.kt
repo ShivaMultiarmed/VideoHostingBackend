@@ -2,7 +2,7 @@ package mikhail.shell.video.hosting.domain
 
 import java.time.LocalDateTime
 
-data class VideoInfo(
+class Video(
     val videoId: Long,
     val channelId: Long,
     val title: String,
@@ -11,3 +11,9 @@ data class VideoInfo(
     val likes: Long,
     val dislikes: Long
 )
+
+class VideoWithChannel(
+    val video: Video,
+    val channel: Channel
+)
+

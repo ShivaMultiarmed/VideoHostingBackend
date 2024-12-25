@@ -1,6 +1,6 @@
 package mikhail.shell.video.hosting.dto
 
-import mikhail.shell.video.hosting.domain.ChannelInfo
+import mikhail.shell.video.hosting.domain.Channel
 import mikhail.shell.video.hosting.domain.SubscriptionState
 
 data class ChannelDto(
@@ -16,7 +16,7 @@ data class ChannelDto(
 )
 
 
-fun ChannelInfo.toDto(
+fun Channel.toDto(
     subscription: SubscriptionState,
     coverUrl: String,
     avatarUrl: String

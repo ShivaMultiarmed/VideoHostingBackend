@@ -1,7 +1,7 @@
 package mikhail.shell.video.hosting.controllers
 
 import jakarta.servlet.http.HttpServletRequest
-import mikhail.shell.video.hosting.domain.ChannelInfo
+import mikhail.shell.video.hosting.domain.Channel
 import mikhail.shell.video.hosting.domain.SubscriptionState
 import mikhail.shell.video.hosting.dto.ChannelDto
 import mikhail.shell.video.hosting.dto.toDto
@@ -62,21 +62,21 @@ class ChannelController @Autowired constructor(
         }
     }
     private fun constructChannelDto(
-        channelInfo: ChannelInfo,
+        channel: Channel,
         userId: String?,
         request: HttpServletRequest
     ): ChannelDto {
-        val channelId = channelInfo.channelId
+        val channelId = channel.channelId
         val subscriptionState = if (userId != null) {
             when(channelService.checkIfSubscribed(channelId, userId)) {
                 true -> SubscriptionState.SUBSCRIBED
                 false -> SubscriptionState.NOT_SUBSCRIBED
             }
         } else SubscriptionState.UNKNOWN
-        return channelInfo.toDto(
+        return channel.toDto(
             subscription = subscriptionState,
-            avatarUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${channelInfo.channelId}/avatar",
-            coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${channelInfo.channelId}/cover"
+            avatarUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${channel.channelId}/avatar",
+            coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${channel.channelId}/cover"
         )
     }
 }
