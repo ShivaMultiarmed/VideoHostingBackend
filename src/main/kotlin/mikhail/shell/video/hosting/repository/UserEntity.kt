@@ -1,14 +1,18 @@
 package mikhail.shell.video.hosting.repository
 
 import jakarta.persistence.*
+import mikhail.shell.video.hosting.domain.User
 
 @Entity
 @Table(name = "users")
 data class UserEntity(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    val userId: Long,
+    val userId: Long?,
     val name: String
 )
+
+fun User.toEntity() = UserEntity(userId,name)
+fun UserEntity.toDomain() = User(userId,name)
 
 @Entity
 @Table(name = "credentials")

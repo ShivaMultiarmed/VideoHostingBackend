@@ -1,8 +1,12 @@
 package mikhail.shell.video.hosting.controllers
 
 import mikhail.shell.video.hosting.domain.AuthModel
+import mikhail.shell.video.hosting.dto.SignUpDto
+import mikhail.shell.video.hosting.dto.UserDto
+import mikhail.shell.video.hosting.dto.toDomain
 import mikhail.shell.video.hosting.service.AuthService
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
@@ -17,6 +21,17 @@ class AuthenticationController(
         @RequestParam username: String,
         @RequestParam password: String
     ): AuthModel {
-        return authService.validateUsernameAndPassword(username, password)
+        return authService.signInWithPassword(username, password)
+    }
+    @PostMapping("/signup/password")
+    fun signUpWithPassword(
+        @RequestBody signUpDto: SignUpDto
+    ): AuthModel {
+
+        return authService.signUpWithPassword(
+            signUpDto.userName,
+            signUpDto.password,
+            signUpDto.userDto.toDomain()
+        )
     }
 }

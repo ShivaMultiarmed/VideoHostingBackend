@@ -7,4 +7,5 @@ import java.util.Optional
 @Repository
 interface AuthRepository: JpaRepository<Credential, CredentialId> {
     fun findByUserNameAndId_Method(userName: String, method: AuthenticationMethod): Optional<Credential>
+    fun existsByUserNameAndId_Method(userName: String, method: AuthenticationMethod): Boolean
 }
