@@ -9,12 +9,12 @@ import java.io.Serializable
 data class UserLikeVideo(
     @EmbeddedId val id: UserLikeVideoId,
     @Enumerated(value = EnumType.STRING)
-    val liking: LikingState
+    val likingState: LikingState
 )
 
 @Embeddable
 data class UserLikeVideoId(
-    val userId: Long,
+    val userId: String,
     val videoId: Long,
 ): Serializable
 

@@ -5,7 +5,7 @@ import mikhail.shell.video.hosting.domain.SubscriptionState
 
 data class ChannelDto(
     val channelId: Long,
-    val ownerId: Long,
+    val ownerId: String,
     val title: String,
     val alias: String,
     val description: String,

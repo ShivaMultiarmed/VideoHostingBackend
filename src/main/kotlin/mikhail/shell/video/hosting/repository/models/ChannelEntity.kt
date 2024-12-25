@@ -8,7 +8,7 @@ import mikhail.shell.video.hosting.domain.ChannelInfo
 data class ChannelEntity(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     val channelId: Long,
-    val ownerId: Long,
+    val ownerId: String,
     val title: String,
     val alias: String,
     val description: String,

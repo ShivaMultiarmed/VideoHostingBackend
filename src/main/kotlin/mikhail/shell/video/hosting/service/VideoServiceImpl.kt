@@ -2,9 +2,6 @@ package mikhail.shell.video.hosting.service
 
 import jakarta.transaction.Transactional
 import mikhail.shell.video.hosting.domain.*
-import mikhail.shell.video.hosting.dto.VideoDto
-import mikhail.shell.video.hosting.repository.ChannelRepository
-import mikhail.shell.video.hosting.repository.SubscriberRepository
 import mikhail.shell.video.hosting.repository.UserLikeVideoRepository
 import mikhail.shell.video.hosting.repository.VideoRepository
 import mikhail.shell.video.hosting.repository.models.UserLikeVideo
@@ -23,13 +20,13 @@ class VideoServiceImpl @Autowired constructor(
         return videoRepository.findById(videoId).orElseThrow().toDomain()
     }
 
-    override fun checkVideoLikeState(videoId: Long, userId: Long): LikingState {
+    override fun checkVideoLikeState(videoId: Long, userId: String): LikingState {
         val id = UserLikeVideoId(userId, videoId)
-        return userLikeVideoRepository.findById(id).orElse(null)?.liking?: LikingState.NONE
+        return userLikeVideoRepository.findById(id).orElse(null)?.likingState?: LikingState.NONE
     }
 
     @Transactional
-    override fun rate(videoId: Long, userId: Long, likingState: LikingState): VideoInfo {
+    override fun rate(videoId: Long, userId: String, likingState: LikingState): VideoInfo {
         val id = UserLikeVideoId(userId, videoId)
         val previousLikingState = checkVideoLikeState(videoId, userId)
         val videoEntity = videoRepository.findById(videoId).orElseThrow()

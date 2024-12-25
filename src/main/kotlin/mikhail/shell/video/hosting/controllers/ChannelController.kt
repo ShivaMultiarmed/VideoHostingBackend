@@ -7,7 +7,6 @@ import mikhail.shell.video.hosting.dto.ChannelDto
 import mikhail.shell.video.hosting.dto.toDto
 import mikhail.shell.video.hosting.service.ChannelService
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.data.repository.query.Param
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
@@ -26,7 +25,7 @@ class ChannelController @Autowired constructor(
     @GetMapping("/{channelId}")
     fun provideChannelInfo(
         request: HttpServletRequest,
-        @RequestParam userId: Long? = null,
+        @RequestParam userId: String? = null,
         @PathVariable channelId: Long
     ): ResponseEntity<ChannelDto> {
         val channelInfo = channelService.provideChannelInfo(channelId)
@@ -64,7 +63,7 @@ class ChannelController @Autowired constructor(
     }
     private fun constructChannelDto(
         channelInfo: ChannelInfo,
-        userId: Long?,
+        userId: String?,
         request: HttpServletRequest
     ): ChannelDto {
         val channelId = channelInfo.channelId

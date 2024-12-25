@@ -33,7 +33,7 @@ class VideoController @Autowired constructor(
     fun getVideoDto(
         request: HttpServletRequest,
         @PathVariable videoId: Long,
-        @RequestParam userId: Long? = null
+        @RequestParam userId: String? = null
     ): ResponseEntity<VideoDto> {
         val videoInfo = videoService.getVideoInfo(videoId)
         val videoDto = constructVideoDto(videoInfo, userId, request)
@@ -44,7 +44,7 @@ class VideoController @Autowired constructor(
     fun getVideoDetails(
         request: HttpServletRequest,
         @PathVariable videoId: Long,
-        @RequestParam userId: Long
+        @RequestParam userId: String
     ): ResponseEntity<VideoDetailsDto> {
         val videoInfo = videoService.getVideoInfo(videoId)
         val channelInfo = channelService.provideChannelInfo(videoInfo.channelId)
@@ -59,7 +59,7 @@ class VideoController @Autowired constructor(
     fun rateVideo(
         request: HttpServletRequest,
         @PathVariable videoId: Long,
-        @RequestParam userId: Long,
+        @RequestParam userId: String,
         @RequestParam likingState: LikingState
     ): ResponseEntity<VideoDto> {
         val videoInfo = videoService.rate(videoId, userId, likingState)
@@ -167,7 +167,7 @@ class VideoController @Autowired constructor(
 
     private fun constructVideoDto(
         videoInfo: VideoInfo,
-        userId: Long?,
+        userId: String?,
         request: HttpServletRequest
     ): VideoDto {
         val videoId = videoInfo.videoId
@@ -181,7 +181,7 @@ class VideoController @Autowired constructor(
 
     private fun constructChannelDto(
         channelInfo: ChannelInfo,
-        userId: Long?,
+        userId: String?,
         request: HttpServletRequest
     ): ChannelDto {
         val channelId = channelInfo.channelId
