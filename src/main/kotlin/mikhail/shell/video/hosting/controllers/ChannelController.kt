@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest
 import mikhail.shell.video.hosting.domain.Channel
 import mikhail.shell.video.hosting.domain.SubscriptionState
 import mikhail.shell.video.hosting.dto.ChannelDto
+import mikhail.shell.video.hosting.dto.ChannelWithUserDto
 import mikhail.shell.video.hosting.dto.toDto
 import mikhail.shell.video.hosting.service.ChannelService
 import org.springframework.beans.factory.annotation.Autowired
@@ -22,14 +23,17 @@ import java.io.File
 class ChannelController @Autowired constructor(
     private val channelService: ChannelService
 ) {
-    @GetMapping("/{channelId}")
+    @GetMapping("/{channelId}/details")
     fun provideChannelInfo(
         request: HttpServletRequest,
-        @RequestParam userId: String? = null,
+        @RequestParam userId: Long,
         @PathVariable channelId: Long
-    ): ResponseEntity<ChannelDto> {
-        val channelInfo = channelService.provideChannelInfo(channelId)
-        val channelDto = constructChannelDto(channelInfo, userId, request)
+    ): ResponseEntity<ChannelWithUserDto> {
+        val channelForUser = channelService.provideChannelForUser(channelId, userId)
+        val channelDto = channelForUser.toDto(
+            avatarUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${channelForUser.channelId}/avatar",
+            coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${channelForUser.channelId}/cover"
+        )
         return ResponseEntity.status(HttpStatus.OK).body(channelDto)
     }
 
@@ -63,18 +67,10 @@ class ChannelController @Autowired constructor(
     }
     private fun constructChannelDto(
         channel: Channel,
-        userId: String?,
         request: HttpServletRequest
     ): ChannelDto {
         val channelId = channel.channelId
-        val subscriptionState = if (userId != null) {
-            when(channelService.checkIfSubscribed(channelId, userId)) {
-                true -> SubscriptionState.SUBSCRIBED
-                false -> SubscriptionState.NOT_SUBSCRIBED
-            }
-        } else SubscriptionState.UNKNOWN
         return channel.toDto(
-            subscription = subscriptionState,
             avatarUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${channel.channelId}/avatar",
             coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${channel.channelId}/cover"
         )

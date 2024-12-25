@@ -1,9 +1,36 @@
 package mikhail.shell.video.hosting.dto
 
 import mikhail.shell.video.hosting.domain.Channel
+import mikhail.shell.video.hosting.domain.ChannelWithUser
 import mikhail.shell.video.hosting.domain.SubscriptionState
 
 data class ChannelDto(
+    val channelId: Long,
+    val ownerId: String,
+    val title: String,
+    val alias: String,
+    val description: String,
+    val subscribers: Long,
+    val coverUrl: String,
+    val avatarUrl: String
+)
+
+
+fun Channel.toDto(
+    coverUrl: String,
+    avatarUrl: String
+) = ChannelDto(
+    channelId,
+    ownerId,
+    title,
+    alias,
+    description,
+    subscribers,
+    coverUrl,
+    avatarUrl
+)
+
+data class ChannelWithUserDto(
     val channelId: Long,
     val ownerId: String,
     val title: String,
@@ -15,12 +42,10 @@ data class ChannelDto(
     val avatarUrl: String
 )
 
-
-fun Channel.toDto(
-    subscription: SubscriptionState,
+fun ChannelWithUser.toDto(
     coverUrl: String,
     avatarUrl: String
-) = ChannelDto(
+) = ChannelWithUserDto(
     channelId,
     ownerId,
     title,

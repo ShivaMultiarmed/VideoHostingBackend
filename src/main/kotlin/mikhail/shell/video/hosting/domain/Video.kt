@@ -17,3 +17,14 @@ class VideoWithChannel(
     val channel: Channel
 )
 
+data class VideoWithUser(
+    val videoId: Long,
+    val channelId: Long,
+    val title: String,
+    val dateTime: LocalDateTime,
+    val views: Long,
+    val likes: Long,
+    val dislikes: Long,
+    val liking: LikingState
+)
+

@@ -23,6 +23,26 @@ class VideoServiceWithDB @Autowired constructor(
         return videoRepository.findById(videoId).orElseThrow().toDomain()
     }
 
+    override fun getVideoForUser(videoId: Long, userId: Long): VideoWithUser {
+        val v = videoRepository.findById(videoId).orElseThrow()
+        val likingId = UserLikeVideoId(userId.toString(),videoId)
+
+        val liking = if (userLikeVideoRepository.existsById(likingId))
+            LikingState.NONE
+        else userLikeVideoRepository.findById(likingId).orElseThrow().likingState
+
+        return VideoWithUser(
+            v.videoId,
+            v.channelId,
+            v.title,
+            v.dateTime,
+            v.views,
+            v.likes,
+            v.dislikes,
+            liking
+        )
+    }
+
     override fun checkVideoLikeState(videoId: Long, userId: String): LikingState {
         val id = UserLikeVideoId(userId, videoId)
         return userLikeVideoRepository.findById(id).orElse(null)?.likingState?: LikingState.NONE

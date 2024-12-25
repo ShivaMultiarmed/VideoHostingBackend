@@ -3,10 +3,7 @@ package mikhail.shell.video.hosting.controllers
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import mikhail.shell.video.hosting.domain.*
-import mikhail.shell.video.hosting.dto.VideoDto
-import mikhail.shell.video.hosting.dto.ChannelDto
-import mikhail.shell.video.hosting.dto.VideoDetailsDto
-import mikhail.shell.video.hosting.dto.toDto
+import mikhail.shell.video.hosting.dto.*
 import mikhail.shell.video.hosting.service.ChannelService
 import mikhail.shell.video.hosting.service.VideoService
 import org.springframework.beans.factory.annotation.Autowired
@@ -29,11 +26,10 @@ class VideoController @Autowired constructor(
     @GetMapping("/{videoId}")
     fun getVideoDto(
         request: HttpServletRequest,
-        @PathVariable videoId: Long,
-        @RequestParam userId: String? = null
+        @PathVariable videoId: Long
     ): ResponseEntity<VideoDto> {
         val videoInfo = videoService.getVideoInfo(videoId)
-        val videoDto = constructVideoDto(videoInfo, userId, request)
+        val videoDto = constructVideoDto(videoInfo, request)
         return ResponseEntity.ok(videoDto)
     }
 
@@ -41,13 +37,19 @@ class VideoController @Autowired constructor(
     fun getVideoDetails(
         request: HttpServletRequest,
         @PathVariable videoId: Long,
-        @RequestParam userId: String
+        @RequestParam userId: Long
     ): ResponseEntity<VideoDetailsDto> {
-        val videoInfo = videoService.getVideoInfo(videoId)
-        val channelInfo = channelService.provideChannelInfo(videoInfo.channelId)
+        val videoDto = videoService.getVideoForUser(videoId, userId).toDto(
+            sourceUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${videoId}/play",
+            coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${videoId}/cover"
+        )
+        val channelDto = channelService.provideChannelForUser(videoDto.channelId, userId).toDto(
+            avatarUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${videoDto.channelId}/avatar",
+            coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${videoDto.channelId}/cover"
+        )
         val videoDetailsDto = VideoDetailsDto(
-            video = constructVideoDto(videoInfo, userId, request),
-            channel = constructChannelDto(channelInfo, userId, request)
+            video = videoDto,
+            channel = channelDto
         )
         return ResponseEntity.ok(videoDetailsDto)
     }
@@ -60,7 +62,7 @@ class VideoController @Autowired constructor(
         @RequestParam likingState: LikingState
     ): ResponseEntity<VideoDto> {
         val videoInfo = videoService.rate(videoId, userId, likingState)
-        val videoDto = constructVideoDto(videoInfo, userId, request)
+        val videoDto = constructVideoDto(videoInfo, request)
         return ResponseEntity.ok(videoDto)
     }
 
@@ -137,7 +139,6 @@ class VideoController @Autowired constructor(
         val videoList = videoService.getVideosByChannelId(channelId, partSize, partNumber)
         val videoDtoList = videoList.map {
             it.toDto(
-                liking = LikingState.UNKNOWN,
                 sourceUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${it.videoId}/play",
                 coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${it.videoId}/cover"
             )
@@ -164,13 +165,10 @@ class VideoController @Autowired constructor(
 
     private fun constructVideoDto(
         video: Video,
-        userId: String?,
         request: HttpServletRequest
     ): VideoDto {
         val videoId = video.videoId
-        val likeState = if (userId != null) videoService.checkVideoLikeState(videoId, userId) else LikingState.UNKNOWN
         return video.toDto(
-            liking = likeState,
             sourceUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${videoId}/play",
             coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${videoId}/cover"
         )
@@ -178,30 +176,34 @@ class VideoController @Autowired constructor(
 
     private fun constructChannelDto(
         channel: Channel,
-        userId: String?,
         request: HttpServletRequest
     ): ChannelDto {
         val channelId = channel.channelId
-        val subscriptionState = if (userId != null) {
-            when (channelService.checkIfSubscribed(channelId, userId)) {
-                true -> SubscriptionState.SUBSCRIBED
-                false -> SubscriptionState.NOT_SUBSCRIBED
-            }
-        } else SubscriptionState.UNKNOWN
         return channel.toDto(
-            subscription = subscriptionState,
             avatarUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${channel.channelId}/avatar",
             coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${channel.channelId}/cover"
         )
     }
     @GetMapping("/search")
     fun searchForVideos(
+        request: HttpServletRequest,
         @RequestParam query: String,
         @RequestParam partSize: Int = 10,
         @RequestParam partNumber: Long = 0
-    ): ResponseEntity<List<VideoWithChannel>> {
-        val videos = videoService.getVideosByQuery(query, partSize, partNumber)
-        return ResponseEntity.status(HttpStatus.OK).body(videos)
+    ): ResponseEntity<List<VideoWithChannelDto>> {
+        val videoDtos = videoService.getVideosByQuery(query, partSize, partNumber).map {
+            VideoWithChannelDto(
+                video = it.video.toDto(
+                    sourceUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${it.video.videoId}/play",
+                    coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${it.video.videoId}/cover"
+                ),
+                 channel = it.channel.toDto(
+                     avatarUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${it.channel.channelId}/avatar",
+                     coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${it.channel.channelId}/cover"
+                 )
+            )
+        }
+        return ResponseEntity.status(HttpStatus.OK).body(videoDtos)
     }
 }
 

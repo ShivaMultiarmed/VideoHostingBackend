@@ -1,6 +1,8 @@
 package mikhail.shell.video.hosting.service
 
 import mikhail.shell.video.hosting.domain.Channel
+import mikhail.shell.video.hosting.domain.ChannelWithUser
+import mikhail.shell.video.hosting.domain.SubscriptionState
 import mikhail.shell.video.hosting.repository.models.SubscriberId
 import mikhail.shell.video.hosting.repository.ChannelRepository
 import mikhail.shell.video.hosting.repository.SubscriberRepository
@@ -18,6 +20,21 @@ class ChannelServiceImpl @Autowired constructor(
         channelId: Long
     ): Channel {
         return channelRepository.findById(channelId).orElseThrow().toDomain()
+    }
+
+    override fun provideChannelForUser(channelId: Long, userId: Long): ChannelWithUser {
+        val channel = channelRepository.findById(channelId).orElseThrow()
+        val subscription = if (subscriberRepository.existsById(SubscriberId(channelId, userId.toString())))
+            SubscriptionState.SUBSCRIBED else SubscriptionState.NOT_SUBSCRIBED
+        return ChannelWithUser(
+            channel.channelId,
+            channel.ownerId,
+            channel.title,
+            channel.alias,
+            channel.description,
+            channel.subscribers,
+            subscription
+        )
     }
 
     override fun checkIfSubscribed(channelId: Long, userId: String): Boolean {
