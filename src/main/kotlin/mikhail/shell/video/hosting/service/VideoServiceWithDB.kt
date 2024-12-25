@@ -65,8 +65,8 @@ class VideoServiceWithDB @Autowired constructor(
                 videoEntity.title,
                 videoEntity.dateTime,
                 videoEntity.views,
-                videoEntity.likes,
-                videoEntity.dislikes,
+                newLikes,
+                newDislikes,
             )
         )
         return videoRepository.findById(videoId).orElseThrow().toDomain()
