@@ -5,13 +5,11 @@ import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.repository.UserLikeVideoRepository
 import mikhail.shell.video.hosting.repository.VideoRepository
 import mikhail.shell.video.hosting.repository.VideoWithChannelsRepository
-import mikhail.shell.video.hosting.repository.models.UserLikeVideo
-import mikhail.shell.video.hosting.repository.models.UserLikeVideoId
-import mikhail.shell.video.hosting.repository.models.VideoEntity
-import mikhail.shell.video.hosting.repository.models.toDomain
+import mikhail.shell.video.hosting.repository.models.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
+import java.io.File
 
 @Service
 class VideoServiceWithDB @Autowired constructor(
@@ -19,15 +17,22 @@ class VideoServiceWithDB @Autowired constructor(
     private val videoWithChannelsRepository: VideoWithChannelsRepository,
     private val userLikeVideoRepository: UserLikeVideoRepository
 ) : VideoService {
+
+    companion object {
+        private const val VIDEOS_BASE_PATH = "D:/VideoHostingStorage/videos"
+        private const val VIDEOS_PLAYABLES_BASE_PATH = "$VIDEOS_BASE_PATH/playables"
+        private const val VIDEOS_COVERS_BASE_PATH = "$VIDEOS_BASE_PATH/covers"
+    }
+
     override fun getVideoInfo(videoId: Long): Video {
         return videoRepository.findById(videoId).orElseThrow().toDomain()
     }
 
     override fun getVideoForUser(videoId: Long, userId: Long): VideoWithUser {
         val v = videoRepository.findById(videoId).orElseThrow()
-        val likingId = UserLikeVideoId(userId.toString(),videoId)
+        val likingId = UserLikeVideoId(userId,videoId)
 
-        val liking = if (userLikeVideoRepository.existsById(likingId))
+        val liking = if (!userLikeVideoRepository.existsById(likingId))
             LikingState.NONE
         else userLikeVideoRepository.findById(likingId).orElseThrow().likingState
 
@@ -43,13 +48,13 @@ class VideoServiceWithDB @Autowired constructor(
         )
     }
 
-    override fun checkVideoLikeState(videoId: Long, userId: String): LikingState {
+    override fun checkVideoLikeState(videoId: Long, userId: Long): LikingState {
         val id = UserLikeVideoId(userId, videoId)
         return userLikeVideoRepository.findById(id).orElse(null)?.likingState?: LikingState.NONE
     }
 
     @Transactional
-    override fun rate(videoId: Long, userId: String, likingState: LikingState): Video {
+    override fun rate(videoId: Long, userId: Long, likingState: LikingState): Video {
         val id = UserLikeVideoId(userId, videoId)
         val previousLikingState = checkVideoLikeState(videoId, userId)
         val videoEntity = videoRepository.findById(videoId).orElseThrow()
@@ -107,7 +112,6 @@ class VideoServiceWithDB @Autowired constructor(
             it.toDomain()
         }
     }
-
     override fun getVideosByQuery(
         query: String,
         partSize: Int,
@@ -116,5 +120,11 @@ class VideoServiceWithDB @Autowired constructor(
         return videoWithChannelsRepository.findByTitleLike("%$query%").map {
             it.toDomain()
         }
+    }
+    override fun uploadVideo(video: Video, coverContent: ByteArray?, sourceContent: ByteArray): Video {
+        val addedVideo = videoRepository.save(video.toEntity()).toDomain()
+        val sourceFile = File("$VIDEOS_PLAYABLES_BASE_PATH/${addedVideo.videoId}.mp4").writeBytes(sourceContent)
+        val coverFile = File("$VIDEOS_COVERS_BASE_PATH/${addedVideo.videoId}.mp4").writeBytes(sourceContent)
+        return addedVideo
     }
 }

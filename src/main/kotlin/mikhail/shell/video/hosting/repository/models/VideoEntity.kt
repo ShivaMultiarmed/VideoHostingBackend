@@ -11,13 +11,13 @@ import java.time.LocalDateTime
 @Table(name = "videos")
 class VideoEntity(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "video_id") val videoId: Long,
+    @Column(name = "video_id") val videoId: Long? = null,
     @Column(name = "channel_id") val channelId: Long,
     val title: String,
-    val dateTime: LocalDateTime,
-    val views: Long,
-    val likes: Long,
-    val dislikes: Long
+    val dateTime: LocalDateTime = LocalDateTime.now(),
+    val views: Long = 0,
+    val likes: Long = 0,
+    val dislikes: Long = 0
 )
 
 fun VideoEntity.toDomain() = Video(
@@ -43,7 +43,7 @@ fun Video.toEntity() = VideoEntity(
 @Table(name = "videos")
 class VideoWithChannelEntity(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "video_id") val videoId: Long,
+    @Column(name = "video_id") val videoId: Long? = null,
     @Column(name = "channel_id") val channelId: Long,
     val title: String,
     val dateTime: LocalDateTime,

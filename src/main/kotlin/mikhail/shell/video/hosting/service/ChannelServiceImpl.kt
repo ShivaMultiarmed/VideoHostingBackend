@@ -46,4 +46,8 @@ class ChannelServiceImpl @Autowired constructor(
     override fun createChannel(channel: Channel): Channel {
         return channelRepository.save(channel.toEntity()).toDomain()
     }
+
+    override fun getChannelsByOwnerId(userId: Long): List<Channel> {
+        return channelRepository.findByOwnerId(userId).map { it.toDomain() }
+    }
 }

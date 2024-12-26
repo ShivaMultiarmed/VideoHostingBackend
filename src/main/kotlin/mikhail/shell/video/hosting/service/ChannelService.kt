@@ -18,4 +18,7 @@ interface ChannelService {
     fun createChannel(
         channel: Channel
     ): Channel
+    fun getChannelsByOwnerId(
+        userId: Long
+    ): List<Channel>
 }

@@ -14,7 +14,7 @@ data class UserLikeVideo(
 
 @Embeddable
 data class UserLikeVideoId(
-    val userId: String,
+    val userId: Long,
     val videoId: Long,
 ): Serializable
 

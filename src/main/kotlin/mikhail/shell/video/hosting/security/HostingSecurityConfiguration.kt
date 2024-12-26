@@ -30,24 +30,25 @@ class HostingSecurityConfiguration(
 //                it.configurationSource(corsConfigurationSource())
 //            }
             .authorizeHttpRequests {
-                it.requestMatchers("/api/v1/auth/signin/**", "/api/v1/auth/signup/**").permitAll()
+                it.requestMatchers(
+                    "/api/v1/auth/signin/**",
+                    "/api/v1/auth/signup/**",
+                    "/error"
+                ).permitAll()
                 it.requestMatchers("/**").authenticated()
             }.addFilterBefore(
                 jwtTokenFilter,
                 UsernamePasswordAuthenticationFilter::class.java
             ).build()
     }
-
     @Bean
     fun passwordEncoder(): PasswordEncoder {
         return BCryptPasswordEncoder()
     }
-
     @Bean
     fun authenticationManager(configuration: AuthenticationConfiguration): AuthenticationManager {
         return configuration.authenticationManager
     }
-
     @Bean
     fun corsConfigurationSource(): CorsConfigurationSource {
         val configuration = CorsConfiguration()

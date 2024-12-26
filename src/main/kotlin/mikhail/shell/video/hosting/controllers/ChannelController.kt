@@ -1,7 +1,6 @@
 package mikhail.shell.video.hosting.controllers
 
 import jakarta.servlet.http.HttpServletRequest
-import mikhail.shell.video.hosting.domain.Channel
 import mikhail.shell.video.hosting.dto.ChannelDto
 import mikhail.shell.video.hosting.dto.ChannelWithUserDto
 import mikhail.shell.video.hosting.dto.toDomain
@@ -48,11 +47,13 @@ class ChannelController @Autowired constructor(
             if (!image.exists()) {
                 ResponseEntity.status(HttpStatus.NOT_FOUND).build<ByteArray>()
             }
-            ResponseEntity.status(HttpStatus.OK).contentType(MediaType.IMAGE_PNG).body(image.inputStream().readAllBytes())
+            ResponseEntity.status(HttpStatus.OK).contentType(MediaType.IMAGE_PNG)
+                .body(image.inputStream().readAllBytes())
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
         }
     }
+
     @GetMapping("/{channelId}/avatar")
     fun provideChannelAvatar(
         @PathVariable channelId: Long
@@ -62,20 +63,11 @@ class ChannelController @Autowired constructor(
             if (!image.exists()) {
                 ResponseEntity.status(HttpStatus.NOT_FOUND).build<ByteArray>()
             }
-            ResponseEntity.status(HttpStatus.OK).contentType(MediaType.IMAGE_PNG).body(image.inputStream().readAllBytes())
+            ResponseEntity.status(HttpStatus.OK).contentType(MediaType.IMAGE_PNG)
+                .body(image.inputStream().readAllBytes())
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
         }
-    }
-    private fun constructChannelDto(
-        channel: Channel,
-        request: HttpServletRequest
-    ): ChannelDto {
-        val channelId = channel.channelId
-        return channel.toDto(
-            avatarUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${channel.channelId}/avatar",
-            coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${channel.channelId}/cover"
-        )
     }
 
     @PostMapping("/create")
@@ -85,5 +77,20 @@ class ChannelController @Autowired constructor(
     ): ResponseEntity<ChannelDto> {
         val createdChannel = channelService.createChannel(channel.toDomain())
         return ResponseEntity.status(HttpStatus.OK).body(createdChannel.toDto())
+    }
+
+    @GetMapping("/owner/{userId}")
+    fun getAllChannelsByOwnerId(
+        request: HttpServletRequest,
+        @PathVariable userId: Long
+    ): ResponseEntity<List<ChannelDto>> {
+        val channels = channelService.getChannelsByOwnerId(userId)
+        val channelDtos = channels.map {
+            it.toDto(
+                avatarUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${it.channelId}/avatar",
+                coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${it.channelId}/cover"
+            )
+        }
+        return ResponseEntity.status(HttpStatus.OK).body(channelDtos)
     }
 }

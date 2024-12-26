@@ -14,6 +14,7 @@ import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException
+import org.springframework.web.multipart.MultipartFile
 import java.io.File
 import java.io.RandomAccessFile
 
@@ -58,7 +59,7 @@ class VideoController @Autowired constructor(
     fun rateVideo(
         request: HttpServletRequest,
         @PathVariable videoId: Long,
-        @RequestParam userId: String,
+        @RequestParam userId: Long,
         @RequestParam likingState: LikingState
     ): ResponseEntity<VideoDto> {
         val videoInfo = videoService.rate(videoId, userId, likingState)
@@ -184,6 +185,7 @@ class VideoController @Autowired constructor(
             coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${channel.channelId}/cover"
         )
     }
+
     @GetMapping("/search")
     fun searchForVideos(
         request: HttpServletRequest,
@@ -197,13 +199,40 @@ class VideoController @Autowired constructor(
                     sourceUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${it.video.videoId}/play",
                     coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${it.video.videoId}/cover"
                 ),
-                 channel = it.channel.toDto(
-                     avatarUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${it.channel.channelId}/avatar",
-                     coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${it.channel.channelId}/cover"
-                 )
+                channel = it.channel.toDto(
+                    avatarUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${it.channel.channelId}/avatar",
+                    coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${it.channel.channelId}/cover"
+                )
             )
         }
         return ResponseEntity.status(HttpStatus.OK).body(videoDtos)
+    }
+
+    @PostMapping(
+        path = ["/upload"],
+        consumes = [
+            "multipart/form-data",
+        ]
+    )
+    fun uploadVideo(
+        request: HttpServletRequest,
+        @RequestPart("video") videoDto: VideoDto,
+        @RequestPart("cover") coverFile: MultipartFile,
+        @RequestPart("source") sourceFile: MultipartFile
+    ): ResponseEntity<VideoDto> {
+        val sourceContent = sourceFile.bytes
+        val coverContent = coverFile.bytes
+        val video = videoService.uploadVideo(
+            videoDto.toDomain(),
+            coverContent,
+            sourceContent
+        )
+        return ResponseEntity.status(HttpStatus.OK).body(
+            video.toDto(
+                sourceUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${video.videoId}/play",
+                coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${video.videoId}/cover"
+            )
+        )
     }
 }
 
