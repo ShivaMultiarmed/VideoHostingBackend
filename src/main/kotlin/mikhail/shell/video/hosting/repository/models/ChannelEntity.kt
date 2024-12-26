@@ -7,8 +7,8 @@ import mikhail.shell.video.hosting.domain.Channel
 @Table(name = "channels")
 data class ChannelEntity(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "channel_id") val channelId: Long,
-    val ownerId: String,
+    @Column(name = "channel_id") val channelId: Long? = null,
+    val ownerId: Long,
     val title: String,
     val alias: String,
     val description: String,

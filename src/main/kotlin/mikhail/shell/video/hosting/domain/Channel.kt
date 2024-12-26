@@ -1,8 +1,8 @@
 package mikhail.shell.video.hosting.domain
 
 data class Channel(
-    val channelId: Long,
-    val ownerId: String,
+    val channelId: Long? = null,
+    val ownerId: Long,
     val title: String,
     val alias: String,
     val description: String,
@@ -10,8 +10,8 @@ data class Channel(
 )
 
 data class ChannelWithUser(
-    val channelId: Long,
-    val ownerId: String,
+    val channelId: Long? = null,
+    val ownerId: Long,
     val title: String,
     val alias: String,
     val description: String,

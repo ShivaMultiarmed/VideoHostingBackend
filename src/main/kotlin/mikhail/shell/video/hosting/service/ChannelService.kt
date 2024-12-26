@@ -15,4 +15,7 @@ interface ChannelService {
         channelId: Long,
         userId: String
     ): Boolean
+    fun createChannel(
+        channel: Channel
+    ): Channel
 }

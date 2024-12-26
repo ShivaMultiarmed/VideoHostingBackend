@@ -2,9 +2,9 @@ package mikhail.shell.video.hosting.controllers
 
 import jakarta.servlet.http.HttpServletRequest
 import mikhail.shell.video.hosting.domain.Channel
-import mikhail.shell.video.hosting.domain.SubscriptionState
 import mikhail.shell.video.hosting.dto.ChannelDto
 import mikhail.shell.video.hosting.dto.ChannelWithUserDto
+import mikhail.shell.video.hosting.dto.toDomain
 import mikhail.shell.video.hosting.dto.toDto
 import mikhail.shell.video.hosting.service.ChannelService
 import org.springframework.beans.factory.annotation.Autowired
@@ -13,6 +13,8 @@ import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
@@ -74,5 +76,14 @@ class ChannelController @Autowired constructor(
             avatarUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${channel.channelId}/avatar",
             coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${channel.channelId}/cover"
         )
+    }
+
+    @PostMapping("/create")
+    fun createChannel(
+        request: HttpServletRequest,
+        @RequestBody channel: ChannelDto,
+    ): ResponseEntity<ChannelDto> {
+        val createdChannel = channelService.createChannel(channel.toDomain())
+        return ResponseEntity.status(HttpStatus.OK).body(createdChannel.toDto())
     }
 }

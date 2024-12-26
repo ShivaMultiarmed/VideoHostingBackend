@@ -14,13 +14,13 @@ data class VideoDto(
     val views: Long,
     val likes: Long,
     val dislikes: Long,
-    val sourceUrl: String,
-    val coverUrl: String
+    val sourceUrl: String? = null,
+    val coverUrl: String? = null
 )
 
 fun Video.toDto(
-    sourceUrl: String,
-    coverUrl: String
+    sourceUrl: String? = null,
+    coverUrl: String? = null
 ) = VideoDto(
     videoId,
     channelId,
@@ -58,13 +58,13 @@ data class VideoWithUserDto(
     val likes: Long,
     val liking: LikingState,
     val dislikes: Long,
-    val sourceUrl: String,
-    val coverUrl: String
+    val sourceUrl: String? = null,
+    val coverUrl: String? = null
 )
 
 fun VideoWithUser.toDto(
-    sourceUrl: String,
-    coverUrl: String
+    sourceUrl: String? = null,
+    coverUrl: String? = null
 ): VideoWithUserDto {
     return VideoWithUserDto(
         videoId,

@@ -7,6 +7,7 @@ import mikhail.shell.video.hosting.repository.models.SubscriberId
 import mikhail.shell.video.hosting.repository.ChannelRepository
 import mikhail.shell.video.hosting.repository.SubscriberRepository
 import mikhail.shell.video.hosting.repository.models.toDomain
+import mikhail.shell.video.hosting.repository.models.toEntity
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
 
@@ -40,5 +41,9 @@ class ChannelServiceImpl @Autowired constructor(
     override fun checkIfSubscribed(channelId: Long, userId: String): Boolean {
         val id = SubscriberId(channelId, userId)
         return subscriberRepository.existsById(id)
+    }
+
+    override fun createChannel(channel: Channel): Channel {
+        return channelRepository.save(channel.toEntity()).toDomain()
     }
 }
