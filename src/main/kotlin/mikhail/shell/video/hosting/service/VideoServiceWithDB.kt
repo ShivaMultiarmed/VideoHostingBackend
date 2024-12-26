@@ -123,8 +123,9 @@ class VideoServiceWithDB @Autowired constructor(
     }
     override fun uploadVideo(video: Video, coverContent: ByteArray?, sourceContent: ByteArray): Video {
         val addedVideo = videoRepository.save(video.toEntity()).toDomain()
-        val sourceFile = File("$VIDEOS_PLAYABLES_BASE_PATH/${addedVideo.videoId}.mp4").writeBytes(sourceContent)
-        val coverFile = File("$VIDEOS_COVERS_BASE_PATH/${addedVideo.videoId}.mp4").writeBytes(sourceContent)
+        File("$VIDEOS_PLAYABLES_BASE_PATH/${addedVideo.videoId}.mp4").writeBytes(sourceContent)
+        if (coverContent != null)
+            File("$VIDEOS_COVERS_BASE_PATH/${addedVideo.videoId}.png").writeBytes(coverContent)
         return addedVideo
     }
 }
