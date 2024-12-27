@@ -17,8 +17,8 @@ class AuthenticationController(
 ) {
     @PostMapping("/signin/password")
     fun signInWithPassword(
-        @RequestParam username: String,
-        @RequestParam password: String
+        @RequestParam username: String?,
+        @RequestParam password: String?
     ): AuthModel {
         return authService.signInWithPassword(username, password)
     }
