@@ -2,7 +2,6 @@ package mikhail.shell.video.hosting.controllers
 
 import mikhail.shell.video.hosting.domain.AuthModel
 import mikhail.shell.video.hosting.dto.SignUpDto
-import mikhail.shell.video.hosting.dto.UserDto
 import mikhail.shell.video.hosting.dto.toDomain
 import mikhail.shell.video.hosting.service.AuthService
 import org.springframework.web.bind.annotation.PostMapping
@@ -27,7 +26,6 @@ class AuthenticationController(
     fun signUpWithPassword(
         @RequestBody signUpDto: SignUpDto
     ): AuthModel {
-
         return authService.signUpWithPassword(
             signUpDto.userName,
             signUpDto.password,

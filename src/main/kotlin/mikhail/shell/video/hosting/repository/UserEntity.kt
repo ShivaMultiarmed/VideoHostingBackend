@@ -11,7 +11,11 @@ data class UserEntity(
     val name: String
 )
 
-fun User.toEntity() = UserEntity(userId,name)
+fun User.toEntity(): UserEntity {
+    if (name == null)
+        throw Exception()
+    return UserEntity(userId, name)
+}
 fun UserEntity.toDomain() = User(userId,name)
 
 @Entity
