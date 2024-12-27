@@ -217,11 +217,11 @@ class VideoController @Autowired constructor(
     fun uploadVideo(
         request: HttpServletRequest,
         @RequestPart("video") videoDto: VideoDto,
-        @RequestPart("cover") coverFile: MultipartFile,
+        @RequestPart("cover") coverFile: MultipartFile?,
         @RequestPart("source") sourceFile: MultipartFile
     ): ResponseEntity<VideoDto> {
         val sourceContent = sourceFile.bytes
-        val coverContent = coverFile.bytes
+        val coverContent = coverFile?.bytes
         val video = videoService.uploadVideo(
             videoDto.toDomain(),
             coverContent,
