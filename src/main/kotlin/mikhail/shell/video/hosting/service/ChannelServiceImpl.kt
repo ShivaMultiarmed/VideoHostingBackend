@@ -3,6 +3,10 @@ package mikhail.shell.video.hosting.service
 import mikhail.shell.video.hosting.domain.Channel
 import mikhail.shell.video.hosting.domain.ChannelWithUser
 import mikhail.shell.video.hosting.domain.SubscriptionState
+import mikhail.shell.video.hosting.errors.ChannelCreationError
+import mikhail.shell.video.hosting.errors.ChannelCreationError.EXISTS
+import mikhail.shell.video.hosting.errors.CompoundError
+import mikhail.shell.video.hosting.errors.HostingDataException
 import mikhail.shell.video.hosting.repository.models.SubscriberId
 import mikhail.shell.video.hosting.repository.ChannelRepository
 import mikhail.shell.video.hosting.repository.SubscriberRepository
@@ -44,6 +48,11 @@ class ChannelServiceImpl @Autowired constructor(
     }
 
     override fun createChannel(channel: Channel): Channel {
+        val error = CompoundError<ChannelCreationError>()
+        if (channelRepository.existsByTitle(channel.title))
+            error.add(EXISTS)
+        if (error.isNotNull())
+            throw HostingDataException(error)
         return channelRepository.save(channel.toEntity()).toDomain()
     }
 
