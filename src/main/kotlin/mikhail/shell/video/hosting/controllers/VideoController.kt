@@ -212,19 +212,22 @@ class VideoController @Autowired constructor(
         @RequestPart("cover") coverFile: MultipartFile?,
         @RequestPart("source") sourceFile: MultipartFile
     ): ResponseEntity<VideoDto> {
-
+        val cover = coverFile?.let {
+            File(
+                name = it.originalFilename,
+                mimeType = "image/${it.originalFilename?.parseExtension()}",
+                content = it.bytes
+            )
+        }
+        val source = File(
+            name = sourceFile.originalFilename,
+            mimeType = "image/${sourceFile.name.parseExtension()}",
+            content = sourceFile.bytes
+        )
         val video = videoService.uploadVideo(
             video = videoDto.toDomain(),
-            cover = File(
-                name = coverFile?.originalFilename,
-                mimeType = "image/${coverFile?.name?.parseExtension()}",
-                content = coverFile?.bytes
-            ),
-            source = File(
-                name = sourceFile.originalFilename,
-                mimeType = "image/${sourceFile.name.parseExtension()}",
-                content = sourceFile.bytes
-            )
+            cover = cover,
+            source = source
         )
         return ResponseEntity.status(HttpStatus.OK).body(
             video.toDto(

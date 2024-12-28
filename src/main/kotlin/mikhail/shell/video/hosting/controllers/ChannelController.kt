@@ -78,17 +78,27 @@ class ChannelController @Autowired constructor(
     fun createChannel(
         request: HttpServletRequest,
         @RequestPart("channel") channel: ChannelDto,
-        @RequestPart("cover") cover: MultipartFile?,
-        @RequestPart("avatar") avatar: MultipartFile?
+        @RequestPart("cover") coverFile: MultipartFile?,
+        @RequestPart("avatar") avatarFile: MultipartFile?
     ): ResponseEntity<ChannelDto> {
+        val cover = coverFile?.let {
+            mikhail.shell.video.hosting.domain.File(
+                it.originalFilename,
+                it.contentType,
+                it.bytes
+            )
+        }
+        val avatar = avatarFile?.let {
+            mikhail.shell.video.hosting.domain.File(
+                it.originalFilename,
+                it.contentType,
+                it.bytes
+            )
+        }
         val createdChannel = channelService.createChannel(
             channel = channel.toDomain(),
-            cover = mikhail.shell.video.hosting.domain.File(
-                cover?.originalFilename, cover?.contentType, cover?.bytes
-            ),
-            avatar = mikhail.shell.video.hosting.domain.File(
-                avatar?.originalFilename, avatar?.contentType, avatar?.bytes
-            )
+            cover = cover,
+            avatar = avatar
         )
         return ResponseEntity.status(HttpStatus.OK).body(createdChannel.toDto())
     }
