@@ -15,5 +15,5 @@ data class Subscriber(
 @Embeddable
 data class SubscriberId(
     val channelId: Long,
-    val userId: String
+    val userId: Long
 )

@@ -3,6 +3,7 @@ package mikhail.shell.video.hosting.controllers
 import jakarta.servlet.http.HttpServletRequest
 import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_AVATARS_BASE_PATH
 import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_COVERS_BASE_PATH
+import mikhail.shell.video.hosting.domain.SubscriptionState
 import mikhail.shell.video.hosting.domain.findFileByName
 import mikhail.shell.video.hosting.domain.parseExtension
 import mikhail.shell.video.hosting.dto.ChannelDto
@@ -47,7 +48,8 @@ class ChannelController @Autowired constructor(
             if (image?.exists() != true) {
                 ResponseEntity.status(HttpStatus.NOT_FOUND).build<ByteArray>()
             }
-            ResponseEntity.status(HttpStatus.OK).contentType(MediaType.parseMediaType("image/${image?.name?.parseExtension()}"))
+            ResponseEntity.status(HttpStatus.OK)
+                .contentType(MediaType.parseMediaType("image/${image?.name?.parseExtension()}"))
                 .body(image?.inputStream()?.readAllBytes())
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
@@ -64,7 +66,8 @@ class ChannelController @Autowired constructor(
             if (image?.exists() != true) {
                 ResponseEntity.status(HttpStatus.NOT_FOUND).build<ByteArray>()
             }
-            ResponseEntity.status(HttpStatus.OK).contentType(MediaType.parseMediaType("image/${image?.name?.parseExtension()}"))
+            ResponseEntity.status(HttpStatus.OK)
+                .contentType(MediaType.parseMediaType("image/${image?.name?.parseExtension()}"))
                 .body(image?.inputStream()?.readAllBytes())
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
@@ -118,4 +121,34 @@ class ChannelController @Autowired constructor(
         return ResponseEntity.status(HttpStatus.OK).body(channelDtos)
     }
 
+    @GetMapping("/subscriber/{userId}")
+    fun getAllChannelsBySubscriberId(
+        request: HttpServletRequest,
+        @PathVariable userId: Long
+    ): ResponseEntity<List<ChannelDto>> {
+        val channels = channelService.getChannelsBySubscriberId(userId)
+        val channelDtos = channels.map {
+            it.toDto(
+                avatarUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${it.channelId}/avatar",
+                coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${it.channelId}/cover"
+            )
+        }
+        return ResponseEntity.status(HttpStatus.OK).body(channelDtos)
+    }
+
+    @PatchMapping("/{channelId}/subscribe")
+    fun subscribeToChannel(
+        request: HttpServletRequest,
+        @RequestParam userId: Long,
+        @PathVariable channelId: Long,
+        @RequestParam subscriptionState: SubscriptionState
+    ): ResponseEntity<ChannelWithUserDto> {
+        val channelWithUser = channelService.changeSubscriptionState(userId, channelId, subscriptionState)
+        return ResponseEntity.status(HttpStatus.OK).body(
+            channelWithUser.toDto(
+                avatarUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${channelWithUser.channelId}/avatar",
+                coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${channelWithUser.channelId}/cover"
+            )
+        )
+    }
 }

@@ -6,4 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository
 
 @Repository
-interface SubscriberRepository: JpaRepository<Subscriber, SubscriberId>
+interface SubscriberRepository: JpaRepository<Subscriber, SubscriberId> {
+    fun findById_UserId(userId: Long): List<Subscriber>
+}

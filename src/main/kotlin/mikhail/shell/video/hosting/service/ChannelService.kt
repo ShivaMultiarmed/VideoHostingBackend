@@ -3,6 +3,7 @@ package mikhail.shell.video.hosting.service
 import mikhail.shell.video.hosting.domain.Channel
 import mikhail.shell.video.hosting.domain.ChannelWithUser
 import mikhail.shell.video.hosting.domain.File
+import mikhail.shell.video.hosting.domain.SubscriptionState
 
 interface ChannelService {
     fun provideChannelInfo(
@@ -14,7 +15,7 @@ interface ChannelService {
     ): ChannelWithUser
     fun checkIfSubscribed(
         channelId: Long,
-        userId: String
+        userId: Long
     ): Boolean
     fun createChannel(
         channel: Channel,
@@ -24,4 +25,12 @@ interface ChannelService {
     fun getChannelsByOwnerId(
         userId: Long
     ): List<Channel>
+    fun getChannelsBySubscriberId(
+        userId: Long
+    ): List<Channel>
+    fun changeSubscriptionState(
+        subscriberId: Long,
+        channelId: Long,
+        subscriptionState: SubscriptionState
+    ): ChannelWithUser
 }
