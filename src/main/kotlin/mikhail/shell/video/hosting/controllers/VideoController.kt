@@ -216,12 +216,12 @@ class VideoController @Autowired constructor(
         val video = videoService.uploadVideo(
             video = videoDto.toDomain(),
             cover = File(
-                name = coverFile?.name,
+                name = coverFile?.originalFilename,
                 mimeType = "image/${coverFile?.name?.parseExtension()}",
                 content = coverFile?.bytes
             ),
             source = File(
-                name = sourceFile.name,
+                name = sourceFile.originalFilename,
                 mimeType = "image/${sourceFile.name.parseExtension()}",
                 content = sourceFile.bytes
             )
