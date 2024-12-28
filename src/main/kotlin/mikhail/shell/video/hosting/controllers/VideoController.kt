@@ -3,6 +3,7 @@ package mikhail.shell.video.hosting.controllers
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import mikhail.shell.video.hosting.domain.*
+import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH
 import mikhail.shell.video.hosting.dto.*
 import mikhail.shell.video.hosting.service.ChannelService
 import mikhail.shell.video.hosting.service.VideoService
@@ -73,14 +74,15 @@ class VideoController @Autowired constructor(
         request: HttpServletRequest,
         response: HttpServletResponse
     ): ResponseEntity<Any> {
-        val file = File("D:/VideoHostingStorage/videos/playables/$videoId.mp4")
-        if (!file.exists()) {
+        val sourcesDirectory = File(VIDEOS_PLAYABLES_BASE_PATH)
+        val file = findFileByName(sourcesDirectory, videoId.toString())
+        if (file?.exists() != true) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build()
         }
         val rangeHeader = request.getHeader(HttpHeaders.RANGE)
 
         if (rangeHeader == null) {
-            response.contentType = "video/mp4"
+            response.contentType = "video/${file.name.parseExtension()}"
             response.setContentLengthLong(file.length())
             file.inputStream().use {
                 it.copyTo(response.outputStream)
@@ -104,7 +106,7 @@ class VideoController @Autowired constructor(
 
         val contentLength = end - start + 1
         response.status = HttpStatus.PARTIAL_CONTENT.value()
-        response.contentType = "video/mp4"
+        response.contentType = "video/${file.name.parseExtension()}"
         response.setHeader(HttpHeaders.ACCEPT_RANGES, "bytes")
         response.setHeader(HttpHeaders.CONTENT_RANGE, "bytes $start-$end/${file.length()}")
         response.setContentLengthLong(contentLength)
@@ -153,12 +155,13 @@ class VideoController @Autowired constructor(
         @PathVariable videoId: Long
     ): ResponseEntity<ByteArray> {
         return try {
-            val image = File("D:/VideoHostingStorage/videos/covers/$videoId.png")
-            if (!image.exists()) {
+            val coverDirectory = File(ApplicationPaths.VIDEOS_COVERS_BASE_PATH)
+            val image = findFileByName(coverDirectory, videoId.toString())
+            if (image?.exists() != true) {
                 ResponseEntity.status(HttpStatus.NOT_FOUND).build<ByteArray>()
             }
-            ResponseEntity.status(HttpStatus.OK).contentType(MediaType.IMAGE_PNG)
-                .body(image.inputStream().readAllBytes())
+            ResponseEntity.status(HttpStatus.OK).contentType(MediaType.parseMediaType("image/${image?.name?.parseExtension()}"))
+                .body(image?.inputStream()?.readAllBytes())
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
         }
@@ -172,17 +175,6 @@ class VideoController @Autowired constructor(
         return video.toDto(
             sourceUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${videoId}/play",
             coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${videoId}/cover"
-        )
-    }
-
-    private fun constructChannelDto(
-        channel: Channel,
-        request: HttpServletRequest
-    ): ChannelDto {
-        val channelId = channel.channelId
-        return channel.toDto(
-            avatarUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${channel.channelId}/avatar",
-            coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${channel.channelId}/cover"
         )
     }
 
@@ -220,12 +212,19 @@ class VideoController @Autowired constructor(
         @RequestPart("cover") coverFile: MultipartFile?,
         @RequestPart("source") sourceFile: MultipartFile
     ): ResponseEntity<VideoDto> {
-        val sourceContent = sourceFile.bytes
-        val coverContent = coverFile?.bytes
+
         val video = videoService.uploadVideo(
-            videoDto.toDomain(),
-            coverContent,
-            sourceContent
+            video = videoDto.toDomain(),
+            cover = File(
+                name = coverFile?.name,
+                mimeType = "image/${coverFile?.name?.parseExtension()}",
+                content = coverFile?.bytes
+            ),
+            source = File(
+                name = sourceFile.name,
+                mimeType = "image/${sourceFile.name.parseExtension()}",
+                content = sourceFile.bytes
+            )
         )
         return ResponseEntity.status(HttpStatus.OK).body(
             video.toDto(
@@ -235,18 +234,3 @@ class VideoController @Autowired constructor(
         )
     }
 }
-
-
-//fun ExtendedVideoInfo.insertCoverUrl(request: HttpServletRequest): ExtendedVideoInfo {
-//    return this.copy(
-//        videoInfo = this.videoInfo.copy(
-//            coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${this.videoInfo.videoId}/cover"
-//        )
-//    )
-//}
-//
-//fun VideoInfo.insertCoverUrl(request: HttpServletRequest): VideoInfo {
-//    return this.copy(
-//        coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${this.videoId}/cover"
-//    )
-//}

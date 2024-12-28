@@ -1,8 +1,9 @@
 package mikhail.shell.video.hosting.service
 
-import mikhail.shell.video.hosting.domain.Channel
-import mikhail.shell.video.hosting.domain.ChannelWithUser
-import mikhail.shell.video.hosting.domain.SubscriptionState
+import jakarta.transaction.Transactional
+import mikhail.shell.video.hosting.domain.*
+import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_COVERS_BASE_PATH
+import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_AVATARS_BASE_PATH
 import mikhail.shell.video.hosting.errors.ChannelCreationError
 import mikhail.shell.video.hosting.errors.ChannelCreationError.EXISTS
 import mikhail.shell.video.hosting.errors.CompoundError
@@ -47,13 +48,23 @@ class ChannelServiceImpl @Autowired constructor(
         return subscriberRepository.existsById(id)
     }
 
-    override fun createChannel(channel: Channel): Channel {
+    @Transactional
+    override fun createChannel(channel: Channel, avatar: File?, cover: File?): Channel {
         val error = CompoundError<ChannelCreationError>()
         if (channelRepository.existsByTitle(channel.title))
             error.add(EXISTS)
         if (error.isNotNull())
             throw HostingDataException(error)
-        return channelRepository.save(channel.toEntity()).toDomain()
+        val createdChannel = channelRepository.save(channel.toEntity()).toDomain()
+        val coverExtension = cover?.name?.parseExtension()
+        cover?.content?.let {
+            java.io.File("$CHANNEL_COVERS_BASE_PATH/${createdChannel.channelId}.$coverExtension").writeBytes(it)
+        }
+        val avatarExtension = cover?.name?.parseExtension()
+        avatar?.content?.let {
+            java.io.File("$CHANNEL_AVATARS_BASE_PATH/${createdChannel.channelId}.$avatarExtension").writeBytes(it)
+        }
+        return createdChannel
     }
 
     override fun getChannelsByOwnerId(userId: Long): List<Channel> {

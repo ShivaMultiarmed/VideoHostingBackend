@@ -2,6 +2,8 @@ package mikhail.shell.video.hosting.service
 
 import jakarta.transaction.Transactional
 import mikhail.shell.video.hosting.domain.*
+import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH
+import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_COVERS_BASE_PATH
 import mikhail.shell.video.hosting.repository.UserLikeVideoRepository
 import mikhail.shell.video.hosting.repository.VideoRepository
 import mikhail.shell.video.hosting.repository.VideoWithChannelsRepository
@@ -17,12 +19,6 @@ class VideoServiceWithDB @Autowired constructor(
     private val videoWithChannelsRepository: VideoWithChannelsRepository,
     private val userLikeVideoRepository: UserLikeVideoRepository
 ) : VideoService {
-
-    companion object {
-        private const val VIDEOS_BASE_PATH = "D:/VideoHostingStorage/videos"
-        private const val VIDEOS_PLAYABLES_BASE_PATH = "$VIDEOS_BASE_PATH/playables"
-        private const val VIDEOS_COVERS_BASE_PATH = "$VIDEOS_BASE_PATH/covers"
-    }
 
     override fun getVideoInfo(videoId: Long): Video {
         return videoRepository.findById(videoId).orElseThrow().toDomain()
@@ -121,11 +117,20 @@ class VideoServiceWithDB @Autowired constructor(
             it.toDomain()
         }
     }
-    override fun uploadVideo(video: Video, coverContent: ByteArray?, sourceContent: ByteArray): Video {
+    override fun uploadVideo(
+        video: Video,
+        cover: mikhail.shell.video.hosting.domain.File?,
+        source: mikhail.shell.video.hosting.domain.File
+    ): Video {
         val addedVideo = videoRepository.save(video.toEntity()).toDomain()
-        File("$VIDEOS_PLAYABLES_BASE_PATH/${addedVideo.videoId}.mp4").writeBytes(sourceContent)
-        if (coverContent != null)
-            File("$VIDEOS_COVERS_BASE_PATH/${addedVideo.videoId}.png").writeBytes(coverContent)
+        val sourceExtension = source.name?.parseExtension()
+        source.content?.let {
+            File("$VIDEOS_PLAYABLES_BASE_PATH/${addedVideo.videoId}.$sourceExtension").writeBytes(it)
+        }
+        if (cover != null) {
+            val coverExtension = cover.name?.parseExtension()
+            File("$VIDEOS_COVERS_BASE_PATH/${addedVideo.videoId}.$coverExtension").writeBytes(cover.content!!)
+        }
         return addedVideo
     }
 }

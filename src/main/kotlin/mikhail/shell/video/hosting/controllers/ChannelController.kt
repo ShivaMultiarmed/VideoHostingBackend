@@ -1,6 +1,10 @@
 package mikhail.shell.video.hosting.controllers
 
 import jakarta.servlet.http.HttpServletRequest
+import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_AVATARS_BASE_PATH
+import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_COVERS_BASE_PATH
+import mikhail.shell.video.hosting.domain.findFileByName
+import mikhail.shell.video.hosting.domain.parseExtension
 import mikhail.shell.video.hosting.dto.ChannelDto
 import mikhail.shell.video.hosting.dto.ChannelWithUserDto
 import mikhail.shell.video.hosting.dto.toDomain
@@ -10,13 +14,8 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
+import org.springframework.web.multipart.MultipartFile
 import java.io.File
 
 @RestController
@@ -43,12 +42,13 @@ class ChannelController @Autowired constructor(
         @PathVariable channelId: Long
     ): ResponseEntity<ByteArray> {
         return try {
-            val image = File("D:/VideoHostingStorage/channels/covers/$channelId.png")
-            if (!image.exists()) {
+            val coverFolder = File(CHANNEL_COVERS_BASE_PATH)
+            val image = findFileByName(coverFolder, channelId.toString())
+            if (image?.exists() != true) {
                 ResponseEntity.status(HttpStatus.NOT_FOUND).build<ByteArray>()
             }
-            ResponseEntity.status(HttpStatus.OK).contentType(MediaType.IMAGE_PNG)
-                .body(image.inputStream().readAllBytes())
+            ResponseEntity.status(HttpStatus.OK).contentType(MediaType.parseMediaType("image/${image?.name?.parseExtension()}"))
+                .body(image?.inputStream()?.readAllBytes())
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
         }
@@ -59,23 +59,37 @@ class ChannelController @Autowired constructor(
         @PathVariable channelId: Long
     ): ResponseEntity<ByteArray> {
         return try {
-            val image = File("D:/VideoHostingStorage/channels/avatars/$channelId.png")
-            if (!image.exists()) {
+            val avatarFolder = File(CHANNEL_AVATARS_BASE_PATH)
+            val image = findFileByName(avatarFolder, channelId.toString())
+            if (image?.exists() != true) {
                 ResponseEntity.status(HttpStatus.NOT_FOUND).build<ByteArray>()
             }
-            ResponseEntity.status(HttpStatus.OK).contentType(MediaType.IMAGE_PNG)
-                .body(image.inputStream().readAllBytes())
+            ResponseEntity.status(HttpStatus.OK).contentType(MediaType.parseMediaType("image/${image?.name?.parseExtension()}"))
+                .body(image?.inputStream()?.readAllBytes())
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
         }
     }
 
-    @PostMapping("/create")
+    @PostMapping(
+        path = ["/create"],
+        consumes = ["multipart/form-data"]
+    )
     fun createChannel(
         request: HttpServletRequest,
-        @RequestBody channel: ChannelDto,
+        @RequestPart("channel") channel: ChannelDto,
+        @RequestPart("cover") cover: MultipartFile?,
+        @RequestPart("avatar") avatar: MultipartFile?
     ): ResponseEntity<ChannelDto> {
-        val createdChannel = channelService.createChannel(channel.toDomain())
+        val createdChannel = channelService.createChannel(
+            channel = channel.toDomain(),
+            cover = mikhail.shell.video.hosting.domain.File(
+                cover?.originalFilename, cover?.contentType, cover?.bytes
+            ),
+            avatar = mikhail.shell.video.hosting.domain.File(
+                avatar?.originalFilename, avatar?.contentType, avatar?.bytes
+            )
+        )
         return ResponseEntity.status(HttpStatus.OK).body(createdChannel.toDto())
     }
 
@@ -93,4 +107,5 @@ class ChannelController @Autowired constructor(
         }
         return ResponseEntity.status(HttpStatus.OK).body(channelDtos)
     }
+
 }

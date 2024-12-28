@@ -9,5 +9,5 @@ interface VideoService {
     fun rate(videoId: Long, userId: Long, likingState: LikingState): Video
     fun getVideosByChannelId(channelId: Long, partSize: Int, partNumber: Long): List<Video>
     fun getVideosByQuery(query: String, partSize: Int, partNumber: Long): List<VideoWithChannel>
-    fun uploadVideo(video: Video, coverContent: ByteArray? = null, sourceContent: ByteArray): Video
+    fun uploadVideo(video: Video, cover: File? = null, source: File): Video
 }

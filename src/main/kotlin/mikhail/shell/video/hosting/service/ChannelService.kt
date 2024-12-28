@@ -2,6 +2,7 @@ package mikhail.shell.video.hosting.service
 
 import mikhail.shell.video.hosting.domain.Channel
 import mikhail.shell.video.hosting.domain.ChannelWithUser
+import mikhail.shell.video.hosting.domain.File
 
 interface ChannelService {
     fun provideChannelInfo(
@@ -16,7 +17,9 @@ interface ChannelService {
         userId: String
     ): Boolean
     fun createChannel(
-        channel: Channel
+        channel: Channel,
+        avatar: File?,
+        cover: File?
     ): Channel
     fun getChannelsByOwnerId(
         userId: Long
