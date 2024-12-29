@@ -1,9 +1,16 @@
+import org.gradle.internal.declarativedsl.parsing.main
+
 plugins {
 	kotlin("jvm") version "1.9.25"
 	kotlin("plugin.spring") version "1.9.25"
+	id("application")
 	id("org.springframework.boot") version "3.4.0"
 	id("io.spring.dependency-management") version "1.1.6"
 	kotlin("plugin.jpa") version "1.9.25"
+}
+
+application {
+	mainClass.set("mikhail.shell.video.hosting.ApplicationKt")
 }
 
 group = "mikhail.shell"
@@ -52,6 +59,7 @@ kotlin {
 	compilerOptions {
 		freeCompilerArgs.addAll("-Xjsr305=strict")
 	}
+	jvmToolchain(17)
 }
 
 allOpen {
@@ -62,4 +70,14 @@ allOpen {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+}
+
+tasks.jar {
+	manifest {
+		attributes(
+			"Main-Class" to "mikhail.shell.video.hosting.ApplicationKt"
+		)
+	}
+//	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+//	from(sourceSets["main"].output)
 }

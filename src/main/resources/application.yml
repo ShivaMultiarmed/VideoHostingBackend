@@ -14,3 +14,7 @@ spring:
 logging:
   level:
     org.springframework.web: DEBUG
+
+hosting:
+  storage:
+    path: "C:/VideoHostingStorage"
