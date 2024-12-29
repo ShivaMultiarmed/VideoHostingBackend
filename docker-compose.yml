@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: hosting_db
+    environment:
+      MYSQL_ROOT_PASSWORD: BlackWater
+      MYSQL_DATABASE: video_hosting_db
+      MYSQL_USER: mikhail_shell
+      MYSQL_PASSWORD: BlackWater
+    ports:
+      - "3307:3306"
+    volumes:
+      - "mysql_volume:/var/lib/mysql"
+    networks:
+      - spring_boot_network
+
+  spring:
+    image: spring_boot_image
+    container_name: spring_app
+    depends_on:
+      - mysql
+    volumes:
+      - "/home/mikhail_shell/Hosting/Application/spring_conf:/spring_conf"
+      - "spring_storage:/spring_storage"
+    ports:
+      - "9999:9999"
+    environment:
+      SPRING_CONFIG_LOCATION: "file:/spring_conf/application.yml"
+    networks:
+      - spring_boot_network
+
+volumes:
+  mysql_volume:
+  spring_storage:
+
+networks:
+  spring_boot_network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: "172.16.255.0/24"
+          gateway: "172.16.255.1"

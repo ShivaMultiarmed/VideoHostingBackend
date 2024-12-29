@@ -1,11 +1,32 @@
 package mikhail.shell.video.hosting.domain
 
+import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNELS_BASE_PATH
+import mikhail.shell.video.hosting.domain.ApplicationPaths.STORAGE_BASE_PATH
+import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_BASE_PATH
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.stereotype.Component
+
+@Component
+class ApplicationPathsInitializer(
+    @Value("\${hosting.storage.path}") storageBasePath: String
+) {
+    init {
+        ApplicationPaths.STORAGE_BASE_PATH = storageBasePath
+        ApplicationPaths.CHANNELS_BASE_PATH = "$STORAGE_BASE_PATH/channels"
+        ApplicationPaths.CHANNEL_COVERS_BASE_PATH = "$CHANNELS_BASE_PATH/covers"
+        ApplicationPaths.CHANNEL_AVATARS_BASE_PATH = "$CHANNELS_BASE_PATH/avatars"
+        ApplicationPaths.VIDEOS_BASE_PATH = "$STORAGE_BASE_PATH/videos"
+        ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH = "$VIDEOS_BASE_PATH/playables"
+        ApplicationPaths.VIDEOS_COVERS_BASE_PATH = "$VIDEOS_BASE_PATH/covers"
+    }
+}
+
 object ApplicationPaths {
-    private const val STORAGE_BASE_PATH = "C:/VideoHostingStorage"
-    const val CHANNELS_BASE_PATH = "$STORAGE_BASE_PATH/channels"
-    const val CHANNEL_COVERS_BASE_PATH = "$CHANNELS_BASE_PATH/covers"
-    const val CHANNEL_AVATARS_BASE_PATH = "$CHANNELS_BASE_PATH/avatars"
-    const val VIDEOS_BASE_PATH = "$STORAGE_BASE_PATH/videos"
-    const val VIDEOS_PLAYABLES_BASE_PATH = "$VIDEOS_BASE_PATH/playables"
-    const val VIDEOS_COVERS_BASE_PATH = "$VIDEOS_BASE_PATH/covers"
+    lateinit var STORAGE_BASE_PATH : String
+    lateinit var CHANNELS_BASE_PATH: String
+    lateinit var CHANNEL_COVERS_BASE_PATH: String
+    lateinit var CHANNEL_AVATARS_BASE_PATH: String
+    lateinit var VIDEOS_BASE_PATH: String
+    lateinit var VIDEOS_PLAYABLES_BASE_PATH: String
+    lateinit var VIDEOS_COVERS_BASE_PATH: String
 }

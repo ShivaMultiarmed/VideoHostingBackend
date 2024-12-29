@@ -25,6 +25,7 @@ class VideoController @Autowired constructor(
     private val videoService: VideoService,
     private val channelService: ChannelService,
 ) {
+	private val IP = "158.160.22.54"
     @GetMapping("/{videoId}")
     fun getVideoDto(
         request: HttpServletRequest,
@@ -42,12 +43,12 @@ class VideoController @Autowired constructor(
         @RequestParam userId: Long
     ): ResponseEntity<VideoDetailsDto> {
         val videoDto = videoService.getVideoForUser(videoId, userId).toDto(
-            sourceUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${videoId}/play",
-            coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${videoId}/cover"
+            sourceUrl = "http://$IP:${request.localPort}/api/v1/videos/${videoId}/play",
+            coverUrl = "http://$IP:${request.localPort}/api/v1/videos/${videoId}/cover"
         )
         val channelDto = channelService.provideChannelForUser(videoDto.channelId, userId).toDto(
-            avatarUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${videoDto.channelId}/avatar",
-            coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${videoDto.channelId}/cover"
+            avatarUrl = "http://$IP:${request.localPort}/api/v1/channels/${videoDto.channelId}/avatar",
+            coverUrl = "http://$IP:${request.localPort}/api/v1/channels/${videoDto.channelId}/cover"
         )
         val videoDetailsDto = VideoDetailsDto(
             video = videoDto,
@@ -142,8 +143,8 @@ class VideoController @Autowired constructor(
         val videoList = videoService.getVideosByChannelId(channelId, partSize, partNumber)
         val videoDtoList = videoList.map {
             it.toDto(
-                sourceUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${it.videoId}/play",
-                coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${it.videoId}/cover"
+                sourceUrl = "http://$IP:${request.localPort}/api/v1/videos/${it.videoId}/play",
+                coverUrl = "http://$IP:${request.localPort}/api/v1/videos/${it.videoId}/cover"
             )
         }
         return ResponseEntity.status(HttpStatus.OK).body(videoDtoList)
@@ -173,8 +174,8 @@ class VideoController @Autowired constructor(
     ): VideoDto {
         val videoId = video.videoId
         return video.toDto(
-            sourceUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${videoId}/play",
-            coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${videoId}/cover"
+            sourceUrl = "http://$IP:${request.localPort}/api/v1/videos/${videoId}/play",
+            coverUrl = "http://$IP:${request.localPort}/api/v1/videos/${videoId}/cover"
         )
     }
 
@@ -188,12 +189,12 @@ class VideoController @Autowired constructor(
         val videoDtos = videoService.getVideosByQuery(query, partSize, partNumber).map {
             VideoWithChannelDto(
                 video = it.video.toDto(
-                    sourceUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${it.video.videoId}/play",
-                    coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${it.video.videoId}/cover"
+                    sourceUrl = "http://$IP:${request.localPort}/api/v1/videos/${it.video.videoId}/play",
+                    coverUrl = "http://$IP:${request.localPort}/api/v1/videos/${it.video.videoId}/cover"
                 ),
                 channel = it.channel.toDto(
-                    avatarUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${it.channel.channelId}/avatar",
-                    coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/channels/${it.channel.channelId}/cover"
+                    avatarUrl = "http://$IP:${request.localPort}/api/v1/channels/${it.channel.channelId}/avatar",
+                    coverUrl = "http://$IP:${request.localPort}/api/v1/channels/${it.channel.channelId}/cover"
                 )
             )
         }
@@ -231,8 +232,8 @@ class VideoController @Autowired constructor(
         )
         return ResponseEntity.status(HttpStatus.OK).body(
             video.toDto(
-                sourceUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${video.videoId}/play",
-                coverUrl = "http://${request.localAddr}:${request.localPort}/api/v1/videos/${video.videoId}/cover"
+                sourceUrl = "http://$IP:${request.localPort}/api/v1/videos/${video.videoId}/play",
+                coverUrl = "http://$IP:${request.localPort}/api/v1/videos/${video.videoId}/cover"
             )
         )
     }

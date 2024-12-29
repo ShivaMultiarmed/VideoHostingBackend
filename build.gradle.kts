@@ -13,6 +13,8 @@ java {
 	toolchain {
 		languageVersion = JavaLanguageVersion.of(17)
 	}
+	sourceCompatibility = JavaVersion.VERSION_17
+    	targetCompatibility = JavaVersion.VERSION_17
 }
 
 configurations {
@@ -52,6 +54,7 @@ kotlin {
 	compilerOptions {
 		freeCompilerArgs.addAll("-Xjsr305=strict")
 	}
+	jvmToolchain(17)
 }
 
 allOpen {
