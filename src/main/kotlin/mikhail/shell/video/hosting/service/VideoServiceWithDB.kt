@@ -133,4 +133,9 @@ class VideoServiceWithDB @Autowired constructor(
         }
         return addedVideo
     }
+
+    override fun incrementViews(videoId: Long): Long {
+        val video = videoRepository.findById(videoId).orElseThrow()
+        return videoRepository.save(video.copy(views = video.views + 1)).views
+    }
 }

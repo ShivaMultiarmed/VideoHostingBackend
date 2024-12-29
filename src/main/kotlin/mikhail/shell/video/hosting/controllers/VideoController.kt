@@ -236,4 +236,11 @@ class VideoController @Autowired constructor(
             )
         )
     }
+
+    @PatchMapping("/{videoId}/increment-views")
+    fun incrementViews(
+        @PathVariable videoId: Long
+    ): Long {
+        return videoService.incrementViews(videoId)
+    }
 }

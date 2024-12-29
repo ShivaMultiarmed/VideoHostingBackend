@@ -9,7 +9,7 @@ import java.time.LocalDateTime
 @Entity
 //@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @Table(name = "videos")
-class VideoEntity(
+data class VideoEntity(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "video_id") val videoId: Long? = null,
     @Column(name = "channel_id") val channelId: Long,
@@ -41,7 +41,7 @@ fun Video.toEntity() = VideoEntity(
 
 @Entity
 @Table(name = "videos")
-class VideoWithChannelEntity(
+data class VideoWithChannelEntity(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "video_id") val videoId: Long? = null,
     @Column(name = "channel_id") val channelId: Long,

@@ -10,11 +10,11 @@ class JwtTokenUtil {
 
     fun generateToken(username: String): String {
         val now = Date()
-        val expiration = Date(now.toInstant().toEpochMilli() + tokenExpirationDuration)
-                return Jwts.builder()
+        //val expiration = Date(now.toInstant().toEpochMilli() + tokenExpirationDuration)
+        return Jwts.builder()
             .setSubject(username)
             .setIssuedAt(now)
-            .setExpiration(expiration)
+            //.setExpiration(expiration) // TODO Handle new token after it is expired
             .signWith(SignatureAlgorithm.HS256, secret)
             .compact()
     }
@@ -26,7 +26,7 @@ class JwtTokenUtil {
     }
 
     companion object {
-        private const val tokenExpirationDuration = 60 * 60 * 24 * 10 * 1000
+        private const val tokenExpirationDuration = 1000L * 60 * 60 * 24 * 30
         private const val secret = "PJdHAxkeLehwQhEi3fTkCG2r8yrqtT8g"
     }
 }

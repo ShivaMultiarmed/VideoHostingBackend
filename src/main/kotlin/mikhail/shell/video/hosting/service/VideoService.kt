@@ -10,4 +10,5 @@ interface VideoService {
     fun getVideosByChannelId(channelId: Long, partSize: Int, partNumber: Long): List<Video>
     fun getVideosByQuery(query: String, partSize: Int, partNumber: Long): List<VideoWithChannel>
     fun uploadVideo(video: Video, cover: File? = null, source: File): Video
+    fun incrementViews(videoId: Long): Long
 }
