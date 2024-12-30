@@ -80,6 +80,6 @@ tasks.jar {
 			"Main-Class" to "mikhail.shell.video.hosting.ApplicationKt"
 		)
 	}
-//	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 //	from(sourceSets["main"].output)
 }
