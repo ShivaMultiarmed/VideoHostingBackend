@@ -16,20 +16,20 @@ services:
     networks:
       - spring_boot_network
 
-  spring:
-    image: spring_boot_image
-    container_name: spring_app
-    depends_on:
-      - mysql
-    volumes:
-      - "/home/mikhail_shell/Hosting/Application/spring_conf:/spring_conf"
-      - "spring_storage:/spring_storage"
-    ports:
-      - "9999:9999"
-    environment:
-      SPRING_CONFIG_LOCATION: "file:/spring_conf/application.yml"
-    networks:
-      - spring_boot_network
+  #spring:
+    #image: spring_boot_image
+    #container_name: spring_app
+    #depends_on:
+      #- mysql
+    #volumes:
+      #- "/home/mikhail_shell/Hosting/Application/spring_conf:/spring_conf"
+      #- "spring_storage:/spring_storage"
+    #ports:
+      #- "9999:9999"
+    #environment:
+      #SPRING_CONFIG_LOCATION: "file:/spring_conf/application.yml"
+    #networks:
+      #- spring_boot_network
 
 volumes:
   mysql_volume:

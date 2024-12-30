@@ -12,6 +12,7 @@ import mikhail.shell.video.hosting.dto.toDomain
 import mikhail.shell.video.hosting.dto.toDto
 import mikhail.shell.video.hosting.service.ChannelService
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
@@ -24,7 +25,8 @@ import java.io.File
 class ChannelController @Autowired constructor(
     private val channelService: ChannelService
 ) {
-	private val IP = "158.160.22.54"
+    @Value("\${hosting.server.ip}")
+    private lateinit var IP: String
     @GetMapping("/{channelId}/details")
     fun provideChannelInfo(
         request: HttpServletRequest,

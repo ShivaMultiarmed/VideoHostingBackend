@@ -8,6 +8,7 @@ import mikhail.shell.video.hosting.dto.*
 import mikhail.shell.video.hosting.service.ChannelService
 import mikhail.shell.video.hosting.service.VideoService
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.repository.query.Param
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
@@ -25,7 +26,8 @@ class VideoController @Autowired constructor(
     private val videoService: VideoService,
     private val channelService: ChannelService,
 ) {
-	private val IP = "158.160.22.54"
+    @Value("\${hosting.server.ip}")
+	private lateinit var IP: String
     @GetMapping("/{videoId}")
     fun getVideoDto(
         request: HttpServletRequest,
