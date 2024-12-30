@@ -12,25 +12,24 @@ services:
     ports:
       - "3307:3306"
     volumes:
-      - mysql_volume:/var/lib/mysql
+      - "mysql_volume:/var/lib/mysql"
     networks:
       - spring_boot_network
 
-  spring:
-    image: spring_image
-    container_name: spring_app
-    build:
-      context: .
-      dockerfile: ./Dockerfile
-    volumes:
-      - /home/mikhail_shell/Hosting/Application/spring_conf:/spring_conf
-      - spring_storage:/spring_storage
-    ports:
-      - "9999:9999"
-    environment:
-      SPRING_CONFIG_LOCATION: file:/spring_conf
-    networks:
-      - spring_boot_network
+  #spring:
+    #image: spring_boot_image
+    #container_name: spring_app
+    #depends_on:
+      #- mysql
+    #volumes:
+      #- "/home/mikhail_shell/Hosting/Application/spring_conf:/spring_conf"
+      #- "spring_storage:/spring_storage"
+    #ports:
+      #- "9999:9999"
+    #environment:
+      #SPRING_CONFIG_LOCATION: "file:/spring_conf/application.yml"
+    #networks:
+      #- spring_boot_network
 
 volumes:
   mysql_volume:
@@ -38,3 +37,9 @@ volumes:
 
 networks:
   spring_boot_network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: "172.16.255.0/24"
+          gateway: "172.16.255.1"

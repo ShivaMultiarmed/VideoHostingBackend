@@ -1,7 +1,6 @@
 server:
   port: 9999
   address: 0.0.0.0
-
 spring:
   servlet:
     multipart:
@@ -15,9 +14,3 @@ spring:
 logging:
   level:
     org.springframework.web: DEBUG
-
-hosting:
-  server:
-    ip: 158.160.22.54
-  storage:
-    path: "/home/mikhail_shell/Hosting/Storage"
