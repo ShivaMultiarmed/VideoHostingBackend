@@ -12,4 +12,5 @@ interface VideoService {
     fun uploadVideo(video: Video, cover: File? = null, source: File): Video
     fun incrementViews(videoId: Long): Long
     fun deleteVideo(videoId: Long): Boolean
+    fun editVideo(video: Video, coverAction: EditAction, cover: File?): Video
 }

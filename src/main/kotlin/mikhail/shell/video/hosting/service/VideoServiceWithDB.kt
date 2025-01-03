@@ -26,7 +26,7 @@ class VideoServiceWithDB @Autowired constructor(
 
     override fun getVideoForUser(videoId: Long, userId: Long): VideoWithUser {
         val v = videoRepository.findById(videoId).orElseThrow()
-        val likingId = UserLikeVideoId(userId,videoId)
+        val likingId = UserLikeVideoId(userId, videoId)
 
         val liking = if (!userLikeVideoRepository.existsById(likingId))
             LikingState.NONE
@@ -46,7 +46,7 @@ class VideoServiceWithDB @Autowired constructor(
 
     override fun checkVideoLikeState(videoId: Long, userId: Long): LikingState {
         val id = UserLikeVideoId(userId, videoId)
-        return userLikeVideoRepository.findById(id).orElse(null)?.likingState?: LikingState.NONE
+        return userLikeVideoRepository.findById(id).orElse(null)?.likingState ?: LikingState.NONE
     }
 
     @Transactional
@@ -108,6 +108,7 @@ class VideoServiceWithDB @Autowired constructor(
             it.toDomain()
         }
     }
+
     override fun getVideosByQuery(
         query: String,
         partSize: Int,
@@ -117,6 +118,7 @@ class VideoServiceWithDB @Autowired constructor(
             it.toDomain()
         }
     }
+
     override fun uploadVideo(
         video: Video,
         cover: mikhail.shell.video.hosting.domain.File?,
@@ -142,5 +144,25 @@ class VideoServiceWithDB @Autowired constructor(
     override fun deleteVideo(videoId: Long): Boolean {
         videoRepository.deleteById(videoId)
         return !videoRepository.existsById(videoId)
+    }
+
+    override fun editVideo(
+        video: Video,
+        coverAction: EditAction,
+        cover: mikhail.shell.video.hosting.domain.File?
+    ): Video {
+        val updatedVideo = videoRepository.save(video.toEntity()).toDomain()
+        if (cover != null) {
+            val coverDir = File(VIDEOS_COVERS_BASE_PATH)
+            if (coverAction != EditAction.KEEP) {
+                val coverFile = findFileByName(coverDir, video.videoId.toString())
+                coverFile?.delete()
+            }
+            if (coverAction == EditAction.UPDATE) {
+                val coverExtension = cover.name?.parseExtension()
+                File("$VIDEOS_COVERS_BASE_PATH/${updatedVideo.videoId}.$coverExtension").writeBytes(cover.content!!)
+            }
+        }
+        return updatedVideo
     }
 }

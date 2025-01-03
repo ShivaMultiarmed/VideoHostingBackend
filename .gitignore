@@ -40,4 +40,4 @@ out/
 .kotlin
 
 ### Spring Configuration ###
-src/main/resources
+src/main/resources/**

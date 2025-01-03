@@ -27,7 +27,8 @@ class VideoController @Autowired constructor(
     private val channelService: ChannelService,
 ) {
     @Value("\${hosting.server.ip}")
-	private lateinit var IP: String
+    private lateinit var IP: String
+
     @GetMapping("/{videoId}")
     fun getVideoDto(
         request: HttpServletRequest,
@@ -163,7 +164,8 @@ class VideoController @Autowired constructor(
             if (image?.exists() != true) {
                 ResponseEntity.status(HttpStatus.NOT_FOUND).build<ByteArray>()
             }
-            ResponseEntity.status(HttpStatus.OK).contentType(MediaType.parseMediaType("image/${image?.name?.parseExtension()}"))
+            ResponseEntity.status(HttpStatus.OK)
+                .contentType(MediaType.parseMediaType("image/${image?.name?.parseExtension()}"))
                 .body(image?.inputStream()?.readAllBytes())
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
@@ -245,6 +247,29 @@ class VideoController @Autowired constructor(
         @PathVariable videoId: Long
     ): Long {
         return videoService.incrementViews(videoId)
+    }
+
+    @PatchMapping("/edit")
+    fun editVideo(
+        request: HttpServletRequest,
+        @RequestPart video: VideoDto,
+        @RequestPart coverAction: EditAction,
+        @RequestPart(required = false) cover: MultipartFile? = null
+    ): ResponseEntity<VideoDto> {
+        val coverFile = cover?.let {
+            File(
+                name = cover.originalFilename,
+                mimeType = cover.contentType,
+                content = cover.bytes
+            )
+        }
+        val updatedVideo = videoService.editVideo(video.toDomain(), coverAction, coverFile)
+        return ResponseEntity.status(HttpStatus.OK).body(
+            updatedVideo.toDto(
+                sourceUrl = "http://$IP:${request.localPort}/api/v1/videos/${updatedVideo.videoId}/play",
+                coverUrl = "http://$IP:${request.localPort}/api/v1/videos/${updatedVideo.videoId}/cover"
+            )
+        )
     }
 
     @DeleteMapping("/{videoId}")

@@ -5,7 +5,7 @@ import java.io.File
 fun findFileByName(directory: File, fileName: String): File? {
     return directory.listFiles { dir, name ->
         name.parseFileName() == fileName
-    }?.first()
+    }?.firstOrNull()
 }
 fun String.parseExtension(): String {
     return this.substringAfterLast(".", "")
