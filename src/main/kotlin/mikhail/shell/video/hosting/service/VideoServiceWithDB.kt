@@ -155,7 +155,7 @@ class VideoServiceWithDB @Autowired constructor(
         if (cover != null) {
             val coverDir = File(VIDEOS_COVERS_BASE_PATH)
             if (coverAction != EditAction.KEEP) {
-                val coverFile = findFileByName(coverDir, video.videoId.toString())
+                val coverFile = coverDir.listFiles()?.first { it.nameWithoutExtension == video.videoId.toString() }
                 coverFile?.delete()
             }
             if (coverAction == EditAction.UPDATE) {
