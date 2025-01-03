@@ -246,4 +246,14 @@ class VideoController @Autowired constructor(
     ): Long {
         return videoService.incrementViews(videoId)
     }
+
+    @DeleteMapping("/{videoId}")
+    fun deleteVideo(
+        request: HttpServletRequest,
+        @PathVariable videoId: Long
+    ): ResponseEntity<Void> {
+        val result = videoService.deleteVideo(videoId)
+        return if (result) ResponseEntity.status(HttpStatus.OK).build()
+        else ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
+    }
 }

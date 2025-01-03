@@ -138,4 +138,9 @@ class VideoServiceWithDB @Autowired constructor(
         val video = videoRepository.findById(videoId).orElseThrow()
         return videoRepository.save(video.copy(views = video.views + 1)).views
     }
+
+    override fun deleteVideo(videoId: Long): Boolean {
+        videoRepository.deleteById(videoId)
+        return !videoRepository.existsById(videoId)
+    }
 }
