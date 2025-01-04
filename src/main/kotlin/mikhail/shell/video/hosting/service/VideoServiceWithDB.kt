@@ -152,16 +152,14 @@ class VideoServiceWithDB @Autowired constructor(
         cover: mikhail.shell.video.hosting.domain.File?
     ): Video {
         val updatedVideo = videoRepository.save(video.toEntity()).toDomain()
+        val coverDir = File(VIDEOS_COVERS_BASE_PATH)
+        if (coverAction != EditAction.KEEP) {
+            val coverFile = coverDir.listFiles()?.firstOrNull { it.nameWithoutExtension == video.videoId.toString() }
+            coverFile?.delete()
+        }
         if (cover != null) {
-            val coverDir = File(VIDEOS_COVERS_BASE_PATH)
-            if (coverAction != EditAction.KEEP) {
-                val coverFile = coverDir.listFiles()?.firstOrNull { it.nameWithoutExtension == video.videoId.toString() }
-                coverFile?.delete()
-            }
-            if (coverAction == EditAction.UPDATE) {
-                val coverExtension = cover.name?.parseExtension()
-                File("$VIDEOS_COVERS_BASE_PATH/${updatedVideo.videoId}.$coverExtension").writeBytes(cover.content!!)
-            }
+            val coverExtension = cover.name?.parseExtension()
+            File("$VIDEOS_COVERS_BASE_PATH/${updatedVideo.videoId}.$coverExtension").writeBytes(cover.content!!)
         }
         return updatedVideo
     }
