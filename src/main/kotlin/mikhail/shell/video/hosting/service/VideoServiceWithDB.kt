@@ -98,7 +98,7 @@ class VideoServiceWithDB @Autowired constructor(
         partSize: Int,
         partNumber: Long
     ): List<Video> {
-        return videoRepository.findByChannelId(
+        return videoRepository.findByChannelIdOrderByDateTimeDesc(
             channelId,
             PageRequest.of(
                 partNumber.toInt() - 1,

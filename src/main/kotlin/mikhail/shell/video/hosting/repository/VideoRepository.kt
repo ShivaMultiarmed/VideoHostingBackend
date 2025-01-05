@@ -11,7 +11,7 @@ interface VideoRepository: JpaRepository<VideoEntity, Long> {
         title: String,
         pageable: Pageable
     ): List<VideoEntity>
-    fun findByChannelId(
+    fun findByChannelIdOrderByDateTimeDesc(
         channelId: Long,
         pageable: Pageable
     ): List<VideoEntity>
