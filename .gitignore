@@ -41,3 +41,6 @@ out/
 
 ### Docker Configuration ###
 .env
+
+### Linux Launch Configuration ###
+launch.sh
