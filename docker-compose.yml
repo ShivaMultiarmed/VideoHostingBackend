@@ -5,10 +5,10 @@ services:
     image: mysql:8.0
     container_name: hosting_db
     environment:
-      MYSQL_ROOT_PASSWORD: BlackWater
-      MYSQL_DATABASE: video_hosting_db
-      MYSQL_USER: mikhail_shell
-      MYSQL_PASSWORD: BlackWater
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     ports:
       - "3307:3306"
     volumes:
@@ -21,15 +21,17 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: spring_app
+    env_file:
+      - .env
     depends_on:
       - mysql
     volumes:
-      - "/home/mikhail_shell/Hosting/spring_conf:/spring_conf"
-      - "spring_storage:/spring_storage"
+      - "${HOSTING_APP_LOCATION}/spring_conf:/app/spring_conf"
+      - "spring_storage:/app/spring_storage"
     ports:
-      - "9999:9999"
+      - "${HOSTING_PORT}:${HOSTING_PORT}"
     environment:
-      SPRING_CONFIG_LOCATION: "file:/spring_conf/application.yml"
+      SPRING_CONFIG_LOCATION: "file:/app/spring_conf/application.yml"
     networks:
       - spring_boot_network
 
