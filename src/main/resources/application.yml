@@ -8,9 +8,9 @@ spring:
       max-file-size: 50MB
       max-request-size: 50MB
   datasource:
-    username: mikhail_shell
+    username: root
     password: BlackWater
-    url: jdbc:mysql://127.0.0.1:3306/video_hosting_db
+    url: jdbc:mysql://127.0.0.1:3307/video_hosting_db
 
 logging:
   level:
@@ -18,6 +18,6 @@ logging:
 
 hosting:
   server:
-    ip: 192.168.1.101 #158.160.22.54
+    ip: 158.160.22.54
   storage:
-    path: "C:/VideoHostingStorage"
+    path: "/home/mikhail_shell/Hosting/Storage"

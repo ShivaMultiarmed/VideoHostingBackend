@@ -1,3 +1,2 @@
-cd /home/mikhail_shell/Hosting/Application
-docker-compose up -d --force-recreate
-nohup java -jar build/libs/video.hosting-0.0.1-SNAPSHOT.jar > /dev/null &
+/home/mikhail_shell/Hosting/Application/gradlew build
+docker-compose --file /home/mikhail_shell/Hosting/Application/docker-compose.yml up -d --force-recreate

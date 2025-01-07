@@ -80,6 +80,10 @@ tasks.jar {
 			"Main-Class" to "mikhail.shell.video.hosting.ApplicationKt"
 		)
 	}
+	exclude("application.yml")
 	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 //	from(sourceSets["main"].output)
+}
+tasks.bootJar {
+	exclude("application.yml")
 }
