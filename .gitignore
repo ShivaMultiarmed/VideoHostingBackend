@@ -39,9 +39,5 @@ out/
 ### Kotlin ###
 .kotlin
 
-### Spring Configuration ###
-spring_config
-spring_config/**
-
 ### Docker Configuration ###
 .env
