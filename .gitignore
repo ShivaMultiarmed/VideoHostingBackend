@@ -44,3 +44,5 @@ out/
 
 ### Linux Launch Configuration ###
 launch.sh
+network.sh
+build.sh
