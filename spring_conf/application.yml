@@ -21,4 +21,3 @@ hosting:
     ip: ${HOSTING_IP}
   storage:
     path: "/app/spring_storage"
-
