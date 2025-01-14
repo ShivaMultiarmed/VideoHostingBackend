@@ -114,7 +114,7 @@ class VideoServiceWithDB @Autowired constructor(
         partSize: Int,
         partNumber: Long
     ): List<VideoWithChannel> {
-        return videoWithChannelsRepository.findByTitleLike("%$query%").map {
+        return videoWithChannelsRepository.findByQuery(query).map {
             it.toDomain()
         }
     }
