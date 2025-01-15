@@ -37,6 +37,7 @@ repositories {
 dependencies {
 //	implementation("org.springframework.boot:spring-boot-starter-activemq")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+	implementation("org.springframework.boot:spring-boot-starter-data-elasticsearch")
 	implementation("org.springframework.data:spring-data-elasticsearch:5.1.2")
 	implementation("org.elasticsearch.client:elasticsearch-rest-high-level-client:7.17.26")
 	runtimeOnly("com.mysql:mysql-connector-j")

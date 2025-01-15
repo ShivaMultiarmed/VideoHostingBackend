@@ -3,7 +3,10 @@ package mikhail.shell.video.hosting.repository.models
 import jakarta.persistence.*
 import mikhail.shell.video.hosting.domain.Video
 import mikhail.shell.video.hosting.domain.VideoWithChannel
+import org.springframework.data.elasticsearch.annotations.DateFormat
 import org.springframework.data.elasticsearch.annotations.Document
+import org.springframework.data.elasticsearch.annotations.Field
+import org.springframework.data.elasticsearch.annotations.FieldType
 import java.time.LocalDateTime
 
 @Entity
@@ -16,6 +19,7 @@ data class VideoEntity(
     @Column(name = "video_id") val videoId: Long? = null,
     @Column(name = "channel_id") val channelId: Long,
     val title: String,
+    @Field(type = FieldType.Date, format = [DateFormat.date_hour_minute_second_millis])
     val dateTime: LocalDateTime = LocalDateTime.now(),
     val views: Long = 0,
     val likes: Long = 0,
