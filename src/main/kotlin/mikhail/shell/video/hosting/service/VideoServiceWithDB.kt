@@ -4,19 +4,24 @@ import jakarta.transaction.Transactional
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_COVERS_BASE_PATH
+import mikhail.shell.video.hosting.elastic.repository.VideoSearchRepository
 import mikhail.shell.video.hosting.repository.UserLikeVideoRepository
 import mikhail.shell.video.hosting.repository.VideoRepository
 import mikhail.shell.video.hosting.repository.VideoWithChannelsRepository
 import mikhail.shell.video.hosting.repository.models.*
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import java.io.File
 
 @Service
 class VideoServiceWithDB @Autowired constructor(
+    @Qualifier("videoRepository_mysql")
     private val videoRepository: VideoRepository,
     private val videoWithChannelsRepository: VideoWithChannelsRepository,
+    @Qualifier("videoRepository_elastic")
+    private val videoSearchRepository: VideoSearchRepository,
     private val userLikeVideoRepository: UserLikeVideoRepository
 ) : VideoService {
 

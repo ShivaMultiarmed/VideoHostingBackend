@@ -25,6 +25,7 @@ services:
       - .env
     depends_on:
       - mysql
+      - elastic_search
     volumes:
       - "${HOSTING_APP_LOCATION}/spring_conf:/app/spring_conf"
       - "spring_storage:/app/spring_storage"
@@ -35,9 +36,23 @@ services:
     networks:
       - spring_boot_network
 
+  elastic_search:
+    container_name: elastic_search
+    image: elasticsearch:8.16.2
+    ports:
+      - "${ELASTIC_PORT}:${ELASTIC_PORT}"
+    volumes:
+      - "elastic_volume:/usr/share/elasticsearch/data"
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: false
+    networks:
+      - spring_boot_network
+
 volumes:
   mysql_volume:
   spring_storage:
+  elastic_volume:
 
 networks:
   spring_boot_network:

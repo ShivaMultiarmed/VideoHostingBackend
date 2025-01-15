@@ -1,16 +1,18 @@
 package mikhail.shell.video.hosting.repository.models
 
 import jakarta.persistence.*
-import mikhail.shell.video.hosting.domain.LikingState
 import mikhail.shell.video.hosting.domain.Video
 import mikhail.shell.video.hosting.domain.VideoWithChannel
+import org.springframework.data.elasticsearch.annotations.Document
 import java.time.LocalDateTime
 
 @Entity
 //@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @Table(name = "videos")
+@Document(indexName = "videos")
 data class VideoEntity(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @org.springframework.data.annotation.Id
     @Column(name = "video_id") val videoId: Long? = null,
     @Column(name = "channel_id") val channelId: Long,
     val title: String,

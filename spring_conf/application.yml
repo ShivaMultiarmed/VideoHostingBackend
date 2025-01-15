@@ -13,10 +13,18 @@ spring:
     url: jdbc:mysql://hosting_db:3306/${MYSQL_DATABASE}
   jpa:
     show-sql: true
+  elasticsearch:
+    rest:
+      uris: [ http://elastic_search:9200 ]
 
 logging:
   level:
     org.springframework.web: DEBUG
+    org:
+      elasticsearch: DEBUG
+      elasticsearch.client: DEBUG
+    springframework:
+      data.elasticsearch: DEBUG
 
 hosting:
   server:
