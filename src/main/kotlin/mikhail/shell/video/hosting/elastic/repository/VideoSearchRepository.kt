@@ -6,5 +6,5 @@ import org.springframework.stereotype.Repository
 
 @Repository("videoRepository_elastic")
 interface VideoSearchRepository: ElasticsearchRepository<VideoEntity, Long> {
-    fun findByTitleContaining(title: String): List<VideoEntity>
+    fun findByTitle(title: String): List<VideoEntity>
 }

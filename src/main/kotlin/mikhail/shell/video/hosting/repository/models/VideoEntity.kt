@@ -7,6 +7,7 @@ import org.springframework.data.elasticsearch.annotations.DateFormat
 import org.springframework.data.elasticsearch.annotations.Document
 import org.springframework.data.elasticsearch.annotations.Field
 import org.springframework.data.elasticsearch.annotations.FieldType
+import org.springframework.data.elasticsearch.annotations.Setting
 import java.time.LocalDateTime
 
 @Entity
@@ -18,6 +19,7 @@ data class VideoEntity(
     @org.springframework.data.annotation.Id
     @Column(name = "video_id") val videoId: Long? = null,
     @Column(name = "channel_id") val channelId: Long,
+    @Field(type = FieldType.Text, analyzer = "custom_multilingual_analyzer", searchAnalyzer = "custom_multilingual_analyzer")
     val title: String,
     @Field(type = FieldType.Date, format = [DateFormat.date_hour_minute_second_millis])
     val dateTime: LocalDateTime = LocalDateTime.now(),

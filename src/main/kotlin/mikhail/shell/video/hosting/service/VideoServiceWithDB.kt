@@ -120,7 +120,7 @@ class VideoServiceWithDB @Autowired constructor(
         partSize: Int,
         partNumber: Long
     ): List<VideoWithChannel> {
-        val ids = videoSearchRepository.findByTitleContaining(query).map { it.videoId }
+        val ids = videoSearchRepository.findByTitle(query).map { it.videoId }
         return videoWithChannelsRepository.findAllById(ids).map { it.toDomain() }
     }
 
