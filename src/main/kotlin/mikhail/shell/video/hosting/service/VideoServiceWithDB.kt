@@ -85,14 +85,15 @@ class VideoServiceWithDB @Autowired constructor(
             }
         }
         videoRepository.save(
-            VideoEntity(
-                videoEntity.videoId,
-                videoEntity.channelId,
-                videoEntity.title,
-                videoEntity.dateTime,
-                videoEntity.views,
-                newLikes,
-                newDislikes,
+            videoEntity.copy(
+                likes = newLikes,
+                dislikes = newDislikes,
+            )
+        )
+        videoSearchRepository.save(
+            videoEntity.copy(
+                likes = newLikes,
+                dislikes = newDislikes,
             )
         )
         return videoRepository.findById(videoId).orElseThrow().toDomain()
@@ -119,9 +120,8 @@ class VideoServiceWithDB @Autowired constructor(
         partSize: Int,
         partNumber: Long
     ): List<VideoWithChannel> {
-        return videoWithChannelsRepository.findByQuery(query).map {
-            it.toDomain()
-        }
+        val ids = videoSearchRepository.findByTitleContaining(query).map { it.videoId }
+        return videoWithChannelsRepository.findAllById(ids).map { it.toDomain() }
     }
 
     override fun uploadVideo(
@@ -130,6 +130,7 @@ class VideoServiceWithDB @Autowired constructor(
         source: mikhail.shell.video.hosting.domain.File
     ): Video {
         val addedVideo = videoRepository.save(video.toEntity()).toDomain()
+        videoSearchRepository.save(addedVideo.toEntity())
         val sourceExtension = source.name?.parseExtension()
         source.content?.let {
             File("$VIDEOS_PLAYABLES_BASE_PATH/${addedVideo.videoId}.$sourceExtension").writeBytes(it)
@@ -143,10 +144,12 @@ class VideoServiceWithDB @Autowired constructor(
 
     override fun incrementViews(videoId: Long): Long {
         val video = videoRepository.findById(videoId).orElseThrow()
+        videoSearchRepository.save(video.copy(views = video.views + 1))
         return videoRepository.save(video.copy(views = video.views + 1)).views
     }
 
     override fun deleteVideo(videoId: Long): Boolean {
+        videoRepository.deleteById(videoId)
         videoRepository.deleteById(videoId)
         return !videoRepository.existsById(videoId)
     }
@@ -157,6 +160,7 @@ class VideoServiceWithDB @Autowired constructor(
         cover: mikhail.shell.video.hosting.domain.File?
     ): Video {
         val updatedVideo = videoRepository.save(video.toEntity()).toDomain()
+        videoSearchRepository.save(updatedVideo.toEntity())
         val coverDir = File(VIDEOS_COVERS_BASE_PATH)
         if (coverAction != EditAction.KEEP) {
             val coverFile = coverDir.listFiles()?.firstOrNull { it.nameWithoutExtension == video.videoId.toString() }
@@ -167,5 +171,10 @@ class VideoServiceWithDB @Autowired constructor(
             File("$VIDEOS_COVERS_BASE_PATH/${updatedVideo.videoId}.$coverExtension").writeBytes(cover.content!!)
         }
         return updatedVideo
+    }
+
+    override fun sync() {
+        val videos = videoRepository.findAll()
+        videoSearchRepository.saveAll(videos)
     }
 }

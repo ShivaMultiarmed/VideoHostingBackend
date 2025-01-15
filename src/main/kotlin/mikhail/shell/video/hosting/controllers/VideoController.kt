@@ -281,4 +281,10 @@ class VideoController @Autowired constructor(
         return if (result) ResponseEntity.status(HttpStatus.OK).build()
         else ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
     }
+
+    @PatchMapping("/search/sync")
+    fun syncSearchIndexes(): ResponseEntity<Void> {
+        videoService.sync()
+        return ResponseEntity.status(HttpStatus.OK).build()
+    }
 }
