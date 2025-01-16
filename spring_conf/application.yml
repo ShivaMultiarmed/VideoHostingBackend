@@ -15,7 +15,7 @@ spring:
     show-sql: true
 
   elasticsearch:
-    uris: http://172.16.255.2:${ELASTIC_PORT}, http://172.16.255.3:${ELASTIC_PORT}, http://172.16.255.4:${ELASTIC_PORT}
+    uris: http://elastic:${ELASTIC_PORT}
     connection-timeout: 5s
     socket-timeout: 10s
     sniff: false
