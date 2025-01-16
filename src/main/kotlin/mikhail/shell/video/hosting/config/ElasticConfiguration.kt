@@ -11,19 +11,7 @@ import org.springframework.data.elasticsearch.repository.config.EnableElasticsea
 @EnableElasticsearchRepositories(
     basePackages = ["mikhail.shell.video.hosting.elastic.repository"]
 )
-class ElasticConfiguration
-//    : AbstractElasticsearchConfiguration()
-    {
-//    @Bean(name = [ "hostingSearchClient" ])
-//    override fun elasticsearchClient(): RestHighLevelClient {
-//        val clientConfiguration = ClientConfiguration.builder()
-//            .connectedTo("elastic_search:9200")
-//            .build();
-//
-//        return RestClients.create(clientConfiguration)
-//            .rest()
-//    }
-
+class ElasticConfiguration {
     @Bean
     fun elasticsearchCustomConversions(): ElasticsearchCustomConversions {
         return ElasticsearchCustomConversions(
