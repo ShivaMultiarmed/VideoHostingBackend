@@ -10,7 +10,7 @@ spring:
   datasource:
     username: ${MYSQL_USER}
     password: ${MYSQL_PASSWORD}
-    url: jdbc:mysql://hosting_db:3306/${MYSQL_DATABASE}
+    url: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}
   jpa:
     show-sql: true
 
