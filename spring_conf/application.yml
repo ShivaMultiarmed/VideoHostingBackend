@@ -13,9 +13,12 @@ spring:
     url: jdbc:mysql://hosting_db:3306/${MYSQL_DATABASE}
   jpa:
     show-sql: true
-#  elasticsearch:
-#    rest:
-#      uris: [ http://elastic_search:9200 ]
+
+  elasticsearch:
+    uris: http://172.16.255.2:${ELASTIC_PORT}, http://172.16.255.3:${ELASTIC_PORT}, http://172.16.255.4:${ELASTIC_PORT}
+    connection-timeout: 5s
+    socket-timeout: 10s
+    sniff: false
 
 logging:
   level:
