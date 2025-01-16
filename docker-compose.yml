@@ -44,8 +44,9 @@ services:
     volumes:
       - "elastic_volume:/usr/share/elasticsearch/data"
     environment:
-      discovery.type: single-node
-      xpack.security.enabled: false
+      - "discovery.type=single-node"
+      - "xpack.security.enabled=false"
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     networks:
       - spring_boot_network
 
