@@ -1,0 +1,83 @@
+{
+  "settings": {
+    "index": {
+      "max_ngram_diff": 18
+    },
+    "analysis": {
+      "filter": {
+        "english_stemmer": {
+          "type": "stemmer",
+          "name": "english"
+        },
+        "french_stemmer": {
+          "type": "stemmer",
+          "name": "french"
+        },
+        "german_stemmer": {
+          "type": "stemmer",
+          "name": "german"
+        },
+        "portuguese_stemmer": {
+          "type": "stemmer",
+          "name": "portuguese"
+        },
+        "spanish_stemmer": {
+          "type": "stemmer",
+          "name": "spanish"
+        },
+        "russian_stemmer": {
+          "type": "stemmer",
+          "name": "russian"
+        }
+      },
+      "tokenizer": {
+        "ngram_tokenizer": {
+          "type": "ngram",
+          "min_gram": 2,
+          "max_gram": 20,
+          "token_chars": [
+            "letter",
+            "digit"
+          ]
+        }
+      },
+      "analyzer": {
+        "custom_ngram_analyzer": {
+          "type": "custom",
+          "tokenizer": "ngram_tokenizer",
+          "filter": [
+            "lowercase",
+            "english_stemmer",
+            "french_stemmer",
+            "german_stemmer",
+            "portuguese_stemmer",
+            "spanish_stemmer",
+            "russian_stemmer"
+          ]
+        },
+        "custom_multilingual_analyzer": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": [
+            "lowercase",
+            "english_stemmer",
+            "french_stemmer",
+            "german_stemmer",
+            "portuguese_stemmer",
+            "spanish_stemmer",
+            "russian_stemmer"
+          ]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "properties": {
+      "title": {
+        "type": "text",
+        "search_analyzer": "custom_multilingual_analyzer",
+        "analyzer": "custom_ngram_analyzer"
+      }
+    }
+  }
+}
