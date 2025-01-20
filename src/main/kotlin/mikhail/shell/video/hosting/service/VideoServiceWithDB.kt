@@ -150,7 +150,7 @@ class VideoServiceWithDB @Autowired constructor(
 
     override fun deleteVideo(videoId: Long): Boolean {
         videoRepository.deleteById(videoId)
-        videoRepository.deleteById(videoId)
+        videoSearchRepository.deleteById(videoId)
         return !videoRepository.existsById(videoId)
     }
 
