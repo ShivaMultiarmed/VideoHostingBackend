@@ -15,6 +15,12 @@ services:
       - "mysql_volume:/var/lib/mysql"
     networks:
       - spring_boot_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   spring:
     build:
@@ -24,8 +30,10 @@ services:
     env_file:
       - .env
     depends_on:
-      - mysql
-      - elastic
+      mysql:
+        condition: service_healthy
+      elastic:
+        condition: service_healthy
     volumes:
       - "${HOSTING_APP_LOCATION}/spring_conf:/app/spring_conf"
       - "spring_storage:/app/spring_storage"
@@ -50,6 +58,12 @@ services:
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     networks:
       - spring_boot_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -u ${ELASTIC_USERNAME}:${ELASTIC_PASSWORD} http://localhost:${ELASTIC_PORT}/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
 volumes:
   mysql_volume:
