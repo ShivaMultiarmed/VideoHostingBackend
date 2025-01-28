@@ -14,6 +14,8 @@ import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import java.io.File
+import java.io.FileOutputStream
+import java.io.InputStream
 
 @Service
 class VideoServiceWithDB @Autowired constructor(
@@ -142,6 +144,41 @@ class VideoServiceWithDB @Autowired constructor(
         return addedVideo
     }
 
+    override fun saveVideoDetails(video: Video): Video {
+        val addedVideo = videoRepository.save(video.toEntity()).toDomain()
+        videoSearchRepository.save(addedVideo.toEntity())
+        return addedVideo
+    }
+
+    override fun saveVideoSource(videoId: Long, extension: String, input: InputStream, chunkNumber: Int): Boolean {
+        return saveFile(
+            input = input,
+            path = "$VIDEOS_PLAYABLES_BASE_PATH/$videoId.$extension",
+            chunkNumber = chunkNumber
+        )
+    }
+
+    override fun saveVideoCover(videoId: Long, extension: String, input: InputStream): Boolean {
+        return saveFile(
+            input = input,
+            path = "$VIDEOS_COVERS_BASE_PATH/$videoId.$extension"
+        )
+    }
+
+    private fun saveFile(input: InputStream, path: String, chunkNumber: Int = 0): Boolean {
+        input.use { inStream ->
+            val output = FileOutputStream(File(path), true)
+            output.use { outStream ->
+                val buffer = ByteArray(IO_BUFFER_SIZE)
+                var bytesRead: Int
+                while (inStream.read(buffer).also { bytesRead = it } != -1) {
+                    outStream.write(buffer, 0, bytesRead)
+                }
+            }
+        }
+        return true
+    }
+
     override fun incrementViews(videoId: Long): Long {
         val video = videoRepository.findById(videoId).orElseThrow()
         videoSearchRepository.save(video.copy(views = video.views + 1))
@@ -176,5 +213,10 @@ class VideoServiceWithDB @Autowired constructor(
     override fun sync() {
         val videos = videoRepository.findAll()
         videoSearchRepository.saveAll(videos)
+    }
+
+    companion object {
+        private const val TRANSFER_BUFFER_SIZE = 40 * 1024 * 1024
+        private const val IO_BUFFER_SIZE = 100 * 1024
     }
 }

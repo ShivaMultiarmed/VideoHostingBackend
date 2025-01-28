@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException
 import org.springframework.web.multipart.MultipartFile
 import java.io.File
+import java.io.InputStream
 import java.io.RandomAccessFile
 
 @RestController
@@ -205,12 +206,7 @@ class VideoController @Autowired constructor(
         return ResponseEntity.status(HttpStatus.OK).body(videoDtos)
     }
 
-    @PostMapping(
-        path = ["/upload"],
-        consumes = [
-            "multipart/form-data",
-        ]
-    )
+    @PostMapping("/upload", consumes = ["multipart/form-data"])
     fun uploadVideo(
         request: HttpServletRequest,
         @RequestPart("video") videoDto: VideoDto,
@@ -240,6 +236,43 @@ class VideoController @Autowired constructor(
                 coverUrl = "http://$IP:${request.localPort}/api/v1/videos/${video.videoId}/cover"
             )
         )
+    }
+
+    @PostMapping("/upload/details")
+    fun uploadVideoDetails(
+        @RequestBody video: VideoDto,
+        request: HttpServletRequest,
+    ): ResponseEntity<VideoDto> {
+        return ResponseEntity.status(HttpStatus.OK)
+            .body(
+                videoService.saveVideoDetails(
+                    video.toDomain()
+                ).toDto(
+                    sourceUrl = "http://$IP:${request.localPort}/api/v1/videos/${video.videoId}/play",
+                    coverUrl = "http://$IP:${request.localPort}/api/v1/videos/${video.videoId}/cover"
+                )
+            )
+    }
+
+    @PostMapping("/upload/{videoId}/source", consumes = ["application/octet-stream"])
+    fun uploadVideoSource(
+        @PathVariable videoId: Long,
+        @RequestParam chunkNumber: Int,
+        @RequestParam extension: String,
+        input: InputStream
+    ): ResponseEntity<Boolean> {
+        val result = videoService.saveVideoSource(videoId, extension, input, chunkNumber)
+        return ResponseEntity.status(HttpStatus.OK).body(result)
+    }
+
+    @PostMapping("/upload/{videoId}/cover", consumes = ["application/octet-stream"])
+    fun uploadVideoCover(
+        @PathVariable videoId: Long,
+        @RequestParam extension: String,
+        input: InputStream
+    ): ResponseEntity<Boolean> {
+        val result = videoService.saveVideoCover(videoId, extension, input)
+        return ResponseEntity.status(HttpStatus.OK).body(result)
     }
 
     @PatchMapping("/{videoId}/increment-views")

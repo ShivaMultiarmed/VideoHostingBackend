@@ -1,6 +1,7 @@
 package mikhail.shell.video.hosting.service
 
 import mikhail.shell.video.hosting.domain.*
+import java.io.InputStream
 
 interface VideoService {
     fun getVideoInfo(videoId: Long): Video
@@ -14,4 +15,7 @@ interface VideoService {
     fun deleteVideo(videoId: Long): Boolean
     fun editVideo(video: Video, coverAction: EditAction, cover: File?): Video
     fun sync()
+    fun saveVideoDetails(video: Video): Video
+    fun saveVideoSource(videoId: Long, extension: String, input: InputStream, chunkNumber: Int): Boolean
+    fun saveVideoCover(videoId: Long, extension: String, input: InputStream): Boolean
 }
