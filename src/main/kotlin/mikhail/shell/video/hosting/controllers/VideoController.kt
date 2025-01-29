@@ -274,6 +274,13 @@ class VideoController @Autowired constructor(
         val result = videoService.saveVideoCover(videoId, extension, input)
         return ResponseEntity.status(HttpStatus.OK).body(result)
     }
+    @PostMapping("/upload/{videoId}/confirm")
+    fun confirmVideoUpload(
+        @PathVariable videoId: Long
+    ): ResponseEntity<Boolean> {
+        val result = videoService.confirmVideoUpload(videoId)
+        return ResponseEntity.status(HttpStatus.OK).body(result)
+    }
 
     @PatchMapping("/{videoId}/increment-views")
     fun incrementViews(

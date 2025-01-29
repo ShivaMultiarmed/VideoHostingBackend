@@ -106,9 +106,9 @@ class VideoServiceWithDB @Autowired constructor(
         partSize: Int,
         partNumber: Long
     ): List<Video> {
-        return videoRepository.findByChannelIdOrderByDateTimeDesc(
-            channelId,
-            PageRequest.of(
+        return videoRepository.findByChannelIdAndStateOrderByDateTimeDesc(
+            channelId = channelId,
+            pageable = PageRequest.of(
                 partNumber.toInt() - 1,
                 partSize
             )
@@ -122,7 +122,7 @@ class VideoServiceWithDB @Autowired constructor(
         partSize: Int,
         partNumber: Long
     ): List<VideoWithChannel> {
-        val ids = videoSearchRepository.findByTitle(query).map { it.videoId }
+        val ids = videoSearchRepository.findByTitleAndState(query).map { it.videoId }
         return videoWithChannelsRepository.findAllById(ids).map { it.toDomain() }
     }
 
@@ -165,6 +165,14 @@ class VideoServiceWithDB @Autowired constructor(
         )
     }
 
+    override fun confirmVideoUpload(videoId: Long): Boolean {
+        var videoEntity = videoRepository.findById(videoId).get()
+        videoEntity = videoEntity.copy(state = VideoState.UPLOADED)
+        videoRepository.save(videoEntity)
+        videoSearchRepository.save(videoEntity)
+        return true
+    }
+
     private fun saveFile(input: InputStream, path: String, chunkNumber: Int = 0): Boolean {
         input.use { inStream ->
             val output = FileOutputStream(File(path), true)
@@ -196,8 +204,9 @@ class VideoServiceWithDB @Autowired constructor(
         coverAction: EditAction,
         cover: mikhail.shell.video.hosting.domain.File?
     ): Video {
-        val updatedVideo = videoRepository.save(video.toEntity()).toDomain()
-        videoSearchRepository.save(updatedVideo.toEntity())
+        val videoState = videoRepository.findById(video.videoId!!).get().state
+        val updatedVideo = videoRepository.save(video.toEntity(videoState)).toDomain()
+        videoSearchRepository.save(updatedVideo.toEntity(videoState))
         val coverDir = File(VIDEOS_COVERS_BASE_PATH)
         if (coverAction != EditAction.KEEP) {
             val coverFile = coverDir.listFiles()?.firstOrNull { it.nameWithoutExtension == video.videoId.toString() }

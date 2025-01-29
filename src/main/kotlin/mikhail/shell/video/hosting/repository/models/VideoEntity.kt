@@ -9,6 +9,10 @@ import org.springframework.data.elasticsearch.annotations.Field
 import org.springframework.data.elasticsearch.annotations.FieldType
 import java.time.LocalDateTime
 
+enum class VideoState {
+    CREATED, UPLOADED
+}
+
 @Entity
 //@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @Table(name = "videos")
@@ -24,8 +28,11 @@ data class VideoEntity(
     val dateTime: LocalDateTime = LocalDateTime.now(),
     val views: Long = 0,
     val likes: Long = 0,
-    val dislikes: Long = 0
+    val dislikes: Long = 0,
+    @Enumerated(value = EnumType.STRING)
+    val state: VideoState
 )
+
 
 fun VideoEntity.toDomain() = Video(
     videoId,
@@ -36,14 +43,17 @@ fun VideoEntity.toDomain() = Video(
     likes,
     dislikes
 )
-fun Video.toEntity() = VideoEntity(
+fun Video.toEntity(
+    state: VideoState = VideoState.CREATED
+) = VideoEntity(
     videoId,
     channelId,
     title,
     dateTime,
     views,
     likes,
-    dislikes
+    dislikes,
+    state
 )
 
 @Entity
@@ -57,6 +67,8 @@ data class VideoWithChannelEntity(
     val views: Long,
     val likes: Long,
     val dislikes: Long,
+    @Enumerated(value = EnumType.STRING)
+    val state: VideoState,
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(
         name = "channel_id",
@@ -89,7 +101,9 @@ fun VideoWithChannelEntity.toDomain() = VideoWithChannel(
     ),
     channel = channel.toDomain()
 )
-fun VideoWithChannel.toEntity() = VideoWithChannelEntity(
+fun VideoWithChannel.toEntity(
+    state: VideoState
+) = VideoWithChannelEntity(
     video.videoId,
     video.channelId,
     video.title,
@@ -97,5 +111,6 @@ fun VideoWithChannel.toEntity() = VideoWithChannelEntity(
     video.views,
     video.likes,
     video.dislikes,
+    state,
     channel.toEntity()
 )

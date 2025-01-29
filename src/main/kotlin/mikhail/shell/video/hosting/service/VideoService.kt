@@ -18,4 +18,5 @@ interface VideoService {
     fun saveVideoDetails(video: Video): Video
     fun saveVideoSource(videoId: Long, extension: String, input: InputStream, chunkNumber: Int): Boolean
     fun saveVideoCover(videoId: Long, extension: String, input: InputStream): Boolean
+    fun confirmVideoUpload(videoId: Long): Boolean
 }
