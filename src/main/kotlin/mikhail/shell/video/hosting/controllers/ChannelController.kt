@@ -144,14 +144,23 @@ class ChannelController @Autowired constructor(
         request: HttpServletRequest,
         @RequestParam userId: Long,
         @PathVariable channelId: Long,
+        @RequestParam token: String,
         @RequestParam subscriptionState: SubscriptionState
     ): ResponseEntity<ChannelWithUserDto> {
-        val channelWithUser = channelService.changeSubscriptionState(userId, channelId, subscriptionState)
+        val channelWithUser = channelService.changeSubscriptionState(userId, channelId, token, subscriptionState)
         return ResponseEntity.status(HttpStatus.OK).body(
             channelWithUser.toDto(
                 avatarUrl = "http://$IP:${request.localPort}/api/v1/channels/${channelWithUser.channelId}/avatar",
                 coverUrl = "http://$IP:${request.localPort}/api/v1/channels/${channelWithUser.channelId}/cover"
             )
         )
+    }
+    @PatchMapping("/resubscribe")
+    fun resubscribeToFCM(
+        @RequestParam userId: Long,
+        @RequestParam token: String
+    ): ResponseEntity<Void> {
+        channelService.resubscribe(userId, token)
+        return ResponseEntity.status(HttpStatus.OK).build()
     }
 }

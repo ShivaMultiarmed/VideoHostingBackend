@@ -1,5 +1,6 @@
 package mikhail.shell.video.hosting.service
 
+import com.google.firebase.messaging.FirebaseMessaging
 import jakarta.transaction.Transactional
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_COVERS_BASE_PATH
@@ -22,7 +23,8 @@ import org.springframework.stereotype.Service
 @Service
 class ChannelServiceImpl @Autowired constructor(
     private val channelRepository: ChannelRepository,
-    private val subscriberRepository: SubscriberRepository
+    private val subscriberRepository: SubscriberRepository,
+    private val fcm: FirebaseMessaging
 ) : ChannelService {
 
     override fun provideChannelInfo(
@@ -84,6 +86,7 @@ class ChannelServiceImpl @Autowired constructor(
     override fun changeSubscriptionState(
         subscriberId: Long,
         channelId: Long,
+        token: String,
         subscriptionState: SubscriptionState
     ): ChannelWithUser {
         val channelEntity = channelRepository.findById(channelId).orElseThrow()
@@ -103,6 +106,11 @@ class ChannelServiceImpl @Autowired constructor(
             )
         }
         val newSubscriptionState = if (checkIfSubscribed(channelId, subscriberId)) SUBSCRIBED else NOT_SUBSCRIBED
+        if (newSubscriptionState == SUBSCRIBED) {
+            fcm.subscribeToTopic(listOf(token), "/channels/$channelId")
+        } else {
+            fcm.unsubscribeFromTopic(listOf(token), "/channels/$channelId")
+        }
         val channel = channelRepository.findById(channelId).orElseThrow().toDomain()
         return ChannelWithUser(
             channelId,
@@ -113,5 +121,9 @@ class ChannelServiceImpl @Autowired constructor(
             channel.subscribers,
             newSubscriptionState
         )
+    }
+
+    override fun resubscribe(userId: Long, token: String) {
+        subscriberRepository.findById_UserId(userId).map { it.id.channelId }.forEach { fcm.subscribeToTopic(listOf(token), "/channels/$it") }
     }
 }

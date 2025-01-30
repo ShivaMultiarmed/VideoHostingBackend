@@ -56,6 +56,8 @@ dependencies {
 
 	// JAXB Runtime
 	implementation ("org.glassfish.jaxb:jaxb-runtime:2.3.1")
+
+	implementation ("com.google.firebase:firebase-admin:9.4.3")
 }
 
 kotlin {
@@ -83,7 +85,6 @@ tasks.jar {
 	}
 	exclude("application.yml")
 	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-//	from(sourceSets["main"].output)
 }
 tasks.bootJar {
 	exclude("application.yml")

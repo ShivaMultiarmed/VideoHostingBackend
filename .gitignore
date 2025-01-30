@@ -46,3 +46,4 @@ out/
 launch.sh
 network.sh
 build.sh
+**-firebase-adminsdk-**.json

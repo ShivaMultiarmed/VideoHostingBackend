@@ -31,6 +31,11 @@ interface ChannelService {
     fun changeSubscriptionState(
         subscriberId: Long,
         channelId: Long,
+        token: String,
         subscriptionState: SubscriptionState
     ): ChannelWithUser
+    fun resubscribe(
+        userId: Long,
+        token: String
+    )
 }
