@@ -27,6 +27,8 @@ class ChannelServiceImpl @Autowired constructor(
     private val fcm: FirebaseMessaging
 ) : ChannelService {
 
+    private val CHANNELS_TOPICS_PREFIX = "channels"
+
     override fun provideChannelInfo(
         channelId: Long
     ): Channel {
@@ -107,9 +109,9 @@ class ChannelServiceImpl @Autowired constructor(
         }
         val newSubscriptionState = if (checkIfSubscribed(channelId, subscriberId)) SUBSCRIBED else NOT_SUBSCRIBED
         if (newSubscriptionState == SUBSCRIBED) {
-            fcm.subscribeToTopic(listOf(token), "/channels/$channelId")
+            fcm.subscribeToTopic(listOf(token), "$CHANNELS_TOPICS_PREFIX.$channelId")
         } else {
-            fcm.unsubscribeFromTopic(listOf(token), "/channels/$channelId")
+            fcm.unsubscribeFromTopic(listOf(token), "$CHANNELS_TOPICS_PREFIX.$channelId")
         }
         val channel = channelRepository.findById(channelId).orElseThrow().toDomain()
         return ChannelWithUser(
@@ -124,6 +126,6 @@ class ChannelServiceImpl @Autowired constructor(
     }
 
     override fun resubscribe(userId: Long, token: String) {
-        subscriberRepository.findById_UserId(userId).map { it.id.channelId }.forEach { fcm.subscribeToTopic(listOf(token), "/channels/$it") }
+        subscriberRepository.findById_UserId(userId).map { it.id.channelId }.forEach { fcm.subscribeToTopic(listOf(token), "$CHANNELS_TOPICS_PREFIX.$it") }
     }
 }

@@ -1,5 +1,7 @@
 package mikhail.shell.video.hosting.service
 
+import com.google.firebase.messaging.FirebaseMessaging
+import com.google.firebase.messaging.Message
 import jakarta.transaction.Transactional
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH
@@ -24,8 +26,11 @@ class VideoServiceWithDB @Autowired constructor(
     private val videoWithChannelsRepository: VideoWithChannelsRepository,
     @Qualifier("videoRepository_elastic")
     private val videoSearchRepository: VideoSearchRepository,
-    private val userLikeVideoRepository: UserLikeVideoRepository
+    private val userLikeVideoRepository: UserLikeVideoRepository,
+    private val fcm: FirebaseMessaging
 ) : VideoService {
+
+    private val CHANNELS_TOPICS_PREFIX = "channels"
 
     override fun getVideoInfo(videoId: Long): Video {
         return videoRepository.findById(videoId).orElseThrow().toDomain()
@@ -141,6 +146,18 @@ class VideoServiceWithDB @Autowired constructor(
             val coverExtension = cover.name?.parseExtension()
             File("$VIDEOS_COVERS_BASE_PATH/${addedVideo.videoId}.$coverExtension").writeBytes(cover.content!!)
         }
+        val videoWithChannel = videoWithChannelsRepository.findById(addedVideo.videoId!!).get()
+        val message = Message.builder()
+            .setTopic("$CHANNELS_TOPICS_PREFIX.${video.channelId}")
+            .putAllData(
+                mapOf(
+                    "channelTitle" to videoWithChannel.channel.title,
+                    "videoTitle" to videoWithChannel.title,
+                    "videoId" to videoWithChannel.videoId.toString()
+                )
+            ).build()
+        fcm.send(message)
+        confirmVideoUpload(addedVideo.videoId)
         return addedVideo
     }
 
@@ -170,6 +187,17 @@ class VideoServiceWithDB @Autowired constructor(
         videoEntity = videoEntity.copy(state = VideoState.UPLOADED)
         videoRepository.save(videoEntity)
         videoSearchRepository.save(videoEntity)
+        val videoWithChannel = videoWithChannelsRepository.findById(videoId).get()
+        val message = Message.builder()
+            .setTopic("$CHANNELS_TOPICS_PREFIX.${videoWithChannel.channelId}")
+            .putAllData(
+                mapOf(
+                    "channelTitle" to videoWithChannel.channel.title,
+                    "videoTitle" to videoWithChannel.title,
+                    "videoId" to videoWithChannel.videoId.toString()
+                )
+            ).build()
+        fcm.send(message)
         return true
     }
 
