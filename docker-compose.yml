@@ -38,7 +38,8 @@ services:
       - "${HOSTING_APP_LOCATION}/spring_conf:/app/spring_conf"
       - "spring_storage:/app/spring_storage"
     ports:
-      - "${HOSTING_PORT}:${HOSTING_PORT}"
+      - "${HOSTING_HTTPS_PORT}:${HOSTING_HTTPS_PORT}"
+      - "${HOSTING_HTTP_PORT}:${HOSTING_HTTP_PORT}"
       - "5555:5555"
     environment:
       SPRING_CONFIG_LOCATION: "file:/app/spring_conf/application.yml"

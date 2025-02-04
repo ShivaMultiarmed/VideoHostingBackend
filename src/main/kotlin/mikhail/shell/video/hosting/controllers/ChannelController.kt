@@ -25,8 +25,8 @@ import java.io.File
 class ChannelController @Autowired constructor(
     private val channelService: ChannelService
 ) {
-    @Value("\${hosting.server.ip}")
-    private lateinit var IP: String
+    @Value("\${hosting.server.host}")
+    private lateinit var HOST: String
     @GetMapping("/{channelId}/details")
     fun provideChannelInfo(
         request: HttpServletRequest,
@@ -35,8 +35,8 @@ class ChannelController @Autowired constructor(
     ): ResponseEntity<ChannelWithUserDto> {
         val channelForUser = channelService.provideChannelForUser(channelId, userId)
         val channelDto = channelForUser.toDto(
-            avatarUrl = "http://$IP:${request.localPort}/api/v1/channels/${channelForUser.channelId}/avatar",
-            coverUrl = "http://$IP:${request.localPort}/api/v1/channels/${channelForUser.channelId}/cover"
+            avatarUrl = "https://$HOST:${request.localPort}/api/v1/channels/${channelForUser.channelId}/avatar",
+            coverUrl = "https://$HOST:${request.localPort}/api/v1/channels/${channelForUser.channelId}/cover"
         )
         return ResponseEntity.status(HttpStatus.OK).body(channelDto)
     }
@@ -117,8 +117,8 @@ class ChannelController @Autowired constructor(
         val channels = channelService.getChannelsByOwnerId(userId)
         val channelDtos = channels.map {
             it.toDto(
-                avatarUrl = "http://$IP:${request.localPort}/api/v1/channels/${it.channelId}/avatar",
-                coverUrl = "http://$IP:${request.localPort}/api/v1/channels/${it.channelId}/cover"
+                avatarUrl = "https://$HOST:${request.localPort}/api/v1/channels/${it.channelId}/avatar",
+                coverUrl = "https://$HOST:${request.localPort}/api/v1/channels/${it.channelId}/cover"
             )
         }
         return ResponseEntity.status(HttpStatus.OK).body(channelDtos)
@@ -132,8 +132,8 @@ class ChannelController @Autowired constructor(
         val channels = channelService.getChannelsBySubscriberId(userId)
         val channelDtos = channels.map {
             it.toDto(
-                avatarUrl = "http://$IP:${request.localPort}/api/v1/channels/${it.channelId}/avatar",
-                coverUrl = "http://$IP:${request.localPort}/api/v1/channels/${it.channelId}/cover"
+                avatarUrl = "https://$HOST:${request.localPort}/api/v1/channels/${it.channelId}/avatar",
+                coverUrl = "https://$HOST:${request.localPort}/api/v1/channels/${it.channelId}/cover"
             )
         }
         return ResponseEntity.status(HttpStatus.OK).body(channelDtos)
@@ -150,8 +150,8 @@ class ChannelController @Autowired constructor(
         val channelWithUser = channelService.changeSubscriptionState(userId, channelId, token, subscriptionState)
         return ResponseEntity.status(HttpStatus.OK).body(
             channelWithUser.toDto(
-                avatarUrl = "http://$IP:${request.localPort}/api/v1/channels/${channelWithUser.channelId}/avatar",
-                coverUrl = "http://$IP:${request.localPort}/api/v1/channels/${channelWithUser.channelId}/cover"
+                avatarUrl = "https://$HOST:${request.localPort}/api/v1/channels/${channelWithUser.channelId}/avatar",
+                coverUrl = "https://$HOST:${request.localPort}/api/v1/channels/${channelWithUser.channelId}/cover"
             )
         )
     }

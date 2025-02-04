@@ -1,6 +1,13 @@
 server:
-  port: ${HOSTING_PORT:8080}
+  port: ${HOSTING_HTTPS_PORT}
   address: 0.0.0.0
+  http:
+    port: ${HOSTING_HTTP_PORT}
+  ssl:
+    key-store: ${KEYSTORE_PATH}
+    key-store-password: ${KEYSTORE_PASSWORD}
+    keyStoreType: ${KEYSTORE_TYPE}
+    keyAlias: ${KEY_ALIAS}
 
 spring:
   servlet:
@@ -33,7 +40,7 @@ logging:
 
 hosting:
   server:
-    ip: ${HOSTING_IP}
+    host: ${HOST}
   application:
     path: "/app"
   storage:
