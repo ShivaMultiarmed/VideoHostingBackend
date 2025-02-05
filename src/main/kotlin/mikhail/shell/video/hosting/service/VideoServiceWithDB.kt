@@ -13,6 +13,7 @@ import mikhail.shell.video.hosting.repository.VideoWithChannelsRepository
 import mikhail.shell.video.hosting.repository.models.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import java.io.File
@@ -114,7 +115,7 @@ class VideoServiceWithDB @Autowired constructor(
         return videoRepository.findByChannelIdAndStateOrderByDateTimeDesc(
             channelId = channelId,
             pageable = PageRequest.of(
-                partNumber.toInt() - 1,
+                partNumber.toInt(),
                 partSize
             )
         ).map {
@@ -127,7 +128,13 @@ class VideoServiceWithDB @Autowired constructor(
         partSize: Int,
         partNumber: Long
     ): List<VideoWithChannel> {
-        val ids = videoSearchRepository.findByTitleAndState(query).map { it.videoId }
+        val ids = videoSearchRepository.findByTitleAndState(
+            title = query,
+            pageable = PageRequest.of(
+                partNumber.toInt(),
+                partSize
+            )
+        ).map { it.videoId }
         return videoWithChannelsRepository.findAllById(ids).map { it.toDomain() }
     }
 

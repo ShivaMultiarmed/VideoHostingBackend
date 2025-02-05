@@ -15,8 +15,8 @@ spring:
       max-file-size: 50MB
       max-request-size: 50MB
   datasource:
-    username: ${MYSQL_USER}
-    password: ${MYSQL_PASSWORD}
+    username: root
+    password: ${MYSQL_ROOT_PASSWORD}
     url: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}
   jpa:
     show-sql: true

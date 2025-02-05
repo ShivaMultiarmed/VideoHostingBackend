@@ -49,3 +49,7 @@ build.sh
 
 ### Firebase Configuration ###
 **-firebase-adminsdk-**.json
+
+### Security Configuration ###
+security_conf
+security_conf/**

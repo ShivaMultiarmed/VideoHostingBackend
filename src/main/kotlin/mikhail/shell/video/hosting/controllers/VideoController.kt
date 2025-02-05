@@ -142,7 +142,7 @@ class VideoController @Autowired constructor(
         request: HttpServletRequest,
         @PathVariable channelId: Long,
         @Param("partSize") partSize: Int = 10,
-        @Param("partNumber") partNumber: Long = 1
+        @Param("partNumber") partNumber: Long = 0
     ): ResponseEntity<List<VideoDto>> {
         val videoList = videoService.getVideosByChannelId(channelId, partSize, partNumber)
         val videoDtoList = videoList.map {
