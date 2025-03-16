@@ -10,6 +10,7 @@ import mikhail.shell.video.hosting.domain.SubscriptionState.SUBSCRIBED
 import mikhail.shell.video.hosting.errors.ChannelCreationError
 import mikhail.shell.video.hosting.errors.ChannelCreationError.EXISTS
 import mikhail.shell.video.hosting.errors.CompoundError
+import mikhail.shell.video.hosting.errors.EditChannelError
 import mikhail.shell.video.hosting.errors.HostingDataException
 import mikhail.shell.video.hosting.repository.models.SubscriberId
 import mikhail.shell.video.hosting.repository.ChannelRepository
@@ -27,6 +28,8 @@ class ChannelServiceImpl @Autowired constructor(
     private val fcm: FirebaseMessaging
 ) : ChannelService {
 
+    private val MAX_BUFFER = 10 * 1024 * 1024
+
     private val CHANNELS_TOPICS_PREFIX = "channels"
 
     override fun provideChannelInfo(
@@ -38,7 +41,7 @@ class ChannelServiceImpl @Autowired constructor(
     override fun provideChannelForUser(channelId: Long, userId: Long): ChannelWithUser {
         val channel = channelRepository.findById(channelId).orElseThrow()
         val subscription = if (subscriberRepository.existsById(SubscriberId(channelId, userId)))
-            SubscriptionState.SUBSCRIBED else NOT_SUBSCRIBED
+            SUBSCRIBED else NOT_SUBSCRIBED
         return ChannelWithUser(
             channel.channelId,
             channel.ownerId,
@@ -125,7 +128,67 @@ class ChannelServiceImpl @Autowired constructor(
         )
     }
 
+    override fun editChannel(
+        channel: Channel,
+        editCoverAction: EditAction,
+        coverFile: File?,
+        editAvatarAction: EditAction,
+        avatarFile: File?
+    ): Channel {
+        val error = CompoundError<EditChannelError>()
+        if (channel.channelId == null) {
+            error.add(EditChannelError.CHANNEL_NOT_EXIST)
+        }
+        if (channel.title.isBlank()) {
+            error.add(EditChannelError.TITLE_EMPTY)
+        }
+        if (channel.title.length > 255) {
+            error.add(EditChannelError.TITLE_TOO_LARGE)
+        }
+        coverFile?.let {
+            if (it.content!!.size > MAX_BUFFER) {
+                error.add(EditChannelError.COVER_TOO_LARGE)
+            }
+        }
+        avatarFile?.let {
+            if (it.content!!.size > MAX_BUFFER) {
+                error.add(EditChannelError.AVATAR_TOO_LARGE)
+            }
+        }
+        if (error.isNotNull()) {
+            throw HostingDataException(error)
+        }
+        val editedChannel = channelRepository.save(channel.toEntity()).toDomain()
+        when (editCoverAction) {
+            EditAction.KEEP -> Unit
+            EditAction.REMOVE -> {
+                findFileByName(
+                    java.io.File(CHANNEL_COVERS_BASE_PATH),
+                    channel.channelId!!.toString()
+                )?.delete()
+            }
+            EditAction.UPDATE -> {
+                java.io.File(CHANNEL_COVERS_BASE_PATH, coverFile!!.name!!).writeBytes(coverFile.content!!)
+            }
+        }
+        when (editAvatarAction) {
+            EditAction.KEEP -> Unit
+            EditAction.REMOVE -> {
+                findFileByName(
+                    java.io.File(CHANNEL_AVATARS_BASE_PATH),
+                    channel.channelId!!.toString()
+                )?.delete()
+            }
+            EditAction.UPDATE -> {
+                java.io.File(CHANNEL_AVATARS_BASE_PATH, avatarFile!!.name!!).writeBytes(avatarFile.content!!)
+            }
+        }
+        return editedChannel
+    }
+
     override fun resubscribe(userId: Long, token: String) {
-        subscriberRepository.findById_UserId(userId).map { it.id.channelId }.forEach { fcm.subscribeToTopic(listOf(token), "$CHANNELS_TOPICS_PREFIX.$it") }
+        subscriberRepository.findById_UserId(userId)
+            .map { it.id.channelId }
+            .forEach { fcm.subscribeToTopic(listOf(token), "$CHANNELS_TOPICS_PREFIX.$it") }
     }
 }

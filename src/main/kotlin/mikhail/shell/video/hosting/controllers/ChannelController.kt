@@ -3,6 +3,7 @@ package mikhail.shell.video.hosting.controllers
 import jakarta.servlet.http.HttpServletRequest
 import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_AVATARS_BASE_PATH
 import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_COVERS_BASE_PATH
+import mikhail.shell.video.hosting.domain.EditAction
 import mikhail.shell.video.hosting.domain.SubscriptionState
 import mikhail.shell.video.hosting.domain.findFileByName
 import mikhail.shell.video.hosting.domain.parseExtension
@@ -18,7 +19,7 @@ import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
-import java.io.File
+import mikhail.shell.video.hosting.domain.File
 
 @RestController
 @RequestMapping("/api/v1/channels")
@@ -27,6 +28,7 @@ class ChannelController @Autowired constructor(
 ) {
     @Value("\${hosting.server.host}")
     private lateinit var HOST: String
+
     @GetMapping("/{channelId}/details")
     fun provideChannelInfo(
         request: HttpServletRequest,
@@ -46,7 +48,7 @@ class ChannelController @Autowired constructor(
         @PathVariable channelId: Long
     ): ResponseEntity<ByteArray> {
         return try {
-            val coverFolder = File(CHANNEL_COVERS_BASE_PATH)
+            val coverFolder = java.io.File(CHANNEL_COVERS_BASE_PATH)
             val image = findFileByName(coverFolder, channelId.toString())
             if (image?.exists() != true) {
                 ResponseEntity.status(HttpStatus.NOT_FOUND).build<ByteArray>()
@@ -64,7 +66,7 @@ class ChannelController @Autowired constructor(
         @PathVariable channelId: Long
     ): ResponseEntity<ByteArray> {
         return try {
-            val avatarFolder = File(CHANNEL_AVATARS_BASE_PATH)
+            val avatarFolder = java.io.File(CHANNEL_AVATARS_BASE_PATH)
             val image = findFileByName(avatarFolder, channelId.toString())
             if (image?.exists() != true) {
                 ResponseEntity.status(HttpStatus.NOT_FOUND).build<ByteArray>()
@@ -88,14 +90,14 @@ class ChannelController @Autowired constructor(
         @RequestPart("avatar") avatarFile: MultipartFile?
     ): ResponseEntity<ChannelDto> {
         val cover = coverFile?.let {
-            mikhail.shell.video.hosting.domain.File(
+            File(
                 it.originalFilename,
                 it.contentType,
                 it.bytes
             )
         }
         val avatar = avatarFile?.let {
-            mikhail.shell.video.hosting.domain.File(
+            File(
                 it.originalFilename,
                 it.contentType,
                 it.bytes
@@ -106,7 +108,51 @@ class ChannelController @Autowired constructor(
             cover = cover,
             avatar = avatar
         )
-        return ResponseEntity.status(HttpStatus.OK).body(createdChannel.toDto())
+        return ResponseEntity.status(HttpStatus.OK).body(
+            createdChannel.toDto(
+                avatarUrl = "https://$HOST:${request.localPort}/api/v1/channels/${createdChannel.channelId}/avatar",
+                coverUrl = "https://$HOST:${request.localPort}/api/v1/channels/${createdChannel.channelId}/cover"
+            )
+        )
+    }
+
+    @PatchMapping(
+        path = ["/edit"],
+        consumes = ["multipart/form-data"]
+    )
+    fun editChannel(
+        request: HttpServletRequest,
+        @RequestPart("channel") channel: ChannelDto,
+        @RequestPart("editCoverAction") editCoverAction: EditAction,
+        @RequestPart("cover") coverFile: MultipartFile?,
+        @RequestPart("editAvatarAction") editAvatarAction: EditAction,
+        @RequestPart("avatar") avatarFile: MultipartFile?
+    ): ResponseEntity<ChannelDto> {
+        val editedChannel = channelService.editChannel(
+            channel.toDomain(),
+            editCoverAction,
+            coverFile?.let {
+                File(
+                    name = it.originalFilename,
+                    mimeType = it.contentType,
+                    content = it.bytes
+                )
+            },
+            editAvatarAction,
+            avatarFile?.let {
+                File(
+                    name = it.originalFilename,
+                    mimeType = it.contentType,
+                    content = it.bytes
+                )
+            }
+        )
+        return ResponseEntity.status(HttpStatus.OK).body(
+            editedChannel.toDto(
+                avatarUrl = "https://$HOST:${request.localPort}/api/v1/channels/${editedChannel.channelId}/avatar",
+                coverUrl = "https://$HOST:${request.localPort}/api/v1/channels/${editedChannel.channelId}/cover"
+            )
+        )
     }
 
     @GetMapping("/owner/{userId}")
@@ -155,6 +201,7 @@ class ChannelController @Autowired constructor(
             )
         )
     }
+
     @PatchMapping("/resubscribe")
     fun resubscribeToFCM(
         @RequestParam userId: Long,

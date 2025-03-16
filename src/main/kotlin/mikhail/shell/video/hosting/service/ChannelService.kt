@@ -1,9 +1,8 @@
 package mikhail.shell.video.hosting.service
 
-import mikhail.shell.video.hosting.domain.Channel
-import mikhail.shell.video.hosting.domain.ChannelWithUser
-import mikhail.shell.video.hosting.domain.File
-import mikhail.shell.video.hosting.domain.SubscriptionState
+import mikhail.shell.video.hosting.domain.*
+import org.springframework.web.bind.annotation.RequestPart
+import org.springframework.web.multipart.MultipartFile
 
 interface ChannelService {
     fun provideChannelInfo(
@@ -38,4 +37,11 @@ interface ChannelService {
         userId: Long,
         token: String
     )
+    fun editChannel(
+        channel: Channel,
+        editCoverAction: EditAction,
+        coverFile: File?,
+        editAvatarAction: EditAction,
+        avatarFile: File?
+    ): Channel
 }
