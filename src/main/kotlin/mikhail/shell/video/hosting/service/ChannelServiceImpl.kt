@@ -5,6 +5,8 @@ import jakarta.transaction.Transactional
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_COVERS_BASE_PATH
 import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_AVATARS_BASE_PATH
+import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_COVERS_BASE_PATH
+import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH
 import mikhail.shell.video.hosting.domain.SubscriptionState.NOT_SUBSCRIBED
 import mikhail.shell.video.hosting.domain.SubscriptionState.SUBSCRIBED
 import mikhail.shell.video.hosting.errors.ChannelCreationError
@@ -15,6 +17,7 @@ import mikhail.shell.video.hosting.errors.HostingDataException
 import mikhail.shell.video.hosting.repository.models.SubscriberId
 import mikhail.shell.video.hosting.repository.ChannelRepository
 import mikhail.shell.video.hosting.repository.SubscriberRepository
+import mikhail.shell.video.hosting.repository.VideoRepository
 import mikhail.shell.video.hosting.repository.models.Subscriber
 import mikhail.shell.video.hosting.repository.models.toDomain
 import mikhail.shell.video.hosting.repository.models.toEntity
@@ -25,6 +28,7 @@ import org.springframework.stereotype.Service
 class ChannelServiceImpl @Autowired constructor(
     private val channelRepository: ChannelRepository,
     private val subscriberRepository: SubscriberRepository,
+    private val videoRepository: VideoRepository,
     private val fcm: FirebaseMessaging
 ) : ChannelService {
 
@@ -205,6 +209,33 @@ class ChannelServiceImpl @Autowired constructor(
             }
         }
         return editedChannel
+    }
+
+    override fun removeChannel(channelId: Long) {
+        if (!channelRepository.existsById(channelId)) {
+            throw NoSuchElementException()
+        } else {
+            findFileByName(
+                java.io.File(CHANNEL_AVATARS_BASE_PATH),
+                channelId.toString()
+            )?.delete()
+            findFileByName(
+                java.io.File(CHANNEL_COVERS_BASE_PATH),
+                channelId.toString()
+            )?.delete()
+            val videoIds = videoRepository.findByChannelId(channelId).map { it.videoId }
+            videoIds.filterNotNull().forEach {
+                findFileByName(
+                    java.io.File(VIDEOS_COVERS_BASE_PATH),
+                    it.toString()
+                )?.delete()
+                findFileByName(
+                    java.io.File(VIDEOS_PLAYABLES_BASE_PATH),
+                    it.toString()
+                )?.delete()
+            }
+            channelRepository.deleteById(channelId)
+        }
     }
 
     override fun resubscribe(userId: Long, token: String) {

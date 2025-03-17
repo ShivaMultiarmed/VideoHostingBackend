@@ -206,6 +206,14 @@ class ChannelController @Autowired constructor(
         return ResponseEntity.status(HttpStatus.OK).build()
     }
 
+    @DeleteMapping("/channels/{channelId}")
+    fun removeChannel(
+        @PathVariable channelId: Long
+    ): ResponseEntity<Unit> {
+        channelService.removeChannel(channelId)
+        return ResponseEntity.status(HttpStatus.OK).build()
+    }
+
     private fun Channel.toDto(
         port: Int,
         channelId: Long

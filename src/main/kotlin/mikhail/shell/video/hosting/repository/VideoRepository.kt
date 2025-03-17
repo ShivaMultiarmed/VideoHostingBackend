@@ -17,4 +17,7 @@ interface VideoRepository: JpaRepository<VideoEntity, Long> {
         videoState: VideoState = VideoState.UPLOADED,
         pageable: Pageable
     ): List<VideoEntity>
+    fun findByChannelId(
+        channelId: Long
+    ): List<VideoEntity>
 }

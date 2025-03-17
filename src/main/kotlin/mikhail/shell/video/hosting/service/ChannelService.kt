@@ -46,4 +46,5 @@ interface ChannelService {
         avatarFile: File?
     ): Channel
     fun getChannel(channelId: Long): Channel
+    fun removeChannel(channelId: Long)
 }
