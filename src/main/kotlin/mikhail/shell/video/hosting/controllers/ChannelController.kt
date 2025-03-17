@@ -206,7 +206,7 @@ class ChannelController @Autowired constructor(
         return ResponseEntity.status(HttpStatus.OK).build()
     }
 
-    @DeleteMapping("/channels/{channelId}")
+    @DeleteMapping("/{channelId}")
     fun removeChannel(
         @PathVariable channelId: Long
     ): ResponseEntity<Unit> {
