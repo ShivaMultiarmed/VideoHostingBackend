@@ -9,6 +9,7 @@ import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_COVERS_BASE_PA
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH
 import mikhail.shell.video.hosting.domain.SubscriptionState.NOT_SUBSCRIBED
 import mikhail.shell.video.hosting.domain.SubscriptionState.SUBSCRIBED
+import mikhail.shell.video.hosting.elastic.repository.VideoSearchRepository
 import mikhail.shell.video.hosting.errors.ChannelCreationError
 import mikhail.shell.video.hosting.errors.ChannelCreationError.EXISTS
 import mikhail.shell.video.hosting.errors.CompoundError
@@ -29,6 +30,7 @@ class ChannelServiceImpl @Autowired constructor(
     private val channelRepository: ChannelRepository,
     private val subscriberRepository: SubscriberRepository,
     private val videoRepository: VideoRepository,
+    private val videoSearchRepository: VideoSearchRepository,
     private val fcm: FirebaseMessaging
 ) : ChannelService {
 
@@ -224,6 +226,7 @@ class ChannelServiceImpl @Autowired constructor(
                 channelId.toString()
             )?.delete()
             val videoIds = videoRepository.findByChannelId(channelId).map { it.videoId }
+            videoSearchRepository.deleteAllById(videoIds)
             videoIds.filterNotNull().forEach {
                 findFileByName(
                     java.io.File(VIDEOS_COVERS_BASE_PATH),
