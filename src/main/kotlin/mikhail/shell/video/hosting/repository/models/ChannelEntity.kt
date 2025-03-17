@@ -31,16 +31,3 @@ fun Channel.toEntity() = ChannelEntity(
     description,
     subscribers
 )
-//
-//@Entity
-//@Table(name = "channels")
-//data class ChannelWithUserEntity(
-//    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-//    @Column(name = "channel_id") val channelId: Long,
-//    val ownerId: String,
-//    val title: String,
-//    val alias: String,
-//    val description: String,
-//    val subscribers: Long,
-//    val subscription: Boolean
-//)

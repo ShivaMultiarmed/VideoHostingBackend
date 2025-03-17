@@ -1,16 +1,16 @@
 package mikhail.shell.video.hosting.controllers
 
 import jakarta.servlet.http.HttpServletRequest
+import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_AVATARS_BASE_PATH
 import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_COVERS_BASE_PATH
-import mikhail.shell.video.hosting.domain.EditAction
-import mikhail.shell.video.hosting.domain.SubscriptionState
-import mikhail.shell.video.hosting.domain.findFileByName
-import mikhail.shell.video.hosting.domain.parseExtension
 import mikhail.shell.video.hosting.dto.ChannelDto
 import mikhail.shell.video.hosting.dto.ChannelWithUserDto
 import mikhail.shell.video.hosting.dto.toDomain
 import mikhail.shell.video.hosting.dto.toDto
+import mikhail.shell.video.hosting.errors.CompoundError
+import mikhail.shell.video.hosting.errors.EditChannelError
+import mikhail.shell.video.hosting.errors.HostingDataException
 import mikhail.shell.video.hosting.service.ChannelService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
@@ -19,7 +19,6 @@ import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
-import mikhail.shell.video.hosting.domain.File
 
 @RestController
 @RequestMapping("/api/v1/channels")
@@ -29,18 +28,25 @@ class ChannelController @Autowired constructor(
     @Value("\${hosting.server.host}")
     private lateinit var HOST: String
 
+    @GetMapping("/{channelId}")
+    fun provideChannel(
+        request: HttpServletRequest,
+        @PathVariable channelId: Long
+    ): ResponseEntity<ChannelDto> {
+        val channel = channelService.getChannel(channelId)
+        val channelDto = channel.toDto(request.localPort, channelId)
+        return ResponseEntity.status(HttpStatus.OK).body(channelDto)
+    }
+
     @GetMapping("/{channelId}/details")
-    fun provideChannelInfo(
+    fun provideChannelDetails(
         request: HttpServletRequest,
         @RequestParam userId: Long,
         @PathVariable channelId: Long
     ): ResponseEntity<ChannelWithUserDto> {
         val channelForUser = channelService.provideChannelForUser(channelId, userId)
-        val channelDto = channelForUser.toDto(
-            avatarUrl = "https://$HOST:${request.localPort}/api/v1/channels/${channelForUser.channelId}/avatar",
-            coverUrl = "https://$HOST:${request.localPort}/api/v1/channels/${channelForUser.channelId}/cover"
-        )
-        return ResponseEntity.status(HttpStatus.OK).body(channelDto)
+        val channelForUserDto = channelForUser.toDto(request.localPort, channelId)
+        return ResponseEntity.status(HttpStatus.OK).body(channelForUserDto)
     }
 
     @GetMapping("/{channelId}/cover")
@@ -108,12 +114,9 @@ class ChannelController @Autowired constructor(
             cover = cover,
             avatar = avatar
         )
-        return ResponseEntity.status(HttpStatus.OK).body(
-            createdChannel.toDto(
-                avatarUrl = "https://$HOST:${request.localPort}/api/v1/channels/${createdChannel.channelId}/avatar",
-                coverUrl = "https://$HOST:${request.localPort}/api/v1/channels/${createdChannel.channelId}/cover"
-            )
-        )
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(createdChannel.toDto(request.localPort, createdChannel.channelId!!))
     }
 
     @PatchMapping(
@@ -128,6 +131,16 @@ class ChannelController @Autowired constructor(
         @RequestPart("editAvatarAction") editAvatarAction: EditAction,
         @RequestPart("avatar") avatarFile: MultipartFile?
     ): ResponseEntity<ChannelDto> {
+        val compoundError = CompoundError<EditChannelError>()
+        if (channel.channelId == null) {
+            compoundError.add(EditChannelError.CHANNEL_NOT_EXIST)
+        }
+        if (channel.title.isEmpty()) {
+            compoundError.add(EditChannelError.TITLE_EMPTY)
+        }
+        if (compoundError.isNotNull()) {
+            throw HostingDataException(compoundError)
+        }
         val editedChannel = channelService.editChannel(
             channel.toDomain(),
             editCoverAction,
@@ -147,12 +160,8 @@ class ChannelController @Autowired constructor(
                 )
             }
         )
-        return ResponseEntity.status(HttpStatus.OK).body(
-            editedChannel.toDto(
-                avatarUrl = "https://$HOST:${request.localPort}/api/v1/channels/${editedChannel.channelId}/avatar",
-                coverUrl = "https://$HOST:${request.localPort}/api/v1/channels/${editedChannel.channelId}/cover"
-            )
-        )
+        val editedChannelDto = editedChannel.toDto(request.localPort, channel.channelId!!)
+        return ResponseEntity.status(HttpStatus.OK).body(editedChannelDto)
     }
 
     @GetMapping("/owner/{userId}")
@@ -161,12 +170,7 @@ class ChannelController @Autowired constructor(
         @PathVariable userId: Long
     ): ResponseEntity<List<ChannelDto>> {
         val channels = channelService.getChannelsByOwnerId(userId)
-        val channelDtos = channels.map {
-            it.toDto(
-                avatarUrl = "https://$HOST:${request.localPort}/api/v1/channels/${it.channelId}/avatar",
-                coverUrl = "https://$HOST:${request.localPort}/api/v1/channels/${it.channelId}/cover"
-            )
-        }
+        val channelDtos = channels.map { it.toDto(request.localPort, it.channelId!!) }
         return ResponseEntity.status(HttpStatus.OK).body(channelDtos)
     }
 
@@ -176,12 +180,7 @@ class ChannelController @Autowired constructor(
         @PathVariable userId: Long
     ): ResponseEntity<List<ChannelDto>> {
         val channels = channelService.getChannelsBySubscriberId(userId)
-        val channelDtos = channels.map {
-            it.toDto(
-                avatarUrl = "https://$HOST:${request.localPort}/api/v1/channels/${it.channelId}/avatar",
-                coverUrl = "https://$HOST:${request.localPort}/api/v1/channels/${it.channelId}/cover"
-            )
-        }
+        val channelDtos = channels.map { it.toDto(request.localPort, it.channelId!!) }
         return ResponseEntity.status(HttpStatus.OK).body(channelDtos)
     }
 
@@ -194,12 +193,8 @@ class ChannelController @Autowired constructor(
         @RequestParam subscriptionState: SubscriptionState
     ): ResponseEntity<ChannelWithUserDto> {
         val channelWithUser = channelService.changeSubscriptionState(userId, channelId, token, subscriptionState)
-        return ResponseEntity.status(HttpStatus.OK).body(
-            channelWithUser.toDto(
-                avatarUrl = "https://$HOST:${request.localPort}/api/v1/channels/${channelWithUser.channelId}/avatar",
-                coverUrl = "https://$HOST:${request.localPort}/api/v1/channels/${channelWithUser.channelId}/cover"
-            )
-        )
+        val channelWithUserDto = channelWithUser.toDto(request.localPort, channelId)
+        return ResponseEntity.status(HttpStatus.OK).body(channelWithUserDto)
     }
 
     @PatchMapping("/resubscribe")
@@ -210,4 +205,20 @@ class ChannelController @Autowired constructor(
         channelService.resubscribe(userId, token)
         return ResponseEntity.status(HttpStatus.OK).build()
     }
+
+    private fun Channel.toDto(
+        port: Int,
+        channelId: Long
+    ): ChannelDto = toDto(
+        avatarUrl = "https://$HOST:$port/api/v1/channels/$channelId/avatar",
+        coverUrl = "https://$HOST:$port/api/v1/channels/$channelId/cover"
+    )
+
+    private fun ChannelWithUser.toDto(
+        port: Int,
+        channelId: Long
+    ) = toDto(
+        avatarUrl = "https://$HOST:$port/api/v1/channels/$channelId/avatar",
+        coverUrl = "https://$HOST:$port/api/v1/channels/$channelId/cover"
+    )
 }

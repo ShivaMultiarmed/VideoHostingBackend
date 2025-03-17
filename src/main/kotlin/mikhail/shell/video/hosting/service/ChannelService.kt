@@ -1,6 +1,7 @@
 package mikhail.shell.video.hosting.service
 
 import mikhail.shell.video.hosting.domain.*
+import mikhail.shell.video.hosting.dto.ChannelDto
 import org.springframework.web.bind.annotation.RequestPart
 import org.springframework.web.multipart.MultipartFile
 
@@ -44,4 +45,5 @@ interface ChannelService {
         editAvatarAction: EditAction,
         avatarFile: File?
     ): Channel
+    fun getChannel(channelId: Long): Channel
 }

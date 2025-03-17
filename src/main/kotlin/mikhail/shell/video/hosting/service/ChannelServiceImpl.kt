@@ -29,6 +29,7 @@ class ChannelServiceImpl @Autowired constructor(
 ) : ChannelService {
 
     private val MAX_BUFFER = 10 * 1024 * 1024
+    private val MAX_FILE_SIZE = 10 * 1024 * 1024
 
     private val CHANNELS_TOPICS_PREFIX = "channels"
 
@@ -53,11 +54,15 @@ class ChannelServiceImpl @Autowired constructor(
         )
     }
 
+    override fun getChannel(channelId: Long): Channel {
+        val channelEntity = channelRepository.findById(channelId).orElseThrow()
+        return channelEntity.toDomain()
+    }
+
     override fun checkIfSubscribed(channelId: Long, userId: Long): Boolean {
         val id = SubscriberId(channelId, userId)
         return subscriberRepository.existsById(id)
     }
-
 
     @Transactional
     override fun createChannel(channel: Channel, avatar: File?, cover: File?): Channel {
@@ -136,22 +141,22 @@ class ChannelServiceImpl @Autowired constructor(
         avatarFile: File?
     ): Channel {
         val error = CompoundError<EditChannelError>()
-        if (channel.channelId == null) {
-            error.add(EditChannelError.CHANNEL_NOT_EXIST)
-        }
-        if (channel.title.isBlank()) {
-            error.add(EditChannelError.TITLE_EMPTY)
-        }
         if (channel.title.length > 255) {
             error.add(EditChannelError.TITLE_TOO_LARGE)
         }
+        if ((channel.alias?.length ?: 0) > 255) {
+            error.add(EditChannelError.ALIAS_TOO_LARGE)
+        }
+        if ((channel.description?.length ?: 0) > 5000) {
+            error.add(EditChannelError.DESCRIPTION_TOO_LARGE)
+        }
         coverFile?.let {
-            if (it.content!!.size > MAX_BUFFER) {
+            if ((it.content?.size ?: 0) > MAX_FILE_SIZE) {
                 error.add(EditChannelError.COVER_TOO_LARGE)
             }
         }
         avatarFile?.let {
-            if (it.content!!.size > MAX_BUFFER) {
+            if ((it.content?.size ?: 0) > MAX_FILE_SIZE) {
                 error.add(EditChannelError.AVATAR_TOO_LARGE)
             }
         }
@@ -168,7 +173,15 @@ class ChannelServiceImpl @Autowired constructor(
                 )?.delete()
             }
             EditAction.UPDATE -> {
-                java.io.File(CHANNEL_COVERS_BASE_PATH, coverFile!!.name!!).writeBytes(coverFile.content!!)
+                coverFile?.let {
+                    findFileByName(
+                        java.io.File(CHANNEL_COVERS_BASE_PATH),
+                        channel.channelId!!.toString()
+                    )?.delete()
+                    val extension = it.name!!.parseExtension()
+                    val fileName = "${channel.channelId}.$extension"
+                    java.io.File(CHANNEL_COVERS_BASE_PATH, fileName).writeBytes(coverFile.content!!)
+                }
             }
         }
         when (editAvatarAction) {
@@ -180,7 +193,15 @@ class ChannelServiceImpl @Autowired constructor(
                 )?.delete()
             }
             EditAction.UPDATE -> {
-                java.io.File(CHANNEL_AVATARS_BASE_PATH, avatarFile!!.name!!).writeBytes(avatarFile.content!!)
+                avatarFile?.let {
+                    findFileByName(
+                        java.io.File(CHANNEL_AVATARS_BASE_PATH),
+                        channel.channelId!!.toString()
+                    )?.delete()
+                    val extension = it.name!!.parseExtension()
+                    val fileName = "${channel.channelId}.$extension"
+                    java.io.File(CHANNEL_AVATARS_BASE_PATH, fileName).writeBytes(avatarFile.content!!)
+                }
             }
         }
         return editedChannel

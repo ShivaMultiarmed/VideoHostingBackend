@@ -14,4 +14,8 @@ class HostingControllerAdvice {
     fun handleDataException(e: HostingDataException): ResponseEntity<CompoundError<out Error>> {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.compoundError)
     }
+    @ExceptionHandler(NoSuchElementException::class)
+    fun handleNotFoundException(e: NoSuchElementException): ResponseEntity<Void> {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).build()
+    }
 }
