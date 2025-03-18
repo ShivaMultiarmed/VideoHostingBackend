@@ -164,10 +164,15 @@ class VideoController @Autowired constructor(
             val image = findFileByName(coverDirectory, videoId.toString())
             if (image?.exists() != true) {
                 ResponseEntity.status(HttpStatus.NOT_FOUND).build<ByteArray>()
+            } else {
+                val imageBytes = image.inputStream().use{
+                    it.readAllBytes()
+                }
+                ResponseEntity.status(HttpStatus.OK)
+                    .contentType(MediaType.parseMediaType("image/${image.name.parseExtension()}"))
+                    .body(imageBytes)
             }
-            ResponseEntity.status(HttpStatus.OK)
-                .contentType(MediaType.parseMediaType("image/${image?.name?.parseExtension()}"))
-                .body(image?.inputStream()?.readAllBytes())
+
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
         }

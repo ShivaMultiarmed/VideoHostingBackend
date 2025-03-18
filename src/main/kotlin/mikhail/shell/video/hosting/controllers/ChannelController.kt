@@ -58,10 +58,15 @@ class ChannelController @Autowired constructor(
             val image = findFileByName(coverFolder, channelId.toString())
             if (image?.exists() != true) {
                 ResponseEntity.status(HttpStatus.NOT_FOUND).build<ByteArray>()
+            } else {
+                val imageBytes = image.inputStream().use {
+                    it.readAllBytes()
+                }
+                ResponseEntity.status(HttpStatus.OK)
+                    .contentType(MediaType.parseMediaType("image/${image.name.parseExtension()}"))
+                    .body(imageBytes)
             }
-            ResponseEntity.status(HttpStatus.OK)
-                .contentType(MediaType.parseMediaType("image/${image?.name?.parseExtension()}"))
-                .body(image?.inputStream()?.readAllBytes())
+
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
         }
@@ -76,10 +81,14 @@ class ChannelController @Autowired constructor(
             val image = findFileByName(avatarFolder, channelId.toString())
             if (image?.exists() != true) {
                 ResponseEntity.status(HttpStatus.NOT_FOUND).build<ByteArray>()
+            } else {
+                val imageBytes = image.inputStream().use {
+                    it.readAllBytes()
+                }
+                ResponseEntity.status(HttpStatus.OK)
+                    .contentType(MediaType.parseMediaType("image/${image.name.parseExtension()}"))
+                    .body(imageBytes)
             }
-            ResponseEntity.status(HttpStatus.OK)
-                .contentType(MediaType.parseMediaType("image/${image?.name?.parseExtension()}"))
-                .body(image?.inputStream()?.readAllBytes())
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
         }
