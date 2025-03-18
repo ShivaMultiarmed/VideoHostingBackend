@@ -73,7 +73,9 @@ class VideoController @Autowired constructor(
         return ResponseEntity.ok(videoDto)
     }
 
-    @GetMapping("/{videoId}/play")
+    @GetMapping(
+        path = ["/{videoId}/play", "/{videoId}/download"]
+    )
     fun playVideo(
         @PathVariable videoId: Long,
         request: HttpServletRequest,
