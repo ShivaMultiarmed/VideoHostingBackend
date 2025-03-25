@@ -9,6 +9,9 @@ interface Error
 data class CompoundError<T: Error>(
     @JsonProperty("errors") private val _errors: MutableList<T> = mutableListOf()
 ): Error {
+    constructor(vararg errors: T): this() {
+        _errors.addAll(errors)
+    }
     @get:JsonGetter(value = "errors")
     val errors get() = _errors.toList()
 

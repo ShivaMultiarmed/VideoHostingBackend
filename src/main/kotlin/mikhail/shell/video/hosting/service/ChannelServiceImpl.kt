@@ -15,13 +15,13 @@ import mikhail.shell.video.hosting.errors.ChannelCreationError.EXISTS
 import mikhail.shell.video.hosting.errors.CompoundError
 import mikhail.shell.video.hosting.errors.EditChannelError
 import mikhail.shell.video.hosting.errors.HostingDataException
-import mikhail.shell.video.hosting.repository.models.SubscriberId
+import mikhail.shell.video.hosting.repository.entities.SubscriberId
 import mikhail.shell.video.hosting.repository.ChannelRepository
 import mikhail.shell.video.hosting.repository.SubscriberRepository
 import mikhail.shell.video.hosting.repository.VideoRepository
-import mikhail.shell.video.hosting.repository.models.Subscriber
-import mikhail.shell.video.hosting.repository.models.toDomain
-import mikhail.shell.video.hosting.repository.models.toEntity
+import mikhail.shell.video.hosting.repository.entities.Subscriber
+import mikhail.shell.video.hosting.repository.entities.toDomain
+import mikhail.shell.video.hosting.repository.entities.toEntity
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
 

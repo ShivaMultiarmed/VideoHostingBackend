@@ -1,4 +1,4 @@
-package mikhail.shell.video.hosting.repository.models
+package mikhail.shell.video.hosting.repository.entities
 
 import jakarta.persistence.Embeddable
 import jakarta.persistence.EmbeddedId

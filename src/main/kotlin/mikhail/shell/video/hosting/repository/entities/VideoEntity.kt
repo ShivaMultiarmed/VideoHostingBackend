@@ -1,4 +1,4 @@
-package mikhail.shell.video.hosting.repository.models
+package mikhail.shell.video.hosting.repository.entities
 
 import jakarta.persistence.*
 import mikhail.shell.video.hosting.domain.Video
@@ -34,27 +34,8 @@ data class VideoEntity(
 )
 
 
-fun VideoEntity.toDomain() = Video(
-    videoId,
-    channelId,
-    title,
-    dateTime,
-    views,
-    likes,
-    dislikes
-)
-fun Video.toEntity(
-    state: VideoState = VideoState.CREATED
-) = VideoEntity(
-    videoId,
-    channelId,
-    title,
-    dateTime,
-    views,
-    likes,
-    dislikes,
-    state
-)
+fun VideoEntity.toDomain() = Video(videoId, channelId, title, dateTime, views, likes, dislikes)
+fun Video.toEntity(state: VideoState = VideoState.CREATED) = VideoEntity(videoId, channelId, title, dateTime, views, likes, dislikes, state)
 
 @Entity
 @Table(name = "videos")
@@ -90,27 +71,9 @@ data class VideoWithChannelEntity(
 //)
 
 fun VideoWithChannelEntity.toDomain() = VideoWithChannel(
-    video = Video(
-        videoId,
-        channelId,
-        title,
-        dateTime,
-        views,
-        likes,
-        dislikes
-    ),
+    video = Video(videoId, channelId, title, dateTime, views, likes, dislikes),
     channel = channel.toDomain()
 )
 fun VideoWithChannel.toEntity(
     state: VideoState
-) = VideoWithChannelEntity(
-    video.videoId,
-    video.channelId,
-    video.title,
-    video.dateTime,
-    video.views,
-    video.likes,
-    video.dislikes,
-    state,
-    channel.toEntity()
-)
+) = VideoWithChannelEntity(video.videoId, video.channelId, video.title, video.dateTime, video.views, video.likes, video.dislikes, state, channel.toEntity())
