@@ -49,6 +49,7 @@ dependencies {
 	testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
 	testImplementation("org.springframework.security:spring-security-test")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+	implementation("org.jetbrains.kotlinx:kotlinx-datetime-jvm:0.4.1")
 	// JAXB API
 	implementation("javax.xml.bind:jaxb-api:2.3.1")
 

@@ -1,34 +1,34 @@
 package mikhail.shell.video.hosting.repository.entities
 
-import jakarta.persistence.Entity
-import jakarta.persistence.FetchType
-import jakarta.persistence.JoinColumn
-import jakarta.persistence.ManyToOne
-import jakarta.persistence.Table
+import jakarta.persistence.*
 import mikhail.shell.video.hosting.domain.Comment
 import mikhail.shell.video.hosting.domain.CommentWithUser
 import mikhail.shell.video.hosting.repository.UserEntity
 import mikhail.shell.video.hosting.repository.toDomain
 import mikhail.shell.video.hosting.repository.toEntity
-import java.time.LocalDateTime
+import java.time.Instant
 
 @Entity
 @Table(name = "comments")
 data class CommentEntity(
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     val commentId: Long? = null,
     val videoId: Long,
+    @Column(name = "user_id")
     val userId: Long,
-    val dateTime: LocalDateTime? = null,
+    val dateTime: Instant? = null,
     val text: String
 )
 
 @Entity
 @Table(name = "comments")
 data class CommentWithUserEntity(
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     val commentId: Long? = null,
     val videoId: Long,
+    @Column(name = "user_id")
     val userId: Long,
-    val dateTime: LocalDateTime? = null,
+    val dateTime: Instant? = null,
     val text: String,
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(

@@ -7,6 +7,7 @@ import mikhail.shell.video.hosting.domain.User
 @Table(name = "users")
 data class UserEntity(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "user_id")
     val userId: Long?,
     val name: String
 )
