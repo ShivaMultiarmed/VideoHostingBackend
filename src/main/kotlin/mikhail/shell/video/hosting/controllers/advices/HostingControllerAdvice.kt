@@ -11,8 +11,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice
 @RestControllerAdvice
 class HostingControllerAdvice {
     @ExceptionHandler(HostingDataException::class)
-    fun handleDataException(e: HostingDataException): ResponseEntity<CompoundError<out Error>> {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.compoundError)
+    fun handleDataException(e: HostingDataException): ResponseEntity<Error> {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.error)
     }
     @ExceptionHandler(NoSuchElementException::class)
     fun handleNotFoundException(e: NoSuchElementException): ResponseEntity<Void> {

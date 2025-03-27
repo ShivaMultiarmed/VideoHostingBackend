@@ -7,8 +7,7 @@ import mikhail.shell.video.hosting.domain.Action
 import mikhail.shell.video.hosting.domain.ActionModel
 import mikhail.shell.video.hosting.domain.Comment
 import mikhail.shell.video.hosting.domain.CommentWithUser
-import mikhail.shell.video.hosting.errors.CompoundError
-import mikhail.shell.video.hosting.errors.CreateCommentError
+import mikhail.shell.video.hosting.errors.CommentError
 import mikhail.shell.video.hosting.errors.HostingDataException
 import mikhail.shell.video.hosting.repository.CommentRepository
 import mikhail.shell.video.hosting.repository.CommentWithUserRepository
@@ -25,17 +24,23 @@ class CommentServiceWithDB @Autowired constructor(
     private val fcm: FirebaseMessaging,
     private val objectMapper: ObjectMapper
 ): CommentService {
-    override fun create(comment: Comment) {
-        val compoundError = CompoundError<CreateCommentError>()
+    override fun save(comment: Comment) {
         if (comment.text.length > 200) {
-            compoundError.add(CreateCommentError.TEXT_TOO_LARGE)
-        }
-        if (compoundError.isNotNull()) {
-            throw HostingDataException(compoundError)
+            throw HostingDataException(CommentError.TEXT_TOO_LARGE)
         }
         val commentEntity = comment.toEntity()
+        val exists = comment.commentId?.let { commentRepository.existsById(it) }?: false
+        val action = if (!exists) Action.ADD else Action.UPDATE
         val createdCommentEntity = commentRepository.save(commentEntity)
-        sendMessage(createdCommentEntity.commentId!!)
+        sendMessage(createdCommentEntity.commentId!!, action)
+    }
+
+    override fun remove(videoId: Long) {
+        if (!commentRepository.existsById(videoId)) {
+            throw NoSuchElementException()
+        }
+        sendMessage(videoId, Action.REMOVE)
+        commentRepository.deleteById(videoId)
     }
 
     override fun get(videoId: Long, before: Instant): List<CommentWithUser> {
@@ -43,12 +48,11 @@ class CommentServiceWithDB @Autowired constructor(
         return commentEntities.map { it.toDomain() }
     }
 
-    private fun sendMessage(commentId: Long) {
+    private fun sendMessage(commentId: Long, action: Action = Action.ADD) {
         val commentWithUserEntity = commentWithUserRepository.findById(commentId).orElseThrow()
         val commentWithUser = commentWithUserEntity.toDomain()
         val videoId = commentWithUser.comment.videoId
         val topic = "videos.$videoId.comments"
-        val action = Action.ADD
         val actionModel = ActionModel(action, commentWithUser)
         val mappedData = mapOf("actionModel" to actionModel.toJson())
         val message = Message.builder()

@@ -5,12 +5,13 @@ import mikhail.shell.video.hosting.dto.CommentWithUserDto
 import mikhail.shell.video.hosting.dto.toDomain
 import mikhail.shell.video.hosting.dto.toDto
 import mikhail.shell.video.hosting.errors.CompoundError
-import mikhail.shell.video.hosting.errors.CreateCommentError
+import mikhail.shell.video.hosting.errors.CommentError
 import mikhail.shell.video.hosting.errors.HostingDataException
 import mikhail.shell.video.hosting.service.CommentService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -25,17 +26,17 @@ import java.time.Instant
 class CommentController @Autowired constructor(
     private val commentService: CommentService
 ) {
-    @PostMapping("/post")
+    @PostMapping("/save")
     fun create(@RequestBody commentDto: CommentDto): ResponseEntity<Unit> {
         val comment = commentDto.toDomain()
-        val compoundError = CompoundError<CreateCommentError>()
+        val compoundError = CompoundError<CommentError>()
         if (comment.text.isEmpty()) {
-            compoundError.add(CreateCommentError.TEXT_EMPTY)
+            compoundError.add(CommentError.TEXT_EMPTY)
         }
         if (compoundError.isNotNull()) {
             throw HostingDataException(compoundError)
         }
-        commentService.create(comment)
+        commentService.save(comment)
         return ResponseEntity.status(HttpStatus.CREATED).build()
     }
     @GetMapping("/videos/{videoId}")
@@ -46,5 +47,10 @@ class CommentController @Autowired constructor(
         val comments = commentService.get(videoId, before)
         val commentDtos = comments.map { it.toDto() }
         return ResponseEntity.status(HttpStatus.OK).body(commentDtos)
+    }
+    @DeleteMapping("/remove")
+    fun remove(@RequestParam videoId: Long): ResponseEntity<Unit> {
+        commentService.remove(videoId)
+        return ResponseEntity.status(HttpStatus.OK).build()
     }
 }
