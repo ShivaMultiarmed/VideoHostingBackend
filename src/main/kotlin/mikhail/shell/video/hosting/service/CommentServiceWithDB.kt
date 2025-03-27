@@ -27,7 +27,7 @@ class CommentServiceWithDB @Autowired constructor(
 ): CommentService {
     override fun create(comment: Comment) {
         val compoundError = CompoundError<CreateCommentError>()
-        if (comment.text.length > 5000) {
+        if (comment.text.length > 200) {
             compoundError.add(CreateCommentError.TEXT_TOO_LARGE)
         }
         if (compoundError.isNotNull()) {
