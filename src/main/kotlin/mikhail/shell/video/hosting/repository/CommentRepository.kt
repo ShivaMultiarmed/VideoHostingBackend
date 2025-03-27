@@ -7,14 +7,13 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository
 import java.time.Instant
-import java.time.LocalDateTime
 
 @Repository
 interface CommentRepository: JpaRepository<CommentEntity, Long>
 
 @Repository
 interface CommentWithUserRepository: JpaRepository<CommentWithUserEntity, Long> {
-    fun findByVideoIdAndDateTimeBefore(
+    fun findByVideoIdAndDateTimeBeforeOrderByDateTimeDesc(
         videoId: Long,
         before: Instant,
         pageable: Pageable = PageRequest.of(0, 10)
