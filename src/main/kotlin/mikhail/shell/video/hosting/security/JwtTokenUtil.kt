@@ -19,10 +19,14 @@ class JwtTokenUtil {
             .compact()
     }
 
-    fun validateToken(username: String, token: String): Boolean {
-        val extractedName = Jwts.parser().setSigningKey(secret).parseClaimsJwt(token).body.subject
+    fun validateToken(userId: String, token: String): Boolean {
+        val extractedUserId = Jwts.parser().setSigningKey(secret).parseClaimsJwt(token).body.subject
         val extractedDate = Jwts.parser().setSigningKey(secret).parseClaimsJwt(token).body.expiration
-        return username == extractedName && Date() < extractedDate
+        return userId == extractedUserId && Date() < extractedDate
+    }
+
+    fun extractUserId(token: String): Long {
+        return Jwts.parser().setSigningKey(secret).parseClaimsJwt(token).body.subject.toLong()
     }
 
     companion object {

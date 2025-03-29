@@ -8,24 +8,25 @@ import mikhail.shell.video.hosting.domain.User
 data class UserEntity(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "user_id")
-    val userId: Long?,
-    val name: String
+    val userId: Long? = null,
+    val name: String? = null,
+    val nick: String,
+    val age: Byte? = null,
+    val bio: String? = null,
+    val tel: Int? = null,
+    val email: String? = null
 )
 
-fun User.toEntity(): UserEntity {
-    if (name == null)
-        throw Exception()
-    return UserEntity(userId, name)
-}
-fun UserEntity.toDomain() = User(userId,name)
+fun User.toEntity() = UserEntity(userId, name, nick, age, bio, tel, email)
+fun UserEntity.toDomain() = User(userId, name, nick, age, bio, tel, email)
 
 @Entity
 @Table(name = "credentials")
 data class Credential(
     @EmbeddedId
     val id: CredentialId,
-    val credential: String,
-    val userName: String
+    val userName: String,
+    val credential: String // TODO make it nullable (If authentication method is not PASSWORD)
 )
 
 @Embeddable
