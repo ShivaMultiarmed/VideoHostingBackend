@@ -11,14 +11,13 @@ data class UserEntity(
     val userId: Long? = null,
     val name: String? = null,
     val nick: String,
-    val age: Byte? = null,
     val bio: String? = null,
     val tel: Int? = null,
     val email: String? = null
 )
 
-fun User.toEntity() = UserEntity(userId, name, nick, age, bio, tel, email)
-fun UserEntity.toDomain() = User(userId, name, nick, age, bio, tel, email)
+fun User.toEntity() = UserEntity(userId, name, nick, bio, tel, email)
+fun UserEntity.toDomain() = User(userId, name, nick, bio, tel, email)
 
 @Entity
 @Table(name = "credentials")
