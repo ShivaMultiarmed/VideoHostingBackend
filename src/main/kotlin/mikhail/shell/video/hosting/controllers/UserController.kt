@@ -38,9 +38,9 @@ class UserController @Autowired constructor(
     )
     fun edit(
         request: HttpServletRequest,
-        @RequestPart userDto: UserDto,
+        @RequestPart(name = "user") userDto: UserDto,
         @RequestPart avatarAction: EditAction,
-        @RequestPart avatar: MultipartFile
+        @RequestPart avatar: MultipartFile?
     ): ResponseEntity<UserDto> {
         val token = request.getHeader("Authorization")?.substring(7)
             ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
@@ -49,36 +49,28 @@ class UserController @Autowired constructor(
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
         val compoundError = CompoundError<EditUserError>()
-        if (userDto.userId == null) {
-            throw NoSuchElementException()
-        }
         if (userDto.nick.isEmpty()) {
             compoundError.add(EditUserError.NICK_EMPTY)
         }
-        if (userDto.age?.toInt() !in 0..127) {
-            compoundError.add(EditUserError.AGE_MALFORMED)
+        val telRegex = Regex("^\\d{11,15}$")
+        if (userDto.tel?.let { !telRegex.matches(it) } == true) {
+            compoundError.add(EditUserError.TEL_MALFORMED)
         }
-        val telRegex = Regex("^\\+\\d{11,15}$")
-        userDto.tel?.let {
-            if (!telRegex.matches(it.toString())) {
-                compoundError.add(EditUserError.TEL_MALFORMED)
-            }
-        }
-        val emailRegex = Regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\\\.[a-zA-Z]{2,}\$")
-        userDto.email?.let {
-            if (!emailRegex.matches(it)) {
-                compoundError.add(EditUserError.EMAIL_MALFORMED)
-            }
+        val emailRegex = Regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}\$")
+        if (userDto.email?.let { !emailRegex.matches(it) } == true) {
+            compoundError.add(EditUserError.EMAIL_MALFORMED)
         }
         if (compoundError.isNotNull()) {
             throw HostingDataException(compoundError)
         }
         val user = userDto.toDomain()
-        val avatarFile = File(
-            name = avatar.originalFilename,
-            mimeType = avatar.contentType,
-            content = avatar.bytes
-        )
+        val avatarFile = avatar?.let {
+            File(
+                name = it.originalFilename,
+                mimeType = it.contentType,
+                content = it.bytes
+            )
+        }
         val editedUser = userService.edit(user, avatarAction, avatarFile)
         val editedUserDto = editedUser.toDto()
         return ResponseEntity.ok(editedUserDto)

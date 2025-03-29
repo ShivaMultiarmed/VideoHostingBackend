@@ -23,5 +23,5 @@ data class CommentWithUserDto(
 fun CommentDto.toDomain() = Comment(commentId, videoId, userId, dateTime, text)
 fun Comment.toDto() = CommentDto(commentId, videoId, userId, dateTime, text)
 
-fun CommentWithUserDto.toDomain() = CommentWithUser(comment.toDomain(), user.toDomain()!!)
+fun CommentWithUserDto.toDomain() = CommentWithUser(comment.toDomain(), user.toDomain())
 fun CommentWithUser.toDto() = CommentWithUserDto(comment.toDto(), user.toDto())

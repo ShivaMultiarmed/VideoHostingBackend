@@ -21,9 +21,9 @@ class UserServiceWithDB @Autowired constructor(
         return userEntity.toDomain()
     }
 
-    override fun edit(user: User, avatarAction: EditAction, avatar: File): User {
+    override fun edit(user: User, avatarAction: EditAction, avatar: File?): User {
         val compoundError = CompoundError<EditUserError>()
-        if (userRepository.existsById(user.userId!!)) {
+        if (!userRepository.existsById(user.userId!!)) {
             throw NoSuchElementException()
         }
         if (user.nick.length > 255) {
@@ -34,6 +34,12 @@ class UserServiceWithDB @Autowired constructor(
         }
         if ((user.bio?.length ?: 0) > 5000) {
             compoundError.add(EditUserError.BIO_TOO_LARGE)
+        }
+        if ((avatar?.content?.size?: 0) > MAX_FILE_SIZE) {
+            compoundError.add(EditUserError.AVATAR_TOO_LARGE)
+        }
+        if (avatar?.mimeType?.substringBefore("/") != "image" && avatar != null) {
+            compoundError.add(EditUserError.AVATAR_MIME_NOT_SUPPORTED)
         }
         if (compoundError.isNotNull()) {
             throw HostingDataException(compoundError)
@@ -48,5 +54,9 @@ class UserServiceWithDB @Autowired constructor(
             throw NoSuchElementException()
         }
         userRepository.deleteById(userId)
+    }
+
+    private companion object {
+        const val MAX_FILE_SIZE = 10 * 1024 * 1024
     }
 }

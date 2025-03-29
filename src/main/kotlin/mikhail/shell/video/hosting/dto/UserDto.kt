@@ -8,7 +8,7 @@ data class UserDto(
     val nick: String,
     val avatar: String? = null,
     val bio: String? = null,
-    val tel: Int? = null,
+    val tel: String? = null,
     val email: String? = null
 )
 
@@ -16,7 +16,7 @@ fun User.toDto(avatar: String? = null) = UserDto(userId, name, nick, avatar, bio
 fun UserDto.toDomain() = User(userId, name, nick, bio, tel, email)
 
 data class SignUpDto(
-    val userName: String? = null,
-    val password: String? = null,
-    val userDto: UserDto? = null
+    val userName: String,
+    val password: String,
+    val userDto: UserDto
 )

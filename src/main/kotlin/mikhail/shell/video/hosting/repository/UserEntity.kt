@@ -12,7 +12,7 @@ data class UserEntity(
     val name: String? = null,
     val nick: String,
     val bio: String? = null,
-    val tel: Int? = null,
+    val tel: String? = null,
     val email: String? = null
 )
 
