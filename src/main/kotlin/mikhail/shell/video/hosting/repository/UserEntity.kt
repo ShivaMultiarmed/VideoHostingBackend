@@ -25,7 +25,7 @@ data class Credential(
     @EmbeddedId
     val id: CredentialId,
     val userName: String,
-    val credential: String // TODO make it nullable (If authentication method is not PASSWORD)
+    val credential: String // TODO make it nullable (If authentication method is NOT PASSWORD)
 )
 
 @Embeddable
