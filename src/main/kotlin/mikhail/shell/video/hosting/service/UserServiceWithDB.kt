@@ -1,20 +1,19 @@
 package mikhail.shell.video.hosting.service
 
-import mikhail.shell.video.hosting.domain.EditAction
-import mikhail.shell.video.hosting.domain.File
-import mikhail.shell.video.hosting.domain.User
+
+import mikhail.shell.video.hosting.domain.*
+import mikhail.shell.video.hosting.dto.ChannelWithUserDto
 import mikhail.shell.video.hosting.errors.CompoundError
 import mikhail.shell.video.hosting.errors.EditUserError
 import mikhail.shell.video.hosting.errors.HostingDataException
-import mikhail.shell.video.hosting.repository.UserRepository
-import mikhail.shell.video.hosting.repository.toDomain
-import mikhail.shell.video.hosting.repository.toEntity
+import mikhail.shell.video.hosting.repository.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
 
 @Service
 class UserServiceWithDB @Autowired constructor(
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val channelService: ChannelService,
 ) : UserService {
     override fun get(userId: Long): User {
         val userEntity = userRepository.findById(userId).orElseThrow()
@@ -46,6 +45,17 @@ class UserServiceWithDB @Autowired constructor(
         }
         val userEntity = user.toEntity()
         val editedUserEntity = userRepository.save(userEntity)
+        if (avatarAction != EditAction.KEEP) {
+            findFileByName(java.io.File(ApplicationPaths.USER_AVATARS_BASE_PATH), user.userId.toString())?.delete()
+        }
+        if (avatarAction == EditAction.UPDATE) {
+            avatar?.let {
+                val fileName = user.userId.toString() + "." + it.name!!.parseExtension()
+                val file = java.io.File(ApplicationPaths.USER_AVATARS_BASE_PATH, fileName)
+                file.createNewFile()
+                file.writeBytes(it.content!!)
+            }
+        }
         return editedUserEntity.toDomain()
     }
 
@@ -53,7 +63,20 @@ class UserServiceWithDB @Autowired constructor(
         if (!userRepository.existsById(userId)) {
             throw NoSuchElementException()
         }
+        channelService.getChannelsByOwnerId(userId).forEach {
+            channelService.removeChannel(it.channelId!!)
+        }
+        findFileByName(java.io.File(ApplicationPaths.USER_AVATARS_BASE_PATH), userId.toString())?.delete()
         userRepository.deleteById(userId)
+    }
+
+    override fun getAvatar(userId: Long): ByteArray {
+        val file = findFileByName(java.io.File(ApplicationPaths.USER_AVATARS_BASE_PATH), userId.toString())
+        if (file?.exists() != true) {
+            throw NoSuchElementException()
+        } else {
+            return file.readBytes()
+        }
     }
 
     private companion object {

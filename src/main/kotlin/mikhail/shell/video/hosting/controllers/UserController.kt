@@ -3,6 +3,7 @@ package mikhail.shell.video.hosting.controllers
 import jakarta.servlet.http.HttpServletRequest
 import mikhail.shell.video.hosting.domain.EditAction
 import mikhail.shell.video.hosting.domain.File
+import mikhail.shell.video.hosting.domain.User
 import mikhail.shell.video.hosting.dto.UserDto
 import mikhail.shell.video.hosting.dto.toDomain
 import mikhail.shell.video.hosting.dto.toDto
@@ -12,6 +13,7 @@ import mikhail.shell.video.hosting.errors.HostingDataException
 import mikhail.shell.video.hosting.security.JwtTokenUtil
 import mikhail.shell.video.hosting.service.UserService
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
@@ -23,12 +25,16 @@ class UserController @Autowired constructor(
     private val userService: UserService,
     private val jwtTokenUtil: JwtTokenUtil
 ) {
+    @Value("\${hosting.server.host}")
+    private lateinit var HOST: String
     @GetMapping("/{userId}")
-    fun get(@PathVariable userId: Long): ResponseEntity<UserDto> {
+    fun get(
+        request: HttpServletRequest,
+        @PathVariable userId: Long
+    ): ResponseEntity<UserDto> {
+        val port = request.localPort
         val user = userService.get(userId)
-        val userDto = user.toDto(
-            avatar = null // TODO
-        )
+        val userDto = userToDto(user, port)
         return ResponseEntity.ok(userDto)
     }
 
@@ -42,6 +48,7 @@ class UserController @Autowired constructor(
         @RequestPart avatarAction: EditAction,
         @RequestPart avatar: MultipartFile?
     ): ResponseEntity<UserDto> {
+        val port = request.localPort
         val token = request.getHeader("Authorization")?.substring(7)
             ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         val invokerId = jwtTokenUtil.extractUserId(token)
@@ -72,7 +79,7 @@ class UserController @Autowired constructor(
             )
         }
         val editedUser = userService.edit(user, avatarAction, avatarFile)
-        val editedUserDto = editedUser.toDto()
+        val editedUserDto = userToDto(editedUser, port)
         return ResponseEntity.ok(editedUserDto)
     }
 
@@ -90,4 +97,14 @@ class UserController @Autowired constructor(
         userService.remove(userId)
         return ResponseEntity.ok().build()
     }
+
+    @GetMapping("/{userId}/avatar")
+    fun getAvatar(@PathVariable userId: Long): ResponseEntity<ByteArray> {
+        val bytes = userService.getAvatar(userId)
+        return ResponseEntity.ok(bytes)
+    }
+
+    private fun userToDto(user: User, port: Int) = user.toDto(
+        avatar = "https://$HOST:$port/api/v1/users/${user.userId}/avatar"
+    )
 }
