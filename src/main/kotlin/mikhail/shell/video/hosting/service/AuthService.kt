@@ -73,7 +73,7 @@ class AuthService (
         val createdUser = userRepository.save(user!!.toEntity())
         val userId = createdUser.userId
         val credentialId = CredentialId(userId!!, AuthenticationMethod.PASSWORD)
-        val credential = Credential(credentialId, passwordEncoder.encode(password), userName)
+        val credential = Credential(credentialId, userName, passwordEncoder.encode(password))
         authRepository.save(credential)
         val token = jwtTokenUtil.generateToken(userId.toString())
         return AuthModel(token, userId)
