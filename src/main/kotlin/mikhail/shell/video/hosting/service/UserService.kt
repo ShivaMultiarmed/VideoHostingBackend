@@ -8,5 +8,5 @@ interface UserService {
     fun get(userId: Long): User
     fun edit(user: User, avatarAction: EditAction, avatar: File?): User
     fun remove(userId: Long)
-    fun getAvatar(userId: Long): ByteArray
+    fun getAvatar(userId: Long): java.io.File
 }

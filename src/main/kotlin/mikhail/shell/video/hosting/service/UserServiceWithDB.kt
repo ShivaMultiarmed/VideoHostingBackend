@@ -2,7 +2,6 @@ package mikhail.shell.video.hosting.service
 
 
 import mikhail.shell.video.hosting.domain.*
-import mikhail.shell.video.hosting.dto.ChannelWithUserDto
 import mikhail.shell.video.hosting.errors.CompoundError
 import mikhail.shell.video.hosting.errors.EditUserError
 import mikhail.shell.video.hosting.errors.HostingDataException
@@ -73,12 +72,12 @@ class UserServiceWithDB @Autowired constructor(
         userRepository.deleteById(userId)
     }
 
-    override fun getAvatar(userId: Long): ByteArray {
+    override fun getAvatar(userId: Long): java.io.File {
         val file = findFileByName(java.io.File(ApplicationPaths.USER_AVATARS_BASE_PATH), userId.toString())
         if (file?.exists() != true) {
             throw NoSuchElementException()
         } else {
-            return file.readBytes()
+            return file
         }
     }
 

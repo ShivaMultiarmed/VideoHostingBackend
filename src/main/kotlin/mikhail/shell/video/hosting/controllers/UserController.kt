@@ -14,6 +14,8 @@ import mikhail.shell.video.hosting.security.JwtTokenUtil
 import mikhail.shell.video.hosting.service.UserService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.core.io.FileSystemResource
+import org.springframework.core.io.Resource
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
@@ -99,9 +101,10 @@ class UserController @Autowired constructor(
     }
 
     @GetMapping("/{userId}/avatar")
-    fun getAvatar(@PathVariable userId: Long): ResponseEntity<ByteArray> {
-        val bytes = userService.getAvatar(userId)
-        return ResponseEntity.ok(bytes)
+    fun getAvatar(@PathVariable userId: Long): ResponseEntity<Resource> {
+        val avatarFile = userService.getAvatar(userId)
+        val avatarResource = FileSystemResource(avatarFile)
+        return ResponseEntity.ok(avatarResource)
     }
 
     private fun userToDto(user: User, port: Int) = user.toDto(

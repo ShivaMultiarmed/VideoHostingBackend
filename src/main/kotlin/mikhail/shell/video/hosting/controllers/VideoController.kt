@@ -9,6 +9,8 @@ import mikhail.shell.video.hosting.service.ChannelService
 import mikhail.shell.video.hosting.service.VideoService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.core.io.FileSystemResource
+import org.springframework.core.io.Resource
 import org.springframework.data.repository.query.Param
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
@@ -160,19 +162,17 @@ class VideoController @Autowired constructor(
     fun provideVideoCover(
         request: HttpServletRequest,
         @PathVariable videoId: Long
-    ): ResponseEntity<ByteArray> {
+    ): ResponseEntity<Resource> {
         return try {
             val coverDirectory = File(ApplicationPaths.VIDEOS_COVERS_BASE_PATH)
             val image = findFileByName(coverDirectory, videoId.toString())
             if (image?.exists() != true) {
-                ResponseEntity.status(HttpStatus.NOT_FOUND).build<ByteArray>()
+                ResponseEntity.status(HttpStatus.NOT_FOUND).build()
             } else {
-                val imageBytes = image.inputStream().use{
-                    it.readAllBytes()
-                }
+                val imageResource = FileSystemResource(image)
                 ResponseEntity.status(HttpStatus.OK)
                     .contentType(MediaType.parseMediaType("image/${image.name.parseExtension()}"))
-                    .body(imageBytes)
+                    .body(imageResource)
             }
 
         } catch (e: Exception) {

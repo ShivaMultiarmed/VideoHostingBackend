@@ -14,6 +14,8 @@ import mikhail.shell.video.hosting.errors.HostingDataException
 import mikhail.shell.video.hosting.service.ChannelService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.core.io.FileSystemResource
+import org.springframework.core.io.Resource
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
@@ -52,19 +54,17 @@ class ChannelController @Autowired constructor(
     @GetMapping("/{channelId}/cover")
     fun provideChannelCover(
         @PathVariable channelId: Long
-    ): ResponseEntity<ByteArray> {
+    ): ResponseEntity<Resource> {
         return try {
             val coverFolder = java.io.File(CHANNEL_COVERS_BASE_PATH)
             val image = findFileByName(coverFolder, channelId.toString())
             if (image?.exists() != true) {
-                ResponseEntity.status(HttpStatus.NOT_FOUND).build<ByteArray>()
+                ResponseEntity.status(HttpStatus.NOT_FOUND).build()
             } else {
-                val imageBytes = image.inputStream().use {
-                    it.readAllBytes()
-                }
+                val coverResource = FileSystemResource(image)
                 ResponseEntity.status(HttpStatus.OK)
                     .contentType(MediaType.parseMediaType("image/${image.name.parseExtension()}"))
-                    .body(imageBytes)
+                    .body(coverResource)
             }
 
         } catch (e: Exception) {
@@ -75,19 +75,17 @@ class ChannelController @Autowired constructor(
     @GetMapping("/{channelId}/avatar")
     fun provideChannelAvatar(
         @PathVariable channelId: Long
-    ): ResponseEntity<ByteArray> {
+    ): ResponseEntity<Resource> {
         return try {
             val avatarFolder = java.io.File(CHANNEL_AVATARS_BASE_PATH)
             val image = findFileByName(avatarFolder, channelId.toString())
             if (image?.exists() != true) {
-                ResponseEntity.status(HttpStatus.NOT_FOUND).build<ByteArray>()
+                ResponseEntity.status(HttpStatus.NOT_FOUND).build()
             } else {
-                val imageBytes = image.inputStream().use {
-                    it.readAllBytes()
-                }
+                val avatarResource = FileSystemResource(image)
                 ResponseEntity.status(HttpStatus.OK)
                     .contentType(MediaType.parseMediaType("image/${image.name.parseExtension()}"))
-                    .body(imageBytes)
+                    .body(avatarResource)
             }
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
