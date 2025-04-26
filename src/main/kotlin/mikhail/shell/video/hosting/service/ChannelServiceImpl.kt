@@ -241,6 +241,10 @@ class ChannelServiceImpl @Autowired constructor(
         }
     }
 
+    override fun checkOwner(userId: Long, channelId: Long): Boolean {
+        return channelRepository.existsByOwnerIdAndChannelId(userId, channelId)
+    }
+
     override fun resubscribe(userId: Long, token: String) {
         subscriberRepository.findById_UserId(userId)
             .map { it.id.channelId }

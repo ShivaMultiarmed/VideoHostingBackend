@@ -19,6 +19,7 @@ import org.springframework.core.io.Resource
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 
@@ -217,9 +218,16 @@ class ChannelController @Autowired constructor(
     fun removeChannel(
         @PathVariable channelId: Long
     ): ResponseEntity<Unit> {
-        channelService.removeChannel(channelId)
-        return ResponseEntity.status(HttpStatus.OK).build()
+        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
+            ?: return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        if (channelService.checkOwner(userId, channelId)) {
+            channelService.removeChannel(channelId)
+            return ResponseEntity.status(HttpStatus.OK).build()
+        } else {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        }
     }
+
 
     private fun Channel.toDto(
         port: Int,

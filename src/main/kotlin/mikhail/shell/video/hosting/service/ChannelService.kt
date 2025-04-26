@@ -47,4 +47,5 @@ interface ChannelService {
     ): Channel
     fun getChannel(channelId: Long): Channel
     fun removeChannel(channelId: Long)
+    fun checkOwner(userId: Long, channelId: Long): Boolean
 }
