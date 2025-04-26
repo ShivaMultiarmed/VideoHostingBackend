@@ -139,9 +139,14 @@ class ChannelController @Autowired constructor(
         @RequestPart("editAvatarAction") editAvatarAction: EditAction,
         @RequestPart("avatar") avatarFile: MultipartFile?
     ): ResponseEntity<ChannelDto> {
+        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
+            ?: return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         val compoundError = CompoundError<EditChannelError>()
         if (channel.channelId == null) {
             compoundError.add(EditChannelError.CHANNEL_NOT_EXIST)
+        }
+        if (channelService.checkOwner(userId, channel.channelId!!)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
         if (channel.title.isEmpty()) {
             compoundError.add(EditChannelError.TITLE_EMPTY)
@@ -168,7 +173,7 @@ class ChannelController @Autowired constructor(
                 )
             }
         )
-        val editedChannelDto = editedChannel.toDto(request.localPort, channel.channelId!!)
+        val editedChannelDto = editedChannel.toDto(request.localPort, channel.channelId)
         return ResponseEntity.status(HttpStatus.OK).body(editedChannelDto)
     }
 
