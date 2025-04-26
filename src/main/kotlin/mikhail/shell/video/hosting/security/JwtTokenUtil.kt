@@ -3,25 +3,28 @@ package mikhail.shell.video.hosting.security
 import io.jsonwebtoken.Claims
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.SignatureAlgorithm
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.util.*
 
 @Component
-class JwtTokenUtil {
+class JwtTokenUtil(
+    @Value("\${CRYPTO_KEY}") private val CRYPTO_KEY: String
+) {
 
     private val parser = Jwts
         .parser()
-        .setSigningKey(secret)
+        .setSigningKey(CRYPTO_KEY)
         .setAllowedClockSkewSeconds(30)
 
     fun generateToken(username: String): String {
         val now = Date()
-        val expiration = Date(now.toInstant().toEpochMilli() + tokenExpirationDuration)
+        val expiration = Date(now.toInstant().toEpochMilli() + TOKEN_EXPIRATION_DURATION)
         return Jwts.builder()
             .setSubject(username)
             .setIssuedAt(now)
             .setExpiration(expiration)
-            .signWith(SignatureAlgorithm.HS256, secret)
+            .signWith(SignatureAlgorithm.HS256, CRYPTO_KEY)
             .compact()
     }
 
@@ -47,7 +50,6 @@ class JwtTokenUtil {
     }
 
     companion object {
-        private const val tokenExpirationDuration = 1000L * 60 * 60 * 24 * 30
-        private const val secret = "PJdHAxkeLehwQhEi3fTkCG2r8yrqtT8g"
+        private const val TOKEN_EXPIRATION_DURATION = 1000L * 60 * 60 * 24 * 30
     }
 }

@@ -253,8 +253,8 @@ class VideoController @Autowired constructor(
 
     @PostMapping("/upload/details")
     fun uploadVideoDetails(
-        @RequestBody video: VideoDto,
         request: HttpServletRequest,
+        @RequestBody video: VideoDto
     ): ResponseEntity<VideoDto> {
         val userId = SecurityContextHolder.getContext().authentication.principal as Long?
             ?: return ResponseEntity.status(HttpStatus.FORBIDDEN).build()

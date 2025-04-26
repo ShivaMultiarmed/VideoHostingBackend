@@ -36,8 +36,4 @@ class JwtTokenFilter @Autowired constructor(
         }
         filterChain.doFilter(request, response)
     }
-
-    companion object {
-        private const val secret = "PJdHAxkeLehwQhEi3fTkCG2r8yrqtT8g"
-    }
 }
