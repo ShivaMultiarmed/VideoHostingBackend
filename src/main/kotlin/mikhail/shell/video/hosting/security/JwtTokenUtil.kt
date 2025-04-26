@@ -1,5 +1,6 @@
 package mikhail.shell.video.hosting.security
 
+import io.jsonwebtoken.Claims
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.SignatureAlgorithm
 import org.springframework.stereotype.Component
@@ -8,25 +9,41 @@ import java.util.*
 @Component
 class JwtTokenUtil {
 
+    private val parser = Jwts
+        .parser()
+        .setSigningKey(secret)
+        .setAllowedClockSkewSeconds(30)
+
     fun generateToken(username: String): String {
         val now = Date()
-        //val expiration = Date(now.toInstant().toEpochMilli() + tokenExpirationDuration)
+        val expiration = Date(now.toInstant().toEpochMilli() + tokenExpirationDuration)
         return Jwts.builder()
             .setSubject(username)
             .setIssuedAt(now)
-            //.setExpiration(expiration) // TODO Handle new token after it is expired
+            .setExpiration(expiration)
             .signWith(SignatureAlgorithm.HS256, secret)
             .compact()
     }
 
-    fun validateToken(userId: String, token: String): Boolean {
-        val extractedUserId = Jwts.parser().setSigningKey(secret).parseClaimsJws(token).body.subject
-        val extractedDate = Jwts.parser().setSigningKey(secret).parseClaimsJws(token).body.expiration
-        return userId == extractedUserId && Date() < extractedDate
+    fun parseClaims(token: String): Claims? {
+        return try {
+            parser.parseClaimsJws(token).body
+        } catch (e: Exception) {
+            null
+        }
     }
 
-    fun extractUserId(token: String): Long {
-        return Jwts.parser().setSigningKey(secret).parseClaimsJws(token).body.subject.toLong()
+    fun validateToken(token: String): Boolean {
+        val claims = parseClaims(token)?: return false
+        claims.subject?.toLongOrNull()?: return false
+        val issuedDate = claims.issuedAt?: return false
+        // val expireDate = claims.expiration?: return false
+        val now = Date()
+        return issuedDate < now // && Date() < expireDate
+    }
+
+    fun extractUserId(token: String): Long? {
+        return parseClaims(token)?.subject?.toLong()
     }
 
     companion object {
