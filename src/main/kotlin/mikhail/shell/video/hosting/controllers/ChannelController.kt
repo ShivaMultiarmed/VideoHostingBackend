@@ -145,7 +145,7 @@ class ChannelController @Autowired constructor(
         if (channel.channelId == null) {
             compoundError.add(EditChannelError.CHANNEL_NOT_EXIST)
         }
-        if (channelService.checkOwner(userId, channel.channelId!!)) {
+        if (!channelService.checkOwner(userId, channel.channelId!!)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
         if (channel.title.isEmpty()) {

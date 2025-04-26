@@ -16,6 +16,7 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException
 import org.springframework.web.multipart.MultipartFile
@@ -220,6 +221,11 @@ class VideoController @Autowired constructor(
         @RequestPart("cover") coverFile: MultipartFile?,
         @RequestPart("source") sourceFile: MultipartFile
     ): ResponseEntity<VideoDto> {
+        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
+            ?: return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        if (!channelService.checkOwner(userId, videoDto.channelId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        }
         val cover = coverFile?.let {
             File(
                 name = it.originalFilename,
@@ -250,6 +256,11 @@ class VideoController @Autowired constructor(
         @RequestBody video: VideoDto,
         request: HttpServletRequest,
     ): ResponseEntity<VideoDto> {
+        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
+            ?: return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        if (!channelService.checkOwner(userId, video.channelId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        }
         return ResponseEntity.status(HttpStatus.OK)
             .body(
                 videoService.saveVideoDetails(
@@ -268,6 +279,11 @@ class VideoController @Autowired constructor(
         @RequestParam extension: String,
         input: InputStream
     ): ResponseEntity<Boolean> {
+        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
+            ?: return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        if (!videoService.checkOwner(userId, videoId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        }
         val result = videoService.saveVideoSource(videoId, extension, input, chunkNumber)
         return ResponseEntity.status(HttpStatus.OK).body(result)
     }
@@ -278,6 +294,11 @@ class VideoController @Autowired constructor(
         @RequestParam extension: String,
         input: InputStream
     ): ResponseEntity<Boolean> {
+        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
+            ?: return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        if (!videoService.checkOwner(userId, videoId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        }
         val result = videoService.saveVideoCover(videoId, extension, input)
         return ResponseEntity.status(HttpStatus.OK).body(result)
     }
@@ -285,6 +306,11 @@ class VideoController @Autowired constructor(
     fun confirmVideoUpload(
         @PathVariable videoId: Long
     ): ResponseEntity<Boolean> {
+        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
+            ?: return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        if (!videoService.checkOwner(userId, videoId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        }
         val result = videoService.confirmVideoUpload(videoId)
         return ResponseEntity.status(HttpStatus.OK).body(result)
     }
@@ -303,6 +329,11 @@ class VideoController @Autowired constructor(
         @RequestPart coverAction: EditAction,
         @RequestPart(required = false) cover: MultipartFile? = null
     ): ResponseEntity<VideoDto> {
+        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
+            ?: return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        if (!videoService.checkOwner(userId, video.videoId!!)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        }
         val coverFile = cover?.let {
             File(
                 name = cover.originalFilename,
@@ -324,6 +355,11 @@ class VideoController @Autowired constructor(
         request: HttpServletRequest,
         @PathVariable videoId: Long
     ): ResponseEntity<Void> {
+        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
+            ?: return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        if (!videoService.checkOwner(userId, videoId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        }
         val result = videoService.deleteVideo(videoId)
         return if (result) ResponseEntity.status(HttpStatus.OK).build()
         else ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()

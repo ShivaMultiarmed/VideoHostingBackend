@@ -207,6 +207,10 @@ class VideoServiceWithDB @Autowired constructor(
         return true
     }
 
+    override fun checkOwner(userId: Long, videoId: Long): Boolean {
+        return videoWithChannelsRepository.existsByChannel_OwnerIdAndVideoId(userId, videoId)
+    }
+
     private fun saveFile(input: InputStream, path: String, chunkNumber: Int = 0): Boolean {
         input.use { inStream ->
             val output = FileOutputStream(File(path), true)
