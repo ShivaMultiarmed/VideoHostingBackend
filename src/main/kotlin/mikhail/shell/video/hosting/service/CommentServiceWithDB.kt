@@ -43,6 +43,10 @@ class CommentServiceWithDB @Autowired constructor(
         commentRepository.deleteById(videoId)
     }
 
+    override fun checkOwner(userId: Long, commentId: Long): Boolean {
+        return commentWithUserRepository.existsByUserIdAndCommentId(userId, commentId)
+    }
+
     override fun get(videoId: Long, before: Instant): List<CommentWithUser> {
         val commentEntities = commentWithUserRepository.findByVideoIdAndDateTimeBeforeOrderByDateTimeDesc(videoId, before)
         return commentEntities.map { it.toDomain() }

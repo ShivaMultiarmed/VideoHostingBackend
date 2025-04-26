@@ -11,6 +11,7 @@ import mikhail.shell.video.hosting.service.CommentService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -50,6 +51,11 @@ class CommentController @Autowired constructor(
     }
     @DeleteMapping("/remove")
     fun remove(@RequestParam videoId: Long): ResponseEntity<Unit> {
+        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
+            ?: return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        if (!commentService.checkOwner(userId, videoId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        }
         commentService.remove(videoId)
         return ResponseEntity.status(HttpStatus.OK).build()
     }

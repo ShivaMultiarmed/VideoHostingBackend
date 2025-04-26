@@ -18,4 +18,5 @@ interface CommentWithUserRepository: JpaRepository<CommentWithUserEntity, Long> 
         before: Instant,
         pageable: Pageable = PageRequest.of(0, 10)
     ): List<CommentWithUserEntity>
+    fun existsByUserIdAndCommentId(userId: Long, commentId: Long): Boolean
 }
