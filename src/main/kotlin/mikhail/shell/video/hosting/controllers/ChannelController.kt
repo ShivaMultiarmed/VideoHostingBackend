@@ -103,6 +103,11 @@ class ChannelController @Autowired constructor(
         @RequestPart("cover") coverFile: MultipartFile?,
         @RequestPart("avatar") avatarFile: MultipartFile?
     ): ResponseEntity<ChannelDto> {
+        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
+            ?: return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        if (userId != channel.ownerId) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        }
         val cover = coverFile?.let {
             File(
                 it.originalFilename,
