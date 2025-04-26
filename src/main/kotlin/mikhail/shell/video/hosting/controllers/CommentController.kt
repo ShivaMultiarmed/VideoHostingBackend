@@ -50,13 +50,13 @@ class CommentController @Autowired constructor(
         return ResponseEntity.status(HttpStatus.OK).body(commentDtos)
     }
     @DeleteMapping("/remove")
-    fun remove(@RequestParam videoId: Long): ResponseEntity<Unit> {
+    fun remove(@RequestParam commentId: Long): ResponseEntity<Unit> {
         val userId = SecurityContextHolder.getContext().authentication.principal as Long?
             ?: return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
-        if (!commentService.checkOwner(userId, videoId)) {
+        if (!commentService.checkOwner(userId, commentId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
-        commentService.remove(videoId)
+        commentService.remove(commentId)
         return ResponseEntity.status(HttpStatus.OK).build()
     }
 }

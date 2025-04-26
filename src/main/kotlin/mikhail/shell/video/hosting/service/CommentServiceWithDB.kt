@@ -35,12 +35,12 @@ class CommentServiceWithDB @Autowired constructor(
         sendMessage(createdCommentEntity.commentId!!, action)
     }
 
-    override fun remove(videoId: Long) {
-        if (!commentRepository.existsById(videoId)) {
+    override fun remove(commentId: Long) {
+        if (!commentRepository.existsById(commentId)) {
             throw NoSuchElementException()
         }
-        sendMessage(videoId, Action.REMOVE)
-        commentRepository.deleteById(videoId)
+        sendMessage(commentId, Action.REMOVE)
+        commentRepository.deleteById(commentId)
     }
 
     override fun checkOwner(userId: Long, commentId: Long): Boolean {

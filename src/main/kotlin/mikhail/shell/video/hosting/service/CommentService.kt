@@ -7,6 +7,6 @@ import java.time.Instant
 interface CommentService {
     fun save(comment: Comment)
     fun get(videoId: Long, before: Instant): List<CommentWithUser>
-    fun remove(videoId: Long)
+    fun remove(commentId: Long)
     fun checkOwner(userId: Long, commentId: Long): Boolean
 }
