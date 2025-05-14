@@ -38,6 +38,10 @@ interface ChannelService {
         userId: Long,
         token: String
     )
+    fun unsubscribe(
+        userId: Long,
+        token: String
+    )
     fun editChannel(
         channel: Channel,
         editCoverAction: EditAction,

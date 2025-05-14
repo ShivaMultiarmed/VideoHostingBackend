@@ -250,4 +250,10 @@ class ChannelServiceImpl @Autowired constructor(
             .map { it.id.channelId }
             .forEach { fcm.subscribeToTopic(listOf(token), "$CHANNELS_TOPICS_PREFIX.$it") }
     }
+
+    override fun unsubscribe(userId: Long, token: String) {
+        subscriberRepository.findById_UserId(userId)
+            .map { it.id.channelId }
+            .forEach { fcm.unsubscribeFromTopic(listOf(token), "$CHANNELS_TOPICS_PREFIX.$it") }
+    }
 }

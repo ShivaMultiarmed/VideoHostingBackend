@@ -224,6 +224,15 @@ class ChannelController @Autowired constructor(
         return ResponseEntity.status(HttpStatus.OK).build()
     }
 
+    @PatchMapping("/unsubscribe")
+    fun unsubscribeFromFCM(
+        @RequestParam userId: Long,
+        @RequestParam token: String
+    ): ResponseEntity<Void> {
+        channelService.unsubscribe(userId, token)
+        return ResponseEntity.status(HttpStatus.OK).build()
+    }
+
     @DeleteMapping("/{channelId}")
     fun removeChannel(
         @PathVariable channelId: Long
