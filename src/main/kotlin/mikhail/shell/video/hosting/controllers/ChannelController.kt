@@ -215,21 +215,21 @@ class ChannelController @Autowired constructor(
         return ResponseEntity.status(HttpStatus.OK).body(channelWithUserDto)
     }
 
-    @PatchMapping("/resubscribe")
+    @PatchMapping("/notifications/subscribe")
     fun resubscribeToFCM(
         @RequestParam userId: Long,
         @RequestParam token: String
     ): ResponseEntity<Unit> {
-        channelService.resubscribe(userId, token)
+        channelService.subscribeToNotifications(userId, token)
         return ResponseEntity.status(HttpStatus.OK).build()
     }
 
-    @PatchMapping("/unsubscribe")
+    @PatchMapping("/notifications/unsubscribe")
     fun unsubscribeFromFCM(
         @RequestParam userId: Long,
         @RequestParam token: String
     ): ResponseEntity<Unit> {
-        channelService.unsubscribe(userId, token)
+        channelService.unsubscribeFromNotifications(userId, token)
         return ResponseEntity.status(HttpStatus.OK).build()
     }
 

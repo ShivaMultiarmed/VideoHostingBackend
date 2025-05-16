@@ -245,13 +245,13 @@ class ChannelServiceImpl @Autowired constructor(
         return channelRepository.existsByOwnerIdAndChannelId(userId, channelId)
     }
 
-    override fun resubscribe(userId: Long, token: String) {
+    override fun subscribeToNotifications(userId: Long, token: String) {
         subscriberRepository.findById_UserId(userId)
             .map { it.id.channelId }
             .forEach { fcm.subscribeToTopic(listOf(token), "$CHANNELS_TOPICS_PREFIX.$it") }
     }
 
-    override fun unsubscribe(userId: Long, token: String) {
+    override fun unsubscribeFromNotifications(userId: Long, token: String) {
         subscriberRepository.findById_UserId(userId)
             .map { it.id.channelId }
             .forEach { fcm.unsubscribeFromTopic(listOf(token), "$CHANNELS_TOPICS_PREFIX.$it") }

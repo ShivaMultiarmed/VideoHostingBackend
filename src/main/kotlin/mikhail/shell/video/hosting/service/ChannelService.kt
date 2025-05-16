@@ -1,9 +1,6 @@
 package mikhail.shell.video.hosting.service
 
 import mikhail.shell.video.hosting.domain.*
-import mikhail.shell.video.hosting.dto.ChannelDto
-import org.springframework.web.bind.annotation.RequestPart
-import org.springframework.web.multipart.MultipartFile
 
 interface ChannelService {
     fun provideChannelInfo(
@@ -34,11 +31,11 @@ interface ChannelService {
         token: String,
         subscriptionState: SubscriptionState
     ): ChannelWithUser
-    fun resubscribe(
+    fun subscribeToNotifications(
         userId: Long,
         token: String
     )
-    fun unsubscribe(
+    fun unsubscribeFromNotifications(
         userId: Long,
         token: String
     )
