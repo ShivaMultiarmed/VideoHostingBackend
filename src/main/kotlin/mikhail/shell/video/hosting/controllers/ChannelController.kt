@@ -219,7 +219,7 @@ class ChannelController @Autowired constructor(
     fun resubscribeToFCM(
         @RequestParam userId: Long,
         @RequestParam token: String
-    ): ResponseEntity<Void> {
+    ): ResponseEntity<Unit> {
         channelService.resubscribe(userId, token)
         return ResponseEntity.status(HttpStatus.OK).build()
     }
@@ -228,7 +228,7 @@ class ChannelController @Autowired constructor(
     fun unsubscribeFromFCM(
         @RequestParam userId: Long,
         @RequestParam token: String
-    ): ResponseEntity<Void> {
+    ): ResponseEntity<Unit> {
         channelService.unsubscribe(userId, token)
         return ResponseEntity.status(HttpStatus.OK).build()
     }
