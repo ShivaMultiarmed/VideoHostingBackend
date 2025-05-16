@@ -25,13 +25,13 @@ class UserServiceWithDB @Autowired constructor(
         if (!userRepository.existsById(user.userId!!)) {
             throw NoSuchElementException()
         }
-        if (user.nick.length > 255) {
+        if (user.nick.length > 20) {
             compoundError.add(EditUserError.NICK_TOO_LARGE)
         }
-        if ((user.name?.length?: 0) > 255) {
+        if ((user.name?.length?: 0) > 20) {
             compoundError.add(EditUserError.NAME_TOO_LARGE)
         }
-        if ((user.bio?.length ?: 0) > 5000) {
+        if ((user.bio?.length ?: 0) > 255) {
             compoundError.add(EditUserError.BIO_TOO_LARGE)
         }
         if ((avatar?.content?.size?: 0) > MAX_FILE_SIZE) {
