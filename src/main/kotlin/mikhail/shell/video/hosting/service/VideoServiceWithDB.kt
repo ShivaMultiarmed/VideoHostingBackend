@@ -7,6 +7,10 @@ import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_COVERS_BASE_PATH
 import mikhail.shell.video.hosting.elastic.repository.VideoSearchRepository
+import mikhail.shell.video.hosting.errors.CompoundError
+import mikhail.shell.video.hosting.errors.EditVideoError
+import mikhail.shell.video.hosting.errors.HostingDataException
+import mikhail.shell.video.hosting.errors.UploadVideoError
 import mikhail.shell.video.hosting.repository.UserLikeVideoRepository
 import mikhail.shell.video.hosting.repository.VideoRepository
 import mikhail.shell.video.hosting.repository.VideoWithChannelsRepository
@@ -18,6 +22,7 @@ import org.springframework.stereotype.Service
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
+import java.time.LocalDateTime
 
 @Service
 class VideoServiceWithDB @Autowired constructor(
@@ -142,42 +147,34 @@ class VideoServiceWithDB @Autowired constructor(
         cover: mikhail.shell.video.hosting.domain.File?,
         source: mikhail.shell.video.hosting.domain.File
     ): Video {
-        val addedVideo = videoRepository.save(video.toEntity()).toDomain()
-        videoSearchRepository.save(addedVideo.toEntity())
-        val sourceExtension = source.name?.parseExtension()
-        source.content?.let {
-            File("$VIDEOS_PLAYABLES_BASE_PATH/${addedVideo.videoId}.$sourceExtension").writeBytes(it)
+        val addedVideo = saveVideoDetails(video)
+        saveVideoSource(addedVideo.videoId!!, source.name!!.parseExtension(), source.content!!.inputStream())
+        cover?.let {
+            saveVideoCover(addedVideo.videoId, it.name!!.parseExtension(), it.content!!.inputStream())
         }
-        if (cover != null) {
-            val coverExtension = cover.name?.parseExtension()
-            File("$VIDEOS_COVERS_BASE_PATH/${addedVideo.videoId}.$coverExtension").writeBytes(cover.content!!)
-        }
-        val videoWithChannel = videoWithChannelsRepository.findById(addedVideo.videoId!!).get()
-        val message = Message.builder()
-            .setTopic("$CHANNELS_TOPICS_PREFIX.${video.channelId}")
-            .putAllData(
-                mapOf(
-                    "channelTitle" to videoWithChannel.channel.title,
-                    "videoTitle" to videoWithChannel.title,
-                    "videoId" to videoWithChannel.videoId.toString()
-                )
-            ).build()
-        fcm.send(message)
         confirmVideoUpload(addedVideo.videoId)
         return addedVideo
     }
 
     override fun saveVideoDetails(video: Video): Video {
-        val addedVideo = videoRepository.save(video.toEntity()).toDomain()
-        videoSearchRepository.save(addedVideo.toEntity())
-        return addedVideo
+        val videoEntityToAdd = video
+            .toEntity()
+            .copy(
+                videoId = null,
+                views = 0,
+                likes = 0,
+                dislikes = 0,
+                state = VideoState.CREATED
+            )
+        val addedVideoEntity = videoRepository.save(videoEntityToAdd)
+        videoSearchRepository.save(addedVideoEntity)
+        return addedVideoEntity.toDomain()
     }
 
-    override fun saveVideoSource(videoId: Long, extension: String, input: InputStream, chunkNumber: Int): Boolean {
+    override fun saveVideoSource(videoId: Long, extension: String, input: InputStream): Boolean {
         return saveFile(
             input = input,
-            path = "$VIDEOS_PLAYABLES_BASE_PATH/$videoId.$extension",
-            chunkNumber = chunkNumber
+            path = "$VIDEOS_PLAYABLES_BASE_PATH/$videoId.$extension"
         )
     }
 
@@ -190,7 +187,10 @@ class VideoServiceWithDB @Autowired constructor(
 
     override fun confirmVideoUpload(videoId: Long): Boolean {
         var videoEntity = videoRepository.findById(videoId).get()
-        videoEntity = videoEntity.copy(state = VideoState.UPLOADED)
+        videoEntity = videoEntity.copy(
+            state = VideoState.UPLOADED,
+            dateTime = LocalDateTime.now()
+        )
         videoRepository.save(videoEntity)
         videoSearchRepository.save(videoEntity)
         val videoWithChannel = videoWithChannelsRepository.findById(videoId).get()
@@ -211,7 +211,7 @@ class VideoServiceWithDB @Autowired constructor(
         return videoWithChannelsRepository.existsByChannel_OwnerIdAndVideoId(userId, videoId)
     }
 
-    private fun saveFile(input: InputStream, path: String, chunkNumber: Int = 0): Boolean {
+    private fun saveFile(input: InputStream, path: String): Boolean {
         input.use { inStream ->
             val output = FileOutputStream(File(path), true)
             output.use { outStream ->
@@ -242,9 +242,23 @@ class VideoServiceWithDB @Autowired constructor(
         coverAction: EditAction,
         cover: mikhail.shell.video.hosting.domain.File?
     ): Video {
-        val videoState = videoRepository.findById(video.videoId!!).get().state
-        val updatedVideo = videoRepository.save(video.toEntity(videoState)).toDomain()
-        videoSearchRepository.save(updatedVideo.toEntity(videoState))
+        val compoundError = CompoundError<EditVideoError>()
+        if (video.title.isEmpty()) {
+            compoundError.add(EditVideoError.TITLE_EMPTY)
+        } else if (video.title.length > 255) {
+            compoundError.add(EditVideoError.TITLE_TOO_LARGE)
+        }
+        if (compoundError.isNotNull()) {
+            throw HostingDataException(compoundError)
+        }
+        val videoEntityToEdit = videoRepository
+            .findById(video.videoId!!)
+            .get()
+            .copy(
+                title = video.title
+            )
+        val updatedVideoEntity = videoRepository.save(videoEntityToEdit)
+        videoSearchRepository.save(updatedVideoEntity)
         val coverDir = File(VIDEOS_COVERS_BASE_PATH)
         if (coverAction != EditAction.KEEP) {
             val coverFile = coverDir.listFiles()?.firstOrNull { it.nameWithoutExtension == video.videoId.toString() }
@@ -252,9 +266,9 @@ class VideoServiceWithDB @Autowired constructor(
         }
         if (cover != null) {
             val coverExtension = cover.name?.parseExtension()
-            File("$VIDEOS_COVERS_BASE_PATH/${updatedVideo.videoId}.$coverExtension").writeBytes(cover.content!!)
+            File("$VIDEOS_COVERS_BASE_PATH/${updatedVideoEntity.videoId}.$coverExtension").writeBytes(cover.content!!)
         }
-        return updatedVideo
+        return updatedVideoEntity.toDomain()
     }
 
     override fun sync() {

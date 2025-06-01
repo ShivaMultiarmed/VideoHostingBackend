@@ -14,7 +14,6 @@ enum class VideoState {
 }
 
 @Entity
-//@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @Table(name = "videos")
 @Document(indexName = "videos")
 data class VideoEntity(
@@ -25,7 +24,7 @@ data class VideoEntity(
     @Field(type = FieldType.Text, analyzer = "custom_multilingual_analyzer", searchAnalyzer = "custom_multilingual_analyzer")
     val title: String,
     @Field(type = FieldType.Date, format = [DateFormat.date_hour_minute_second_millis])
-    val dateTime: LocalDateTime = LocalDateTime.now(),
+    val dateTime: LocalDateTime? = null,
     val views: Long = 0,
     val likes: Long = 0,
     val dislikes: Long = 0,
@@ -44,7 +43,7 @@ data class VideoWithChannelEntity(
     @Column(name = "video_id") val videoId: Long? = null,
     @Column(name = "channel_id") val channelId: Long,
     val title: String,
-    val dateTime: LocalDateTime,
+    val dateTime: LocalDateTime?,
     val views: Long,
     val likes: Long,
     val dislikes: Long,
@@ -59,16 +58,6 @@ data class VideoWithChannelEntity(
     )
     val channel: ChannelEntity
 )
-
-//    : VideoEntity(
-//    videoId,
-//    channelId,
-//    title,
-//    dateTime,
-//    views,
-//    likes,
-//    dislikes
-//)
 
 fun VideoWithChannelEntity.toDomain() = VideoWithChannel(
     video = Video(videoId, channelId, title, dateTime, views, likes, dislikes),

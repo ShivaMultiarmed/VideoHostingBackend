@@ -284,7 +284,7 @@ class VideoController @Autowired constructor(
         if (!videoService.checkOwner(userId, videoId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
-        val result = videoService.saveVideoSource(videoId, extension, input, chunkNumber)
+        val result = videoService.saveVideoSource(videoId, extension, input)
         return ResponseEntity.status(HttpStatus.OK).body(result)
     }
 

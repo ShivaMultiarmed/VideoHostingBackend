@@ -6,7 +6,7 @@ class Video(
     val videoId: Long? = null,
     val channelId: Long,
     val title: String,
-    val dateTime: LocalDateTime = LocalDateTime.now(),
+    val dateTime: LocalDateTime? = null,
     val views: Long = 0,
     val likes: Long = 0,
     val dislikes: Long = 0
@@ -21,7 +21,7 @@ data class VideoWithUser(
     val videoId: Long? = null,
     val channelId: Long,
     val title: String,
-    val dateTime: LocalDateTime,
+    val dateTime: LocalDateTime? = null,
     val views: Long,
     val likes: Long,
     val dislikes: Long,

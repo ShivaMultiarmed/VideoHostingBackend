@@ -129,13 +129,13 @@ class ChannelServiceImpl @Autowired constructor(
         }
         val channel = channelRepository.findById(channelId).orElseThrow().toDomain()
         return ChannelWithUser(
-            channelId,
-            channel.ownerId,
-            channel.title,
-            channel.alias,
-            channel.description,
-            channel.subscribers,
-            newSubscriptionState
+            channelId = channelId,
+            ownerId = channel.ownerId,
+            title = channel.title,
+            alias = channel.alias,
+            description = channel.description,
+            subscribers = channel.subscribers,
+            subscription = newSubscriptionState
         )
     }
 

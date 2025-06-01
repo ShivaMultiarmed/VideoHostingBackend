@@ -2,7 +2,6 @@ package mikhail.shell.video.hosting.dto
 
 import mikhail.shell.video.hosting.domain.LikingState
 import mikhail.shell.video.hosting.domain.Video
-import mikhail.shell.video.hosting.domain.VideoWithChannel
 import mikhail.shell.video.hosting.domain.VideoWithUser
 import java.time.LocalDateTime
 
@@ -10,7 +9,7 @@ data class VideoDto(
     val videoId: Long? = null,
     val channelId: Long,
     val title: String,
-    val dateTime: LocalDateTime = LocalDateTime.now(),
+    val dateTime: LocalDateTime? = null,
     val views: Long = 0,
     val likes: Long = 0,
     val dislikes: Long = 0,
@@ -53,7 +52,7 @@ data class VideoWithUserDto(
     val videoId: Long? = null,
     val channelId: Long,
     val title: String,
-    val dateTime: LocalDateTime,
+    val dateTime: LocalDateTime? = null,
     val views: Long,
     val likes: Long,
     val liking: LikingState,
