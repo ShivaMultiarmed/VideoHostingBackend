@@ -157,6 +157,16 @@ class VideoServiceWithDB @Autowired constructor(
     }
 
     override fun saveVideoDetails(video: Video): Video {
+        val compoundError = CompoundError<UploadVideoError>()
+        if (video.channelId <= 0) {
+            compoundError.add(UploadVideoError.CHANNEL_NOT_CHOSEN)
+        }
+        if (video.title.length > 255) {
+            compoundError.add(UploadVideoError.TITLE_TOO_LARGE)
+        }
+        if (compoundError.isNotNull()) {
+            throw HostingDataException(compoundError)
+        }
         val videoEntityToAdd = video
             .toEntity()
             .copy(
@@ -172,6 +182,10 @@ class VideoServiceWithDB @Autowired constructor(
     }
 
     override fun saveVideoSource(videoId: Long, extension: String, input: InputStream): Boolean {
+        val compoundError = CompoundError<UploadVideoError>()
+        if (compoundError.isNotNull()) {
+            throw HostingDataException(compoundError)
+        }
         return saveFile(
             input = input,
             path = "$VIDEOS_PLAYABLES_BASE_PATH/$videoId.$extension"

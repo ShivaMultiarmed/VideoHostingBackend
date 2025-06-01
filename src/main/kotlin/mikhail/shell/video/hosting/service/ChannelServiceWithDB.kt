@@ -11,7 +11,7 @@ import mikhail.shell.video.hosting.domain.SubscriptionState.NOT_SUBSCRIBED
 import mikhail.shell.video.hosting.domain.SubscriptionState.SUBSCRIBED
 import mikhail.shell.video.hosting.elastic.repository.VideoSearchRepository
 import mikhail.shell.video.hosting.errors.ChannelCreationError
-import mikhail.shell.video.hosting.errors.ChannelCreationError.EXISTS
+import mikhail.shell.video.hosting.errors.ChannelCreationError.*
 import mikhail.shell.video.hosting.errors.CompoundError
 import mikhail.shell.video.hosting.errors.EditChannelError
 import mikhail.shell.video.hosting.errors.HostingDataException
@@ -26,7 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
 
 @Service
-class ChannelServiceImpl @Autowired constructor(
+class ChannelServiceWithDB @Autowired constructor(
     private val channelRepository: ChannelRepository,
     private val subscriberRepository: SubscriberRepository,
     private val videoRepository: VideoRepository,
@@ -73,11 +73,39 @@ class ChannelServiceImpl @Autowired constructor(
     @Transactional
     override fun createChannel(channel: Channel, avatar: File?, cover: File?): Channel {
         val error = CompoundError<ChannelCreationError>()
-        if (channelRepository.existsByTitle(channel.title))
+        if (channelRepository.existsByTitle(channel.title)) {
             error.add(EXISTS)
-        if (error.isNotNull())
+        }
+        if (channel.title.length > 255) {
+            error.add(TITLE_TOO_LARGE)
+        }
+        if ((channel.description?.length ?: 0) > 1000) {
+            error.add(DESCRIPTION_TOO_LARGE)
+        }
+        cover?.let {
+            if (!it.mimeType!!.contains("image")) {
+                error.add(COVER_TYPE_NOT_VALID)
+            } else if (it.content!!.size > MAX_FILE_SIZE) {
+                error.add(COVER_TOO_LARGE)
+            }
+        }
+        avatar?.let {
+            if (!it.mimeType!!.contains("image")) {
+                error.add(AVATAR_TYPE_NOT_VALID)
+            } else if (it.content!!.size > MAX_FILE_SIZE) {
+                error.add(AVATAR_TOO_LARGE)
+            }
+        }
+        if (error.isNotNull()) {
             throw HostingDataException(error)
-        val createdChannel = channelRepository.save(channel.toEntity()).toDomain()
+        }
+        val channelEntityToCreate = channel
+            .toEntity()
+            .copy(
+                channelId = null,
+                subscribers = 0
+            )
+        val createdChannel = channelRepository.save(channelEntityToCreate).toDomain()
         val coverExtension = cover?.name?.parseExtension()
         cover?.content?.let {
             java.io.File("$CHANNEL_COVERS_BASE_PATH/${createdChannel.channelId}.$coverExtension").writeBytes(it)

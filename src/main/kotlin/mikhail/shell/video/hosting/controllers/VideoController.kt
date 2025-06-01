@@ -5,6 +5,9 @@ import jakarta.servlet.http.HttpServletResponse
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH
 import mikhail.shell.video.hosting.dto.*
+import mikhail.shell.video.hosting.errors.CompoundError
+import mikhail.shell.video.hosting.errors.HostingDataException
+import mikhail.shell.video.hosting.errors.UploadVideoError
 import mikhail.shell.video.hosting.service.ChannelService
 import mikhail.shell.video.hosting.service.VideoService
 import org.springframework.beans.factory.annotation.Autowired
@@ -221,10 +224,23 @@ class VideoController @Autowired constructor(
         @RequestPart("cover") coverFile: MultipartFile?,
         @RequestPart("source") sourceFile: MultipartFile
     ): ResponseEntity<VideoDto> {
+        val compoundError = CompoundError<UploadVideoError>()
+        if (videoDto.channelId < 0) {
+            compoundError.add(UploadVideoError.CHANNEL_NOT_CHOSEN)
+        }
+        if (compoundError.isNotNull()) {
+            throw HostingDataException(compoundError)
+        }
         val userId = SecurityContextHolder.getContext().authentication.principal as Long?
             ?: return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         if (!channelService.checkOwner(userId, videoDto.channelId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        }
+        if (videoDto.title.isEmpty()) {
+            compoundError.add(UploadVideoError.TITLE_EMPTY)
+        }
+        if (compoundError.isNotNull()) {
+            throw HostingDataException(compoundError)
         }
         val cover = coverFile?.let {
             File(

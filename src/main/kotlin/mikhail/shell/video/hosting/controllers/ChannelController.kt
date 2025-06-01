@@ -8,6 +8,8 @@ import mikhail.shell.video.hosting.dto.ChannelDto
 import mikhail.shell.video.hosting.dto.ChannelWithUserDto
 import mikhail.shell.video.hosting.dto.toDomain
 import mikhail.shell.video.hosting.dto.toDto
+import mikhail.shell.video.hosting.errors.ChannelCreationError
+import mikhail.shell.video.hosting.errors.ChannelCreationError.*
 import mikhail.shell.video.hosting.errors.CompoundError
 import mikhail.shell.video.hosting.errors.EditChannelError
 import mikhail.shell.video.hosting.errors.HostingDataException
@@ -103,10 +105,26 @@ class ChannelController @Autowired constructor(
         @RequestPart("cover") coverFile: MultipartFile?,
         @RequestPart("avatar") avatarFile: MultipartFile?
     ): ResponseEntity<ChannelDto> {
+        val compoundError = CompoundError<ChannelCreationError>()
+        if (channel.channelId != null) {
+            compoundError.add(EXISTS)
+        }
+        if (channel.ownerId < 0) {
+            compoundError.add(OWNER_NOT_CHOSEN)
+        }
+        if (compoundError.isNotNull()) {
+            throw HostingDataException(compoundError)
+        }
         val userId = SecurityContextHolder.getContext().authentication.principal as Long?
             ?: return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         if (userId != channel.ownerId) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        }
+        if (channel.title.isEmpty()) {
+            compoundError.add(TITLE_EMPTY)
+        }
+        if (compoundError.isNotNull()) {
+            throw HostingDataException(compoundError)
         }
         val cover = coverFile?.let {
             File(
