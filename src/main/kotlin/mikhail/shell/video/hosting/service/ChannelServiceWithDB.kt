@@ -33,10 +33,6 @@ class ChannelServiceWithDB @Autowired constructor(
     private val videoSearchRepository: VideoSearchRepository,
     private val fcm: FirebaseMessaging
 ) : ChannelService {
-
-    private val MAX_BUFFER = 10 * 1024 * 1024
-    private val MAX_FILE_SIZE = 10 * 1024 * 1024
-
     private val CHANNELS_TOPICS_PREFIX = "channels"
 
     override fun provideChannelInfo(
@@ -74,25 +70,28 @@ class ChannelServiceWithDB @Autowired constructor(
     override fun createChannel(channel: Channel, avatar: File?, cover: File?): Channel {
         val error = CompoundError<ChannelCreationError>()
         if (channelRepository.existsByTitle(channel.title)) {
-            error.add(EXISTS)
+            error.add(TITLE_EXISTS)
         }
-        if (channel.title.length > 255) {
+        if (channel.title.length > ValidationRules.MAX_TITLE_LENGTH) {
             error.add(TITLE_TOO_LARGE)
         }
-        if ((channel.description?.length ?: 0) > 1000) {
+        if (channel.title.length > ValidationRules.MAX_TITLE_LENGTH) {
+            error.add(ALIAS_TOO_LARGE)
+        }
+        if ((channel.description?.length ?: 0) > ValidationRules.MAX_TEXT_LENGTH) {
             error.add(DESCRIPTION_TOO_LARGE)
         }
         cover?.let {
             if (!it.mimeType!!.contains("image")) {
                 error.add(COVER_TYPE_NOT_VALID)
-            } else if (it.content!!.size > MAX_FILE_SIZE) {
+            } else if (it.content!!.size > ValidationRules.MAX_IMAGE_SIZE) {
                 error.add(COVER_TOO_LARGE)
             }
         }
         avatar?.let {
             if (!it.mimeType!!.contains("image")) {
                 error.add(AVATAR_TYPE_NOT_VALID)
-            } else if (it.content!!.size > MAX_FILE_SIZE) {
+            } else if (it.content!!.size > ValidationRules.MAX_IMAGE_SIZE) {
                 error.add(AVATAR_TOO_LARGE)
             }
         }
@@ -175,22 +174,22 @@ class ChannelServiceWithDB @Autowired constructor(
         avatarFile: File?
     ): Channel {
         val error = CompoundError<EditChannelError>()
-        if (channel.title.length > 255) {
+        if (channel.title.length > ValidationRules.MAX_TITLE_LENGTH) {
             error.add(EditChannelError.TITLE_TOO_LARGE)
         }
-        if ((channel.alias?.length ?: 0) > 255) {
+        if ((channel.alias?.length ?: 0) > ValidationRules.MAX_TITLE_LENGTH) {
             error.add(EditChannelError.ALIAS_TOO_LARGE)
         }
-        if ((channel.description?.length ?: 0) > 5000) {
+        if ((channel.description?.length ?: 0) > ValidationRules.MAX_TEXT_LENGTH) {
             error.add(EditChannelError.DESCRIPTION_TOO_LARGE)
         }
         coverFile?.let {
-            if ((it.content?.size ?: 0) > MAX_FILE_SIZE) {
+            if ((it.content?.size ?: 0) > ValidationRules.MAX_IMAGE_SIZE) {
                 error.add(EditChannelError.COVER_TOO_LARGE)
             }
         }
         avatarFile?.let {
-            if ((it.content?.size ?: 0) > MAX_FILE_SIZE) {
+            if ((it.content?.size ?: 0) > ValidationRules.MAX_IMAGE_SIZE) {
                 error.add(EditChannelError.AVATAR_TOO_LARGE)
             }
         }

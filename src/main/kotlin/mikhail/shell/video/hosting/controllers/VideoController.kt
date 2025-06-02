@@ -6,10 +6,12 @@ import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH
 import mikhail.shell.video.hosting.dto.*
 import mikhail.shell.video.hosting.errors.CompoundError
+import mikhail.shell.video.hosting.errors.EditVideoError
 import mikhail.shell.video.hosting.errors.HostingDataException
 import mikhail.shell.video.hosting.errors.UploadVideoError
 import mikhail.shell.video.hosting.service.ChannelService
 import mikhail.shell.video.hosting.service.VideoService
+import mikhail.shell.video.hosting.utils.getMimeType
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.core.io.FileSystemResource
@@ -20,12 +22,16 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.util.MimeTypeUtils
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException
 import org.springframework.web.multipart.MultipartFile
 import java.io.File
 import java.io.InputStream
 import java.io.RandomAccessFile
+import java.net.FileNameMap
+import javax.activation.MimeType
+import javax.activation.MimetypesFileTypeMap
 
 @RestController
 @RequestMapping("/api/v1/videos")
@@ -225,12 +231,6 @@ class VideoController @Autowired constructor(
         @RequestPart("source") sourceFile: MultipartFile
     ): ResponseEntity<VideoDto> {
         val compoundError = CompoundError<UploadVideoError>()
-        if (videoDto.channelId < 0) {
-            compoundError.add(UploadVideoError.CHANNEL_NOT_CHOSEN)
-        }
-        if (compoundError.isNotNull()) {
-            throw HostingDataException(compoundError)
-        }
         val userId = SecurityContextHolder.getContext().authentication.principal as Long?
             ?: return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         if (!channelService.checkOwner(userId, videoDto.channelId)) {
@@ -291,7 +291,6 @@ class VideoController @Autowired constructor(
     @PostMapping("/upload/{videoId}/source", consumes = ["application/octet-stream"])
     fun uploadVideoSource(
         @PathVariable videoId: Long,
-        @RequestParam chunkNumber: Int,
         @RequestParam extension: String,
         input: InputStream
     ): ResponseEntity<Boolean> {
@@ -300,7 +299,15 @@ class VideoController @Autowired constructor(
         if (!videoService.checkOwner(userId, videoId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
-        val result = videoService.saveVideoSource(videoId, extension, input)
+        val fileName = "source.$extension"
+        val result = videoService.saveVideoSource(
+            videoId,
+            File(
+                name = fileName,
+                mimeType = getMimeType(fileName),
+                content = input.readAllBytes()
+            )
+        )
         return ResponseEntity.status(HttpStatus.OK).body(result)
     }
 
@@ -315,7 +322,15 @@ class VideoController @Autowired constructor(
         if (!videoService.checkOwner(userId, videoId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
-        val result = videoService.saveVideoCover(videoId, extension, input)
+        val fileName = "cover.$extension"
+        val result = videoService.saveVideoCover(
+            videoId,
+            File(
+                name = fileName,
+                mimeType = getMimeType(fileName),
+                content = input.readAllBytes()
+            )
+        )
         return ResponseEntity.status(HttpStatus.OK).body(result)
     }
     @PostMapping("/upload/{videoId}/confirm")
@@ -357,6 +372,13 @@ class VideoController @Autowired constructor(
                 content = cover.bytes
             )
         }
+        val compoundError = CompoundError<EditVideoError>()
+        if (video.title.isEmpty()) {
+            compoundError.add(EditVideoError.TITLE_EMPTY)
+        }
+        if (compoundError.isNotNull()) {
+            throw HostingDataException(compoundError)
+        }
         val updatedVideo = videoService.editVideo(video.toDomain(), coverAction, coverFile)
         return ResponseEntity.status(HttpStatus.OK).body(
             updatedVideo.toDto(
@@ -370,7 +392,7 @@ class VideoController @Autowired constructor(
     fun deleteVideo(
         request: HttpServletRequest,
         @PathVariable videoId: Long
-    ): ResponseEntity<Void> {
+    ): ResponseEntity<Unit> {
         val userId = SecurityContextHolder.getContext().authentication.principal as Long?
             ?: return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         if (!videoService.checkOwner(userId, videoId)) {
@@ -382,7 +404,7 @@ class VideoController @Autowired constructor(
     }
 
     @PatchMapping("/search/sync")
-    fun syncSearchIndexes(): ResponseEntity<Void> {
+    fun syncSearchIndexes(): ResponseEntity<Unit> {
         videoService.sync()
         return ResponseEntity.status(HttpStatus.OK).build()
     }

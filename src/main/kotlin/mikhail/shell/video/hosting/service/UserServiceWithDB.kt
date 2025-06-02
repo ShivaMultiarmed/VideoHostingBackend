@@ -25,16 +25,16 @@ class UserServiceWithDB @Autowired constructor(
         if (!userRepository.existsById(user.userId!!)) {
             throw NoSuchElementException()
         }
-        if (user.nick.length > 20) {
+        if (user.nick.length > ValidationRules.MAX_NAME_LENGTH) {
             compoundError.add(EditUserError.NICK_TOO_LARGE)
         }
-        if ((user.name?.length?: 0) > 20) {
+        if ((user.name?.length?: 0) > ValidationRules.MAX_NAME_LENGTH) {
             compoundError.add(EditUserError.NAME_TOO_LARGE)
         }
-        if ((user.bio?.length ?: 0) > 255) {
+        if ((user.bio?.length ?: 0) > ValidationRules.MAX_TEXT_LENGTH) {
             compoundError.add(EditUserError.BIO_TOO_LARGE)
         }
-        if ((avatar?.content?.size?: 0) > MAX_FILE_SIZE) {
+        if ((avatar?.content?.size?: 0) > ValidationRules.MAX_IMAGE_SIZE) {
             compoundError.add(EditUserError.AVATAR_TOO_LARGE)
         }
         if (avatar?.mimeType?.substringBefore("/") != "image" && avatar != null) {
@@ -79,9 +79,5 @@ class UserServiceWithDB @Autowired constructor(
         } else {
             return file
         }
-    }
-
-    private companion object {
-        const val MAX_FILE_SIZE = 10 * 1024 * 1024
     }
 }

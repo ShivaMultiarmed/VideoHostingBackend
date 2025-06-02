@@ -106,11 +106,8 @@ class ChannelController @Autowired constructor(
         @RequestPart("avatar") avatarFile: MultipartFile?
     ): ResponseEntity<ChannelDto> {
         val compoundError = CompoundError<ChannelCreationError>()
-        if (channel.channelId != null) {
-            compoundError.add(EXISTS)
-        }
-        if (channel.ownerId < 0) {
-            compoundError.add(OWNER_NOT_CHOSEN)
+        if (channel.title.isEmpty()) {
+            compoundError.add(TITLE_EMPTY)
         }
         if (compoundError.isNotNull()) {
             throw HostingDataException(compoundError)
@@ -122,6 +119,22 @@ class ChannelController @Autowired constructor(
         }
         if (channel.title.isEmpty()) {
             compoundError.add(TITLE_EMPTY)
+        }
+        coverFile?.let {
+            if (it.isEmpty) {
+                compoundError.add(COVER_EMPTY)
+            }
+            if (it.contentType!!.contains("image")) {
+                compoundError.add(COVER_TYPE_NOT_VALID)
+            }
+        }
+        avatarFile?.let {
+            if (it.isEmpty) {
+                compoundError.add(AVATAR_EMPTY)
+            }
+            if (it.contentType!!.contains("image")) {
+                compoundError.add(AVATAR_TYPE_NOT_VALID)
+            }
         }
         if (compoundError.isNotNull()) {
             throw HostingDataException(compoundError)
@@ -168,11 +181,28 @@ class ChannelController @Autowired constructor(
         if (channel.channelId == null) {
             compoundError.add(EditChannelError.CHANNEL_NOT_EXIST)
         }
+        if (compoundError.isNotNull()) {
+            throw HostingDataException(compoundError)
+        }
         if (!channelService.checkOwner(userId, channel.channelId!!)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
         if (channel.title.isEmpty()) {
             compoundError.add(EditChannelError.TITLE_EMPTY)
+        }
+        coverFile?.let {
+            if (it.isEmpty) {
+                compoundError.add(EditChannelError.COVER_EMPTY)
+            } else if (!it.contentType!!.contains("image")) {
+                compoundError.add(EditChannelError.COVER_TYPE_INVALID)
+            }
+        }
+        avatarFile?.let {
+            if (it.isEmpty) {
+                compoundError.add(EditChannelError.AVATAR_EMPTY)
+            } else if (!it.contentType!!.contains("image")) {
+                compoundError.add(EditChannelError.AVATAR_TYPE_INVALID)
+            }
         }
         if (compoundError.isNotNull()) {
             throw HostingDataException(compoundError)

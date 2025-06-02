@@ -3,10 +3,7 @@ package mikhail.shell.video.hosting.service
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.Message
-import mikhail.shell.video.hosting.domain.Action
-import mikhail.shell.video.hosting.domain.ActionModel
-import mikhail.shell.video.hosting.domain.Comment
-import mikhail.shell.video.hosting.domain.CommentWithUser
+import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.errors.CommentError
 import mikhail.shell.video.hosting.errors.HostingDataException
 import mikhail.shell.video.hosting.repository.CommentRepository
@@ -25,7 +22,7 @@ class CommentServiceWithDB @Autowired constructor(
     private val objectMapper: ObjectMapper
 ): CommentService {
     override fun save(comment: Comment) {
-        if (comment.text.length > 200) {
+        if (comment.text.length > ValidationRules.MAX_TEXT_LENGTH) {
             throw HostingDataException(CommentError.TEXT_TOO_LARGE)
         }
         val commentEntity = comment.toEntity()

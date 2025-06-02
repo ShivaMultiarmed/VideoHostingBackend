@@ -34,7 +34,6 @@ class VideoServiceWithDB @Autowired constructor(
     private val userLikeVideoRepository: UserLikeVideoRepository,
     private val fcm: FirebaseMessaging
 ) : VideoService {
-
     private val CHANNELS_TOPICS_PREFIX = "channels"
 
     override fun getVideoInfo(videoId: Long): Video {
@@ -148,9 +147,9 @@ class VideoServiceWithDB @Autowired constructor(
         source: mikhail.shell.video.hosting.domain.File
     ): Video {
         val addedVideo = saveVideoDetails(video)
-        saveVideoSource(addedVideo.videoId!!, source.name!!.parseExtension(), source.content!!.inputStream())
+        saveVideoSource(addedVideo.videoId!!, source)
         cover?.let {
-            saveVideoCover(addedVideo.videoId, it.name!!.parseExtension(), it.content!!.inputStream())
+            saveVideoCover(addedVideo.videoId, it)
         }
         confirmVideoUpload(addedVideo.videoId)
         return addedVideo
@@ -159,9 +158,9 @@ class VideoServiceWithDB @Autowired constructor(
     override fun saveVideoDetails(video: Video): Video {
         val compoundError = CompoundError<UploadVideoError>()
         if (video.channelId <= 0) {
-            compoundError.add(UploadVideoError.CHANNEL_NOT_CHOSEN)
+            compoundError.add(UploadVideoError.CHANNEL_INVALID)
         }
-        if (video.title.length > 255) {
+        if (video.title.length > ValidationRules.MAX_TITLE_LENGTH) {
             compoundError.add(UploadVideoError.TITLE_TOO_LARGE)
         }
         if (compoundError.isNotNull()) {
@@ -174,6 +173,7 @@ class VideoServiceWithDB @Autowired constructor(
                 views = 0,
                 likes = 0,
                 dislikes = 0,
+                dateTime = LocalDateTime.now(),
                 state = VideoState.CREATED
             )
         val addedVideoEntity = videoRepository.save(videoEntityToAdd)
@@ -181,32 +181,52 @@ class VideoServiceWithDB @Autowired constructor(
         return addedVideoEntity.toDomain()
     }
 
-    override fun saveVideoSource(videoId: Long, extension: String, input: InputStream): Boolean {
+    override fun saveVideoSource(videoId: Long, source: mikhail.shell.video.hosting.domain.File): Boolean {
         val compoundError = CompoundError<UploadVideoError>()
+        if (source.content?.isEmpty() != false) {
+            compoundError.add(UploadVideoError.SOURCE_EMPTY)
+        } else if (!source.mimeType!!.contains("video")) {
+            compoundError.add(UploadVideoError.SOURCE_TYPE_INVALID)
+        } else if (source.content.size > ValidationRules.MAX_VIDEO_SIZE) {
+            compoundError.add(UploadVideoError.SOURCE_TOO_LARGE)
+        }
         if (compoundError.isNotNull()) {
             throw HostingDataException(compoundError)
         }
         return saveFile(
-            input = input,
-            path = "$VIDEOS_PLAYABLES_BASE_PATH/$videoId.$extension"
+            input = source.content!!.inputStream(),
+            path = "$VIDEOS_PLAYABLES_BASE_PATH/$videoId.${source.name!!.parseExtension()}"
         )
     }
 
-    override fun saveVideoCover(videoId: Long, extension: String, input: InputStream): Boolean {
+    override fun saveVideoCover(videoId: Long, cover: mikhail.shell.video.hosting.domain.File): Boolean {
+        val compoundError = CompoundError<UploadVideoError>()
+        if (cover.content?.isEmpty() != false) {
+            compoundError.add(UploadVideoError.COVER_EMPTY)
+        } else if (!cover.mimeType!!.contains("image")) {
+            compoundError.add(UploadVideoError.COVER_TYPE_INVALID)
+        } else if (cover.content.size > ValidationRules.MAX_IMAGE_SIZE) {
+            compoundError.add(UploadVideoError.COVER_TOO_LARGE)
+        }
+        if (compoundError.isNotNull()) {
+            throw HostingDataException(compoundError)
+        }
         return saveFile(
-            input = input,
-            path = "$VIDEOS_COVERS_BASE_PATH/$videoId.$extension"
+            input = cover.content!!.inputStream(),
+            path = "$VIDEOS_COVERS_BASE_PATH/$videoId.${cover.name!!.parseExtension()}"
         )
     }
 
     override fun confirmVideoUpload(videoId: Long): Boolean {
-        var videoEntity = videoRepository.findById(videoId).get()
-        videoEntity = videoEntity.copy(
-            state = VideoState.UPLOADED,
-            dateTime = LocalDateTime.now()
-        )
-        videoRepository.save(videoEntity)
-        videoSearchRepository.save(videoEntity)
+        val videoEntityToConfirm = videoRepository
+            .findById(videoId)
+            .get()
+            .copy(
+                state = VideoState.UPLOADED,
+                dateTime = LocalDateTime.now()
+            )
+        videoRepository.save(videoEntityToConfirm)
+        videoSearchRepository.save(videoEntityToConfirm)
         val videoWithChannel = videoWithChannelsRepository.findById(videoId).get()
         val message = Message.builder()
             .setTopic("$CHANNELS_TOPICS_PREFIX.${videoWithChannel.channelId}")
@@ -257,10 +277,18 @@ class VideoServiceWithDB @Autowired constructor(
         cover: mikhail.shell.video.hosting.domain.File?
     ): Video {
         val compoundError = CompoundError<EditVideoError>()
-        if (video.title.isEmpty()) {
-            compoundError.add(EditVideoError.TITLE_EMPTY)
-        } else if (video.title.length > 255) {
+        if (video.title.length > ValidationRules.MAX_TITLE_LENGTH) {
             compoundError.add(EditVideoError.TITLE_TOO_LARGE)
+        }
+        cover?.let {
+            if (it.content!!.isEmpty()) {
+                compoundError.add(EditVideoError.COVER_EMPTY)
+            } else if (it.content.size > ValidationRules.MAX_IMAGE_SIZE) {
+                compoundError.add(EditVideoError.COVER_TOO_LARGE)
+            }
+            if (!it.mimeType!!.contains("image")) {
+                compoundError.add(EditVideoError.COVER_TYPE_INVALID)
+            }
         }
         if (compoundError.isNotNull()) {
             throw HostingDataException(compoundError)

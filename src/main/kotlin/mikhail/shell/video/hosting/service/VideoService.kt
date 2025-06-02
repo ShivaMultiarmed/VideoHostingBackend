@@ -16,8 +16,8 @@ interface VideoService {
     fun editVideo(video: Video, coverAction: EditAction, cover: File?): Video
     fun sync()
     fun saveVideoDetails(video: Video): Video
-    fun saveVideoSource(videoId: Long, extension: String, input: InputStream): Boolean
-    fun saveVideoCover(videoId: Long, extension: String, input: InputStream): Boolean
+    fun saveVideoSource(videoId: Long, source: File): Boolean
+    fun saveVideoCover(videoId: Long, cover: File): Boolean
     fun confirmVideoUpload(videoId: Long): Boolean
     fun checkOwner(userId: Long, videoId: Long): Boolean
 }
