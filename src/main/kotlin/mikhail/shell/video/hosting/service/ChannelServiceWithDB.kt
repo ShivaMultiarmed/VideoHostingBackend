@@ -239,7 +239,6 @@ class ChannelServiceWithDB @Autowired constructor(
         }
         return editedChannel
     }
-
     override fun removeChannel(channelId: Long) {
         if (!channelRepository.existsById(channelId)) {
             throw NoSuchElementException()
