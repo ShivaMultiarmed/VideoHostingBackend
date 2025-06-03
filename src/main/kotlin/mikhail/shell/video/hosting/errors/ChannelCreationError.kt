@@ -3,11 +3,12 @@ package mikhail.shell.video.hosting.errors
 enum class ChannelCreationError: Error {
     OWNER_NOT_CHOSEN,
 
-    TITLE_EXISTS,
     TITLE_EMPTY,
     TITLE_TOO_LARGE,
+    TITLE_EXISTS,
 
     ALIAS_TOO_LARGE,
+    ALIAS_EXISTS,
 
     DESCRIPTION_TOO_LARGE,
 

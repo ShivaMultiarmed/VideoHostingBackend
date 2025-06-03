@@ -6,9 +6,8 @@ import com.fasterxml.jackson.annotation.JsonProperty
 
 interface Error
 
-data class CompoundError<T: Error>(
+class CompoundError<T: Error>(): Error {
     @JsonProperty("errors") private val _errors: MutableList<T> = mutableListOf()
-): Error {
     constructor(errors: List<T>): this() {
         _errors.addAll(errors)
     }

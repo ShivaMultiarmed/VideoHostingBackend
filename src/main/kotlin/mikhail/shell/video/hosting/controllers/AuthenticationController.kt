@@ -7,7 +7,7 @@ import mikhail.shell.video.hosting.errors.CompoundError
 import mikhail.shell.video.hosting.errors.HostingDataException
 import mikhail.shell.video.hosting.errors.SignInError
 import mikhail.shell.video.hosting.errors.SignUpError
-import mikhail.shell.video.hosting.service.AuthService
+import mikhail.shell.video.hosting.service.AuthenticationService
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 @RequestMapping("/api/v1/auth")
 class AuthenticationController(
-    private val authService: AuthService
+    private val authenticationService: AuthenticationService
 ) {
     val emailRegex = Regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}\$")
 
@@ -38,7 +38,7 @@ class AuthenticationController(
         if (compoundError.isNotNull()) {
             throw HostingDataException(compoundError)
         }
-        return authService.signInWithPassword(username, password)
+        return authenticationService.signInWithPassword(username, password)
     }
 
     @PostMapping("/signup/password")
@@ -60,7 +60,7 @@ class AuthenticationController(
         if (compoundError.isNotNull()) {
             throw HostingDataException(compoundError)
         }
-        return authService.signUpWithPassword(
+        return authenticationService.signUpWithPassword(
             signUpDto.userName,
             signUpDto.password,
             signUpDto.userDto.toDomain()

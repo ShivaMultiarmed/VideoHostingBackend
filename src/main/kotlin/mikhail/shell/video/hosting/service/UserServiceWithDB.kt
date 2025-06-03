@@ -31,6 +31,9 @@ class UserServiceWithDB @Autowired constructor(
         if ((user.name?.length?: 0) > ValidationRules.MAX_NAME_LENGTH) {
             compoundError.add(EditUserError.NAME_TOO_LARGE)
         }
+        if ((user.email?.length?: 0) > ValidationRules.MAX_USERNAME_LENGTH) {
+            compoundError.add(EditUserError.EMAIL_TOO_LARGE)
+        }
         if ((user.bio?.length ?: 0) > ValidationRules.MAX_TEXT_LENGTH) {
             compoundError.add(EditUserError.BIO_TOO_LARGE)
         }

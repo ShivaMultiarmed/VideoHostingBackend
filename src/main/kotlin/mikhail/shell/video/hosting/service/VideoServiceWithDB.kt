@@ -158,7 +158,7 @@ class VideoServiceWithDB @Autowired constructor(
     override fun saveVideoDetails(video: Video): Video {
         val compoundError = CompoundError<UploadVideoError>()
         if (video.channelId <= 0) {
-            compoundError.add(UploadVideoError.CHANNEL_INVALID)
+            compoundError.add(UploadVideoError.CHANNEL_NOT_VALID)
         }
         if (video.title.length > ValidationRules.MAX_TITLE_LENGTH) {
             compoundError.add(UploadVideoError.TITLE_TOO_LARGE)
@@ -186,7 +186,7 @@ class VideoServiceWithDB @Autowired constructor(
         if (source.content?.isEmpty() != false) {
             compoundError.add(UploadVideoError.SOURCE_EMPTY)
         } else if (!source.mimeType!!.contains("video")) {
-            compoundError.add(UploadVideoError.SOURCE_TYPE_INVALID)
+            compoundError.add(UploadVideoError.SOURCE_TYPE_NOT_VALID)
         } else if (source.content.size > ValidationRules.MAX_VIDEO_SIZE) {
             compoundError.add(UploadVideoError.SOURCE_TOO_LARGE)
         }
@@ -204,7 +204,7 @@ class VideoServiceWithDB @Autowired constructor(
         if (cover.content?.isEmpty() != false) {
             compoundError.add(UploadVideoError.COVER_EMPTY)
         } else if (!cover.mimeType!!.contains("image")) {
-            compoundError.add(UploadVideoError.COVER_TYPE_INVALID)
+            compoundError.add(UploadVideoError.COVER_TYPE_NOT_VALID)
         } else if (cover.content.size > ValidationRules.MAX_IMAGE_SIZE) {
             compoundError.add(UploadVideoError.COVER_TOO_LARGE)
         }
@@ -287,7 +287,7 @@ class VideoServiceWithDB @Autowired constructor(
                 compoundError.add(EditVideoError.COVER_TOO_LARGE)
             }
             if (!it.mimeType!!.contains("image")) {
-                compoundError.add(EditVideoError.COVER_TYPE_INVALID)
+                compoundError.add(EditVideoError.COVER_TYPE_NOT_VALID)
             }
         }
         if (compoundError.isNotNull()) {

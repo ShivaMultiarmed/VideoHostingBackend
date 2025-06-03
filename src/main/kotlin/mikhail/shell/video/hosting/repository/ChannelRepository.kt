@@ -11,4 +11,5 @@ interface ChannelRepository : JpaRepository<ChannelEntity, Long> {
     fun findByOwnerId(ownerId: Long): List<ChannelEntity>
     fun existsByTitle(title: String): Boolean
     fun existsByOwnerIdAndChannelId(userId: Long, channelId: Long): Boolean
+    fun existsByAlias(alias: String): Boolean
 }

@@ -124,7 +124,7 @@ class ChannelController @Autowired constructor(
             if (it.isEmpty) {
                 compoundError.add(COVER_EMPTY)
             }
-            if (it.contentType!!.contains("image")) {
+            if (!it.contentType!!.contains("image")) {
                 compoundError.add(COVER_TYPE_NOT_VALID)
             }
         }
@@ -132,7 +132,7 @@ class ChannelController @Autowired constructor(
             if (it.isEmpty) {
                 compoundError.add(AVATAR_EMPTY)
             }
-            if (it.contentType!!.contains("image")) {
+            if (!it.contentType!!.contains("image")) {
                 compoundError.add(AVATAR_TYPE_NOT_VALID)
             }
         }
@@ -194,14 +194,14 @@ class ChannelController @Autowired constructor(
             if (it.isEmpty) {
                 compoundError.add(EditChannelError.COVER_EMPTY)
             } else if (!it.contentType!!.contains("image")) {
-                compoundError.add(EditChannelError.COVER_TYPE_INVALID)
+                compoundError.add(EditChannelError.COVER_TYPE_NOT_VALID)
             }
         }
         avatarFile?.let {
             if (it.isEmpty) {
                 compoundError.add(EditChannelError.AVATAR_EMPTY)
             } else if (!it.contentType!!.contains("image")) {
-                compoundError.add(EditChannelError.AVATAR_TYPE_INVALID)
+                compoundError.add(EditChannelError.AVATAR_TYPE_NOT_VALID)
             }
         }
         if (compoundError.isNotNull()) {

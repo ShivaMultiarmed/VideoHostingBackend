@@ -8,5 +8,5 @@ object ValidationRules {
     const val MIN_PASSWORD_LENGTH = 8
     const val MAX_PASSWORD_LENGTH = 20
     const val MAX_IMAGE_SIZE = 10 * 1024 * 1024
-    const val MAX_VIDEO_SIZE = 100 * 1024 * 1024
+    const val MAX_VIDEO_SIZE = 512 * 1024 * 1024
 }

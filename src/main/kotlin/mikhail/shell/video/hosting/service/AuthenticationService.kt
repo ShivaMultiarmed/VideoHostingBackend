@@ -15,7 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 
 @Service
-class AuthService (
+class AuthenticationService (
     private val jwtTokenUtil: JwtTokenUtil,
     private val authRepository: AuthRepository,
     private val userRepository: UserRepository,
@@ -60,6 +60,8 @@ class AuthService (
         }
         if ((user?.nick?.length ?: 0) > ValidationRules.MAX_NAME_LENGTH) {
             compoundError.add(NICK_TOO_LARGE)
+        } else if (userRepository.existsByNick(user!!.nick)) {
+            compoundError.add(NICK_EXISTS)
         }
         if (compoundError.isNotNull()) {
             throw HostingDataException(compoundError)

@@ -22,6 +22,7 @@ import mikhail.shell.video.hosting.repository.VideoRepository
 import mikhail.shell.video.hosting.repository.entities.Subscriber
 import mikhail.shell.video.hosting.repository.entities.toDomain
 import mikhail.shell.video.hosting.repository.entities.toEntity
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
 
@@ -33,6 +34,8 @@ class ChannelServiceWithDB @Autowired constructor(
     private val videoSearchRepository: VideoSearchRepository,
     private val fcm: FirebaseMessaging
 ) : ChannelService {
+    private val LOGGER = LoggerFactory.getLogger(ChannelServiceWithDB::class.java)
+
     private val CHANNELS_TOPICS_PREFIX = "channels"
 
     override fun provideChannelInfo(
@@ -75,23 +78,21 @@ class ChannelServiceWithDB @Autowired constructor(
         if (channel.title.length > ValidationRules.MAX_TITLE_LENGTH) {
             error.add(TITLE_TOO_LARGE)
         }
-        if (channel.title.length > ValidationRules.MAX_TITLE_LENGTH) {
+        if ((channel.alias?.length ?: 0) > ValidationRules.MAX_TITLE_LENGTH) {
             error.add(ALIAS_TOO_LARGE)
+        } else if (channel.alias != null && channelRepository.existsByAlias(channel.alias)) {
+            error.add(ALIAS_EXISTS)
         }
         if ((channel.description?.length ?: 0) > ValidationRules.MAX_TEXT_LENGTH) {
             error.add(DESCRIPTION_TOO_LARGE)
         }
         cover?.let {
-            if (!it.mimeType!!.contains("image")) {
-                error.add(COVER_TYPE_NOT_VALID)
-            } else if (it.content!!.size > ValidationRules.MAX_IMAGE_SIZE) {
+            if (it.content!!.size > ValidationRules.MAX_IMAGE_SIZE) {
                 error.add(COVER_TOO_LARGE)
             }
         }
         avatar?.let {
-            if (!it.mimeType!!.contains("image")) {
-                error.add(AVATAR_TYPE_NOT_VALID)
-            } else if (it.content!!.size > ValidationRules.MAX_IMAGE_SIZE) {
+            if (it.content!!.size > ValidationRules.MAX_IMAGE_SIZE) {
                 error.add(AVATAR_TOO_LARGE)
             }
         }
@@ -173,12 +174,26 @@ class ChannelServiceWithDB @Autowired constructor(
         editAvatarAction: EditAction,
         avatarFile: File?
     ): Channel {
+        val currentChannelEntity = channelRepository
+            .findById(channel.channelId!!)
+            .get()
         val error = CompoundError<EditChannelError>()
         if (channel.title.length > ValidationRules.MAX_TITLE_LENGTH) {
             error.add(EditChannelError.TITLE_TOO_LARGE)
+        } else if (
+            channelRepository.existsByTitle(channel.title)
+            && currentChannelEntity.title != channel.title
+            ) {
+            error.add(EditChannelError.TITLE_EXISTS)
         }
         if ((channel.alias?.length ?: 0) > ValidationRules.MAX_TITLE_LENGTH) {
             error.add(EditChannelError.ALIAS_TOO_LARGE)
+        } else if (
+            channel.alias != null
+            && channelRepository.existsByAlias(channel.alias)
+            && currentChannelEntity.alias != channel.alias
+            ) {
+            error.add(EditChannelError.ALIAS_EXISTS)
         }
         if ((channel.description?.length ?: 0) > ValidationRules.MAX_TEXT_LENGTH) {
             error.add(EditChannelError.DESCRIPTION_TOO_LARGE)
@@ -196,20 +211,20 @@ class ChannelServiceWithDB @Autowired constructor(
         if (error.isNotNull()) {
             throw HostingDataException(error)
         }
-        val editedChannel = channelRepository.save(channel.toEntity()).toDomain()
+        val editedChannel = channelRepository.save(channel.toEntity()).toDomain() // TODO: prevent fields' abuse
         when (editCoverAction) {
             EditAction.KEEP -> Unit
             EditAction.REMOVE -> {
                 findFileByName(
                     java.io.File(CHANNEL_COVERS_BASE_PATH),
-                    channel.channelId!!.toString()
+                    channel.channelId.toString()
                 )?.delete()
             }
             EditAction.UPDATE -> {
                 coverFile?.let {
                     findFileByName(
                         java.io.File(CHANNEL_COVERS_BASE_PATH),
-                        channel.channelId!!.toString()
+                        channel.channelId.toString()
                     )?.delete()
                     val extension = it.name!!.parseExtension()
                     val fileName = "${channel.channelId}.$extension"
@@ -222,14 +237,14 @@ class ChannelServiceWithDB @Autowired constructor(
             EditAction.REMOVE -> {
                 findFileByName(
                     java.io.File(CHANNEL_AVATARS_BASE_PATH),
-                    channel.channelId!!.toString()
+                    channel.channelId.toString()
                 )?.delete()
             }
             EditAction.UPDATE -> {
                 avatarFile?.let {
                     findFileByName(
                         java.io.File(CHANNEL_AVATARS_BASE_PATH),
-                        channel.channelId!!.toString()
+                        channel.channelId.toString()
                     )?.delete()
                     val extension = it.name!!.parseExtension()
                     val fileName = "${channel.channelId}.$extension"
