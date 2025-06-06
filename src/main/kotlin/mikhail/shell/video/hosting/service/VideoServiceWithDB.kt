@@ -268,6 +268,8 @@ class VideoServiceWithDB @Autowired constructor(
     override fun deleteVideo(videoId: Long): Boolean {
         videoRepository.deleteById(videoId)
         videoSearchRepository.deleteById(videoId)
+        findFileByName(File(VIDEOS_PLAYABLES_BASE_PATH), videoId.toString())?.delete()
+        findFileByName(File(VIDEOS_COVERS_BASE_PATH), videoId.toString())?.delete()
         return !videoRepository.existsById(videoId)
     }
 
