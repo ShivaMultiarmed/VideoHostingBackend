@@ -41,7 +41,7 @@ class UserServiceWithDB @Autowired constructor(
             compoundError.add(EditUserError.AVATAR_TOO_LARGE)
         }
         if (avatar?.mimeType?.substringBefore("/") != "image" && avatar != null) {
-            compoundError.add(EditUserError.AVATAR_MIME_NOT_SUPPORTED)
+            compoundError.add(EditUserError.AVATAR_TYPE_NOT_VALID)
         }
         if (compoundError.isNotNull()) {
             throw HostingDataException(compoundError)

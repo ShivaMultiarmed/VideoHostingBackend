@@ -23,7 +23,7 @@ enum class EditUserError: Error {
     EMAIL_TOO_LARGE,
 
     AVATAR_TOO_LARGE,
-    AVATAR_MIME_NOT_SUPPORTED,
+    AVATAR_TYPE_NOT_VALID,
 
     UNEXPECTED
 }
