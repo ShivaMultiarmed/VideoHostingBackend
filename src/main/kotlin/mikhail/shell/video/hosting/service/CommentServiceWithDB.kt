@@ -32,6 +32,11 @@ class CommentServiceWithDB @Autowired constructor(
         sendMessage(createdCommentEntity.commentId!!, action)
     }
 
+    override fun removeAllByUserId(userId: Long): Boolean {
+        commentRepository.deleteByUserId(userId)
+        return commentRepository.existsByUserId(userId)
+    }
+
     override fun remove(commentId: Long) {
         if (!commentRepository.existsById(commentId)) {
             throw NoSuchElementException()

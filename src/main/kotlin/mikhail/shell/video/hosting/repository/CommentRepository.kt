@@ -9,7 +9,10 @@ import org.springframework.stereotype.Repository
 import java.time.Instant
 
 @Repository
-interface CommentRepository: JpaRepository<CommentEntity, Long>
+interface CommentRepository: JpaRepository<CommentEntity, Long> {
+    fun deleteByUserId(userId: Long)
+    fun existsByUserId(userId: Long): Boolean
+}
 
 @Repository
 interface CommentWithUserRepository: JpaRepository<CommentWithUserEntity, Long> {

@@ -9,4 +9,5 @@ interface CommentService {
     fun get(videoId: Long, before: Instant): List<CommentWithUser>
     fun remove(commentId: Long)
     fun checkOwner(userId: Long, commentId: Long): Boolean
+    fun removeAllByUserId(userId: Long): Boolean
 }
