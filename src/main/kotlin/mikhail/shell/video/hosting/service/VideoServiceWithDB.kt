@@ -316,6 +316,7 @@ class VideoServiceWithDB @Autowired constructor(
     }
 
     override fun sync() {
+        videoSearchRepository.deleteAll()
         val videos = videoRepository.findAll()
         videoSearchRepository.saveAll(videos)
     }
