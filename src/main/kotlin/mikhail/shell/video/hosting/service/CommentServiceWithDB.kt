@@ -3,6 +3,7 @@ package mikhail.shell.video.hosting.service
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.Message
+import jakarta.transaction.Transactional
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.errors.CommentError
 import mikhail.shell.video.hosting.errors.HostingDataException
@@ -32,6 +33,7 @@ class CommentServiceWithDB @Autowired constructor(
         sendMessage(createdCommentEntity.commentId!!, action)
     }
 
+    @Transactional
     override fun removeAllByUserId(userId: Long): Boolean {
         commentRepository.deleteByUserId(userId)
         return commentRepository.existsByUserId(userId)
