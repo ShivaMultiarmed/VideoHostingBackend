@@ -1,5 +1,7 @@
 package mikhail.shell.video.hosting.controllers
 
+import jakarta.servlet.http.HttpServletRequest
+import mikhail.shell.video.hosting.domain.User
 import mikhail.shell.video.hosting.dto.CommentDto
 import mikhail.shell.video.hosting.dto.CommentWithUserDto
 import mikhail.shell.video.hosting.dto.toDomain
@@ -9,6 +11,7 @@ import mikhail.shell.video.hosting.errors.CommentError
 import mikhail.shell.video.hosting.errors.HostingDataException
 import mikhail.shell.video.hosting.service.CommentService
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.context.SecurityContextHolder
@@ -27,6 +30,8 @@ import java.time.Instant
 class CommentController @Autowired constructor(
     private val commentService: CommentService
 ) {
+    @Value("\${hosting.server.host}")
+    private lateinit var HOST: String
     @PostMapping("/save")
     fun create(@RequestBody commentDto: CommentDto): ResponseEntity<Unit> {
         val comment = commentDto.toDomain()
@@ -42,11 +47,12 @@ class CommentController @Autowired constructor(
     }
     @GetMapping("/videos/{videoId}")
     fun get(
+        request: HttpServletRequest,
         @PathVariable videoId: Long,
         @RequestParam before: Instant
     ): ResponseEntity<List<CommentWithUserDto>> {
         val comments = commentService.get(videoId, before)
-        val commentDtos = comments.map { it.toDto() }
+        val commentDtos = comments.map { it.toDto(avatar = "https://$HOST:${request.localPort}/api/v1/users/${it.user.userId}/avatar") }
         return ResponseEntity.status(HttpStatus.OK).body(commentDtos)
     }
     @DeleteMapping("/remove")

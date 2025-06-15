@@ -5,6 +5,7 @@ import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.Message
 import jakarta.transaction.Transactional
 import mikhail.shell.video.hosting.domain.*
+import mikhail.shell.video.hosting.dto.toDto
 import mikhail.shell.video.hosting.errors.CommentError
 import mikhail.shell.video.hosting.errors.HostingDataException
 import mikhail.shell.video.hosting.repository.CommentRepository
@@ -12,6 +13,7 @@ import mikhail.shell.video.hosting.repository.CommentWithUserRepository
 import mikhail.shell.video.hosting.repository.entities.toDomain
 import mikhail.shell.video.hosting.repository.entities.toEntity
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.time.Instant
 
@@ -22,6 +24,10 @@ class CommentServiceWithDB @Autowired constructor(
     private val fcm: FirebaseMessaging,
     private val objectMapper: ObjectMapper
 ): CommentService {
+    @Value("\${hosting.server.host}")
+    private lateinit var HOST: String
+    @Value("\${server.port}")
+    private lateinit var PORT: String
     override fun save(comment: Comment) {
         if (comment.text.length > ValidationRules.MAX_TEXT_LENGTH) {
             throw HostingDataException(CommentError.TEXT_TOO_LARGE)
@@ -58,7 +64,8 @@ class CommentServiceWithDB @Autowired constructor(
 
     private fun sendMessage(commentId: Long, action: Action = Action.ADD) {
         val commentWithUserEntity = commentWithUserRepository.findById(commentId).orElseThrow()
-        val commentWithUser = commentWithUserEntity.toDomain()
+        val userId = commentWithUserEntity.userId
+        val commentWithUser = commentWithUserEntity.toDomain().toDto(avatar = "https://$HOST:$PORT/api/v1/users/$userId/avatar")
         val videoId = commentWithUser.comment.videoId
         val topic = "videos.$videoId.comments"
         val actionModel = ActionModel(action, commentWithUser)
