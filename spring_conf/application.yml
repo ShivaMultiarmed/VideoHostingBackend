@@ -43,5 +43,9 @@ hosting:
     host: ${HOST}
   application:
     path: "/app"
+  android:
+    domain:
+      verification:
+        url: ${ANDROID_DOMAIN_VERIFICATION}
   storage:
     path: "/app/spring_storage"
