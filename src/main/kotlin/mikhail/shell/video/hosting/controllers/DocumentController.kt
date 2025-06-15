@@ -18,7 +18,7 @@ class DocumentController {
     fun provideAccountDeletionInstruction(): String {
         return "docs/AccountDeletion"
     }
-    @GetMapping("/.well-known/assetlinks.json")
+    @GetMapping("/.well-known/assetlinks.json", produces = ["application/json"])
     @ResponseBody
     fun verifyDomainPossessing(): String {
         return File(androidDomainVerificationFilePath).readText()
