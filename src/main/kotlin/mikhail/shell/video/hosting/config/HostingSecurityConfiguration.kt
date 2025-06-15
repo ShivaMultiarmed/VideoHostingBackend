@@ -31,6 +31,7 @@ class HostingSecurityConfiguration(
                     "/api/v1/auth/signup/**",
                     "/docs/**",
                     "/css/**",
+                    "/.well-known/assetlinks.json",
                     "/error"
                 ).permitAll()
                 it.requestMatchers("/**").authenticated()
