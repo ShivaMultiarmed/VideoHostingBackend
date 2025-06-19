@@ -18,6 +18,10 @@ class DocumentController {
     fun provideAccountDeletionInstruction(): String {
         return "docs/AccountDeletion"
     }
+    @GetMapping("/docs/standards-against-csae")
+    fun provideStandardsAgainstCsae(): String {
+        return "docs/StandardsAgainstCsae"
+    }
     @GetMapping("/.well-known/assetlinks.json", produces = ["application/json"])
     @ResponseBody
     fun verifyDomainPossessing(): String {
