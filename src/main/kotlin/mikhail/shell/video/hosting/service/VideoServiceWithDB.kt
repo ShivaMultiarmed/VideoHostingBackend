@@ -7,17 +7,16 @@ import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_COVERS_BASE_PATH
 import mikhail.shell.video.hosting.elastic.repository.VideoSearchRepository
-import mikhail.shell.video.hosting.errors.CompoundError
-import mikhail.shell.video.hosting.errors.EditVideoError
-import mikhail.shell.video.hosting.errors.HostingDataException
-import mikhail.shell.video.hosting.errors.UploadVideoError
+import mikhail.shell.video.hosting.errors.*
 import mikhail.shell.video.hosting.repository.UserLikeVideoRepository
+import mikhail.shell.video.hosting.repository.UserRepository
 import mikhail.shell.video.hosting.repository.VideoRepository
 import mikhail.shell.video.hosting.repository.VideoWithChannelsRepository
 import mikhail.shell.video.hosting.repository.entities.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import java.io.File
 import java.io.FileOutputStream
@@ -31,6 +30,7 @@ class VideoServiceWithDB @Autowired constructor(
     private val videoWithChannelsRepository: VideoWithChannelsRepository,
     @Qualifier("videoRepository_elastic")
     private val videoSearchRepository: VideoSearchRepository,
+    private val userRepository: UserRepository,
     private val userLikeVideoRepository: UserLikeVideoRepository,
     private val fcm: FirebaseMessaging
 ) : VideoService {
@@ -243,6 +243,19 @@ class VideoServiceWithDB @Autowired constructor(
 
     override fun checkOwner(userId: Long, videoId: Long): Boolean {
         return videoWithChannelsRepository.existsByChannel_OwnerIdAndVideoId(userId, videoId)
+    }
+
+    override fun getRecommendedVideos(userId: Long, partIndex: Long, partSize: Int): Set<VideoWithChannel> {
+        if (!userRepository.existsById(userId)) {
+            throw HostingDataException(RecommendedVideosLoadingError.USER_ID_NOT_FOUND)
+        }
+        return videoWithChannelsRepository
+            .findRecommendedVideos(
+                userId,
+                PageRequest.of(partIndex.toInt(), partSize)
+            ).map {
+                it.toDomain()
+            }.toSet()
     }
 
     private fun saveFile(input: InputStream, path: String): Boolean {

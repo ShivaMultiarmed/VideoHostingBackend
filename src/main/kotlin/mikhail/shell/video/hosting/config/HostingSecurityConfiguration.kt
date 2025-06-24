@@ -32,7 +32,7 @@ class HostingSecurityConfiguration(
                     "/docs/**",
                     "/css/**",
                     "/.well-known/assetlinks.json",
-                    "/error"
+                    "/error**"
                 ).permitAll()
                 it.requestMatchers("/**").authenticated()
             }.addFilterBefore(

@@ -2,13 +2,12 @@ package mikhail.shell.video.hosting.controllers
 
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import jakarta.validation.constraints.Max
+import jakarta.validation.constraints.Min
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH
 import mikhail.shell.video.hosting.dto.*
-import mikhail.shell.video.hosting.errors.CompoundError
-import mikhail.shell.video.hosting.errors.EditVideoError
-import mikhail.shell.video.hosting.errors.HostingDataException
-import mikhail.shell.video.hosting.errors.UploadVideoError
+import mikhail.shell.video.hosting.errors.*
 import mikhail.shell.video.hosting.service.ChannelService
 import mikhail.shell.video.hosting.service.VideoService
 import mikhail.shell.video.hosting.utils.getMimeType
@@ -23,6 +22,7 @@ import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.util.MimeTypeUtils
+import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException
 import org.springframework.web.multipart.MultipartFile
@@ -407,5 +407,42 @@ class VideoController @Autowired constructor(
     fun syncSearchIndexes(): ResponseEntity<Unit> {
         videoService.sync()
         return ResponseEntity.status(HttpStatus.OK).build()
+    }
+
+    @GetMapping("/recommendations/users/{userId}")
+    fun getRecommendations(
+        request: HttpServletRequest,
+        @PathVariable userId: Long,
+        @RequestParam partIndex: Long = 0,
+        @RequestParam partSize: Int = 10
+    ): ResponseEntity<Set<VideoWithChannelDto>> {
+        val compoundError = CompoundError<RecommendedVideosLoadingError>()
+        if (partIndex < 0) {
+            compoundError.add(RecommendedVideosLoadingError.PART_INDEX_NOT_VALID)
+        }
+        if (partSize < 1) {
+            compoundError.add(RecommendedVideosLoadingError.PART_SIZE_NOT_VALID)
+        }
+        if (compoundError.isNotNull()) {
+            throw HostingDataException(compoundError)
+        }
+        val videoSet = videoService
+            .getRecommendedVideos(
+                userId,
+                partIndex,
+                partSize
+            ).map {
+                VideoWithChannelDto(
+                    video = it.video.toDto(
+                        sourceUrl = "https://$HOST:${request.localPort}/api/v1/videos/${it.video.videoId}/play",
+                        coverUrl = "https://$HOST:${request.localPort}/api/v1/videos/${it.video.videoId}/cover"
+                    ),
+                    channel = it.channel.toDto(
+                        avatarUrl = "https://$HOST:${request.localPort}/api/v1/channels/${it.channel.channelId}/avatar",
+                        coverUrl = "https://$HOST:${request.localPort}/api/v1/channels/${it.channel.channelId}/cover"
+                    )
+                )
+            }.toSet()
+        return ResponseEntity.status(HttpStatus.OK).body(videoSet)
     }
 }
