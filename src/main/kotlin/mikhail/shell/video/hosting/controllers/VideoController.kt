@@ -2,8 +2,6 @@ package mikhail.shell.video.hosting.controllers
 
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
-import jakarta.validation.constraints.Max
-import jakarta.validation.constraints.Min
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH
 import mikhail.shell.video.hosting.dto.*
@@ -21,17 +19,12 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.context.SecurityContextHolder
-import org.springframework.util.MimeTypeUtils
-import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException
 import org.springframework.web.multipart.MultipartFile
 import java.io.File
 import java.io.InputStream
 import java.io.RandomAccessFile
-import java.net.FileNameMap
-import javax.activation.MimeType
-import javax.activation.MimetypesFileTypeMap
 
 @RestController
 @RequestMapping("/api/v1/videos")
@@ -416,12 +409,12 @@ class VideoController @Autowired constructor(
         @RequestParam partIndex: Long = 0,
         @RequestParam partSize: Int = 10
     ): ResponseEntity<Set<VideoWithChannelDto>> {
-        val compoundError = CompoundError<RecommendedVideosLoadingError>()
+        val compoundError = CompoundError<VideoRecommendationsLoadingError>()
         if (partIndex < 0) {
-            compoundError.add(RecommendedVideosLoadingError.PART_INDEX_NOT_VALID)
+            compoundError.add(VideoRecommendationsLoadingError.PART_INDEX_NOT_VALID)
         }
         if (partSize < 1) {
-            compoundError.add(RecommendedVideosLoadingError.PART_SIZE_NOT_VALID)
+            compoundError.add(VideoRecommendationsLoadingError.PART_SIZE_NOT_VALID)
         }
         if (compoundError.isNotNull()) {
             throw HostingDataException(compoundError)

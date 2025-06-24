@@ -16,7 +16,6 @@ import mikhail.shell.video.hosting.repository.entities.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.data.domain.PageRequest
-import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import java.io.File
 import java.io.FileOutputStream
@@ -247,7 +246,7 @@ class VideoServiceWithDB @Autowired constructor(
 
     override fun getRecommendedVideos(userId: Long, partIndex: Long, partSize: Int): Set<VideoWithChannel> {
         if (!userRepository.existsById(userId)) {
-            throw HostingDataException(RecommendedVideosLoadingError.USER_ID_NOT_FOUND)
+            throw HostingDataException(VideoRecommendationsLoadingError.USER_ID_NOT_FOUND)
         }
         return videoWithChannelsRepository
             .findRecommendedVideos(
