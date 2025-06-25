@@ -20,5 +20,5 @@ interface VideoService {
     fun saveVideoCover(videoId: Long, cover: File): Boolean
     fun confirmVideoUpload(videoId: Long): Boolean
     fun checkOwner(userId: Long, videoId: Long): Boolean
-    fun getRecommendedVideos(userId: Long, partIndex: Long, partSize: Int): Set<VideoWithChannel>
+    fun getRecommendedVideos(userId: Long, partIndex: Long, partSize: Int): List<VideoWithChannel>
 }

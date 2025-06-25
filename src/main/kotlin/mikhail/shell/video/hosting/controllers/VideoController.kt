@@ -408,7 +408,7 @@ class VideoController @Autowired constructor(
         @PathVariable userId: Long,
         @RequestParam partIndex: Long = 0,
         @RequestParam partSize: Int = 10
-    ): ResponseEntity<Set<VideoWithChannelDto>> {
+    ): ResponseEntity<List<VideoWithChannelDto>> {
         val compoundError = CompoundError<VideoRecommendationsLoadingError>()
         if (partIndex < 0) {
             compoundError.add(VideoRecommendationsLoadingError.PART_INDEX_NOT_VALID)
@@ -419,7 +419,7 @@ class VideoController @Autowired constructor(
         if (compoundError.isNotNull()) {
             throw HostingDataException(compoundError)
         }
-        val videoSet = videoService
+        val videoList = videoService
             .getRecommendedVideos(
                 userId,
                 partIndex,
@@ -435,7 +435,7 @@ class VideoController @Autowired constructor(
                         coverUrl = "https://$HOST:${request.localPort}/api/v1/channels/${it.channel.channelId}/cover"
                     )
                 )
-            }.toSet()
-        return ResponseEntity.status(HttpStatus.OK).body(videoSet)
+            }
+        return ResponseEntity.status(HttpStatus.OK).body(videoList)
     }
 }

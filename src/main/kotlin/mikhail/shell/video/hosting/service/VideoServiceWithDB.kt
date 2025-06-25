@@ -244,7 +244,7 @@ class VideoServiceWithDB @Autowired constructor(
         return videoWithChannelsRepository.existsByChannel_OwnerIdAndVideoId(userId, videoId)
     }
 
-    override fun getRecommendedVideos(userId: Long, partIndex: Long, partSize: Int): Set<VideoWithChannel> {
+    override fun getRecommendedVideos(userId: Long, partIndex: Long, partSize: Int): List<VideoWithChannel> {
         if (!userRepository.existsById(userId)) {
             throw HostingDataException(VideoRecommendationsLoadingError.USER_ID_NOT_FOUND)
         }
@@ -254,7 +254,7 @@ class VideoServiceWithDB @Autowired constructor(
                 PageRequest.of(partIndex.toInt(), partSize)
             ).map {
                 it.toDomain()
-            }.toSet()
+            }.toList()
     }
 
     private fun saveFile(input: InputStream, path: String): Boolean {

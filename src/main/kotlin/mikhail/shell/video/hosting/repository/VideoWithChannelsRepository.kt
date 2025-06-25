@@ -16,11 +16,11 @@ interface VideoWithChannelsRepository: JpaRepository<VideoWithChannelEntity, Lon
             SELECT v FROM VideoWithChannelEntity v
             LEFT OUTER JOIN Subscriber s ON v.channelId = s.id.channelId AND s.id.userId = :userId 
             WHERE v.state = 'UPLOADED' 
-            ORDER BY v.channel.subscribers DESC,  
+            ORDER BY v.dateTime DESC,
+            v.channel.subscribers DESC,  
             v.views DESC, 
             v.likes DESC,  
             v.dislikes DESC,  
-            v.dateTime DESC
         """
     )
     fun findRecommendedVideos(@Param("userId") userId: Long, pageable: Pageable): Page<VideoWithChannelEntity>
