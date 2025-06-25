@@ -20,7 +20,7 @@ interface VideoWithChannelsRepository: JpaRepository<VideoWithChannelEntity, Lon
             v.channel.subscribers DESC,  
             v.views DESC, 
             v.likes DESC,  
-            v.dislikes DESC,  
+            v.dislikes DESC
         """
     )
     fun findRecommendedVideos(@Param("userId") userId: Long, pageable: Pageable): Page<VideoWithChannelEntity>
