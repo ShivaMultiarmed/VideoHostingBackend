@@ -45,11 +45,11 @@ hosting:
     path: "/app"
     ranking:
       weights:
-        date-time: 0.00000001
+        date-time: 0.00000005
         subscribers: 0.01
         views: 0.01
-        likes: 0.001
-        dislikes: 0.001
+        likes: 0.005
+        dislikes: -0.005
   android:
     domain:
       verification:

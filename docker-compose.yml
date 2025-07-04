@@ -62,10 +62,10 @@ services:
       - spring_boot_network
     healthcheck:
       test: ["CMD-SHELL", "curl -u ${ELASTIC_USERNAME}:${ELASTIC_PASSWORD} http://localhost:${ELASTIC_PORT}/_cluster/health || exit 1"]
-      interval: 15s
-      timeout: 10s
+      interval: 20s
+      timeout: 15s
       retries: 5
-      start_period: 2m
+      start_period: 3m
 
 volumes:
   mysql_volume:
