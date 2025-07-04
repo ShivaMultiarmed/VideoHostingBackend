@@ -43,6 +43,13 @@ hosting:
     host: ${HOST}
   application:
     path: "/app"
+    ranking:
+      weights:
+        date-time: 0.00000001
+        subscribers: 0.01
+        views: 0.01
+        likes: 0.001
+        dislikes: 0.001
   android:
     domain:
       verification:

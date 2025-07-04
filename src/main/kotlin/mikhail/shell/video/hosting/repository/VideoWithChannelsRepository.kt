@@ -14,14 +14,23 @@ interface VideoWithChannelsRepository: JpaRepository<VideoWithChannelEntity, Lon
     @Query(
         value = """
             SELECT v FROM VideoWithChannelEntity v
-            LEFT OUTER JOIN Subscriber s ON v.channelId = s.id.channelId AND s.id.userId = :userId 
+            LEFT OUTER JOIN Subscriber s ON v.channelId = s.id.channelId AND s.id.userId = :user_id 
             WHERE v.state = 'UPLOADED' 
-            ORDER BY v.dateTime DESC,
-            v.channel.subscribers DESC,  
-            v.views DESC, 
-            v.likes DESC,  
-            v.dislikes DESC
+            ORDER BY (
+            :date_time_weight * (CAST(FUNCTION('unix_timestamp', v.dateTime) AS Long) + 0.0) + 
+            :subscribers_weight * (v.channel.subscribers + 0.0) +  
+            :views_weight * (v.views + 0.0) + 
+            :likes_weight * (v.likes + 0.0) +  
+            :dislikes_weight * (v.dislikes + 0.0)) DESC
         """
     )
-    fun findRecommendedVideos(@Param("userId") userId: Long, pageable: Pageable): Page<VideoWithChannelEntity>
+    fun findRecommendedVideos(
+        @Param("user_id") userId: Long,
+        @Param("date_time_weight") dateTimeWeight: Double,
+        @Param("subscribers_weight") subscribersWeight: Double,
+        @Param("views_weight") viewsWeight: Double,
+        @Param("likes_weight") likesWeight: Double,
+        @Param("dislikes_weight") dislikesWeight: Double,
+        pageable: Pageable
+    ): Page<VideoWithChannelEntity>
 }

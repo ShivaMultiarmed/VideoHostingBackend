@@ -24,6 +24,7 @@ import java.time.LocalDateTime
 
 @Service
 class VideoServiceWithDB @Autowired constructor(
+    private val recommendationWeights: RecommendationWeights,
     @Qualifier("videoRepository_mysql")
     private val videoRepository: VideoRepository,
     private val videoWithChannelsRepository: VideoWithChannelsRepository,
@@ -251,6 +252,11 @@ class VideoServiceWithDB @Autowired constructor(
         return videoWithChannelsRepository
             .findRecommendedVideos(
                 userId,
+                recommendationWeights.dateTime,
+                recommendationWeights.subscribers,
+                recommendationWeights.views,
+                recommendationWeights.likes,
+                recommendationWeights.dislikes,
                 PageRequest.of(partIndex.toInt(), partSize)
             ).map {
                 it.toDomain()
