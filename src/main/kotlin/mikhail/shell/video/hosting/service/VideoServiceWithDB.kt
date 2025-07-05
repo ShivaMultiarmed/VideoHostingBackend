@@ -1,5 +1,11 @@
 package mikhail.shell.video.hosting.service
 
+import co.elastic.clients.elasticsearch._types.Script
+import co.elastic.clients.elasticsearch._types.ScriptSort
+import co.elastic.clients.elasticsearch._types.ScriptSortType
+import co.elastic.clients.elasticsearch._types.SortOrder
+import co.elastic.clients.elasticsearch._types.query_dsl.Query
+import co.elastic.clients.json.JsonData
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.Message
 import jakarta.transaction.Transactional
@@ -16,6 +22,9 @@ import mikhail.shell.video.hosting.repository.entities.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.data.domain.PageRequest
+import org.springframework.data.elasticsearch.client.elc.NativeQuery
+import org.springframework.data.elasticsearch.core.ElasticsearchOperations
+import org.springframework.data.elasticsearch.core.search
 import org.springframework.stereotype.Service
 import java.io.File
 import java.io.FileOutputStream
@@ -30,6 +39,7 @@ class VideoServiceWithDB @Autowired constructor(
     private val videoWithChannelsRepository: VideoWithChannelsRepository,
     @Qualifier("videoRepository_elastic")
     private val videoSearchRepository: VideoSearchRepository,
+    private val elasticSearchOperations: ElasticsearchOperations,
     private val userRepository: UserRepository,
     private val userLikeVideoRepository: UserLikeVideoRepository,
     private val fcm: FirebaseMessaging
@@ -131,13 +141,44 @@ class VideoServiceWithDB @Autowired constructor(
         partSize: Int,
         partNumber: Long
     ): List<VideoWithChannel> {
-        val ids = videoSearchRepository.findByTitleAndState(
-            title = query,
-            pageable = PageRequest.of(
-                partNumber.toInt(),
-                partSize
+        val sortingScriptStringified = """
+            def secs = doc['dateTime'].value.toInstant().toEpochMilli() / 1000;
+            return params.dateTime * secs
+             + params.views * doc['views'].value 
+             + params.likes * doc['likes'].value 
+             + params.dislikes * doc['dislikes'].value;
+        """.trimIndent()
+        val sortingScript = Script.Builder()
+            .lang("painless")
+            .source(sortingScriptStringified)
+            .params(
+                mapOf(
+                    "dateTime" to JsonData.of(recommendationWeights.dateTime),
+                    "views" to JsonData.of(recommendationWeights.views),
+                    "likes" to JsonData.of(recommendationWeights.likes),
+                    "dislikes" to JsonData.of(recommendationWeights.dislikes)
+                )
             )
-        ).map { it.videoId }
+            .build()
+        val scriptSortBuilder = ScriptSort.Builder()
+            .script(sortingScript)
+            .order(SortOrder.Desc)
+            .type(ScriptSortType.Number)
+            .build()
+            ._toSortOptions()
+        val searchQuery = NativeQuery.builder()
+            .withQuery(
+                Query.of {
+                    it.match { aMatch ->
+                        aMatch
+                            .field("title")
+                            .query(query)
+                    }
+                }
+            )
+            .withSort(scriptSortBuilder)
+            .build()
+        val ids = elasticSearchOperations.search<VideoEntity>(searchQuery).map { it.content.videoId }
         return videoWithChannelsRepository.findAllById(ids).map { it.toDomain() }
     }
 
