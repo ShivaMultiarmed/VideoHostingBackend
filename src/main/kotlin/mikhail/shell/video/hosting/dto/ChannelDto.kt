@@ -45,7 +45,7 @@ data class ChannelWithUserDto(
     val alias: String? = null,
     val description: String? = null,
     val subscribers: Long = 0,
-    val subscription: SubscriptionState,
+    val subscription: SubscriptionState = SubscriptionState.NOT_SUBSCRIBED,
     val coverUrl: String? = null,
     val avatarUrl: String? = null
 )
