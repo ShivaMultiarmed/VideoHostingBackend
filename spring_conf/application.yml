@@ -1,13 +1,6 @@
 server:
-  port: ${HOSTING_HTTPS_PORT}
+  port: ${HOSTING_HTTP_PORT}
   address: 0.0.0.0
-  http:
-    port: ${HOSTING_HTTP_PORT}
-  ssl:
-    key-store: ${KEYSTORE_PATH}
-    key-store-password: ${KEYSTORE_PASSWORD}
-    keyStoreType: ${KEYSTORE_TYPE}
-    keyAlias: ${KEY_ALIAS}
 
 spring:
   servlet:
@@ -15,14 +8,14 @@ spring:
       max-file-size: 50MB
       max-request-size: 50MB
   datasource:
-    username: root
-    password: ${MYSQL_ROOT_PASSWORD}
-    url: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}
+    username: ${MYSQL_USER}
+    password: ${MYSQL_PASSWORD}
+    url: jdbc:mysql://video_hosting_db:${MYSQL_PORT}/${MYSQL_DATABASE}
   jpa:
     show-sql: true
 
   elasticsearch:
-    uris: http://elastic:${ELASTIC_PORT}
+    uris: http://video_hosting_search:${ELASTIC_PORT}
     username: ${ELASTIC_USERNAME}
     password: ${ELASTIC_PASSWORD}
     connection-timeout: 5s
@@ -42,7 +35,7 @@ hosting:
   server:
     host: ${HOST}
   application:
-    path: "/app"
+    path: ${HOSTING_APP_PATH}
     ranking:
       weights:
         date-time: 0.00000005
@@ -55,4 +48,4 @@ hosting:
       verification:
         url: ${ANDROID_DOMAIN_VERIFICATION}
   storage:
-    path: "/app/spring_storage"
+    path: ${HOSTING_STORAGE_PATH}

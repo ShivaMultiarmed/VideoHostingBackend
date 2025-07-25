@@ -1,20 +1,41 @@
 version: '3.8'
 
 services:
-  mysql:
+  video_hosting_app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    depends_on:
+      video_hosting_db:
+        condition: service_healthy
+      video_hosting_search:
+        condition: service_healthy
+    volumes:
+      - "${HOSTING_APP_LOCATION}/spring_conf:${HOSTING_CONFIG_PATH}"
+      - "video_hosting_app_volume:${HOSTING_STORAGE_PATH}"
+    ports:
+      - "${HOSTING_HTTP_PORT}:${HOSTING_HTTP_PORT}"
+      - "${HOSTING_DEBUG_PORT}:${HOSTING_DEBUG_PORT}"
+    environment:
+      SPRING_CONFIG_LOCATION: "file:${HOSTING_CONFIG_PATH}/application.yml"
+    networks:
+      - video_hosting_network
+
+  video_hosting_db:
     image: mysql:8.0
-    container_name: hosting_db
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     ports:
-      - "3307:3306"
+      - "${MYSQL_PORT}:${MYSQL_PORT}"
     volumes:
-      - "mysql_volume:/var/lib/mysql"
+      - "video_hosting_db_volume:/var/lib/mysql"
     networks:
-      - spring_boot_network
+      - video_hosting_network
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_PASSWORD}"]
       interval: 15s
@@ -22,44 +43,19 @@ services:
       retries: 5
       start_period: 15s
 
-  spring:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: spring_app
-    env_file:
-      - .env
-    depends_on:
-      mysql:
-        condition: service_healthy
-      elastic:
-        condition: service_healthy
-    volumes:
-      - "${HOSTING_APP_LOCATION}/spring_conf:/app/spring_conf"
-      - "spring_storage:/app/spring_storage"
-    ports:
-      - "${HOSTING_HTTPS_PORT}:${HOSTING_HTTPS_PORT}"
-      - "${HOSTING_HTTP_PORT}:${HOSTING_HTTP_PORT}"
-      - "5555:5555"
-    environment:
-      SPRING_CONFIG_LOCATION: "file:/app/spring_conf/application.yml"
-    networks:
-      - spring_boot_network
-
-  elastic:
+  video_hosting_search:
     image: elasticsearch:8.16.2
-    container_name: elastic_search
     ports:
       - "${ELASTIC_PORT}:${ELASTIC_PORT}"
     volumes:
-      - "elastic_volume:/usr/share/elasticsearch/data"
+      - "video_hosting_search_volume:/usr/share/elasticsearch/data"
     environment:
       - "discovery.type=single-node"
       - "ELASTIC_USERNAME=${ELASTIC_USERNAME}"
       - "ELASTIC_PASSWORD=${ELASTIC_PASSWORD}"
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     networks:
-      - spring_boot_network
+      - video_hosting_network
     healthcheck:
       test: ["CMD-SHELL", "curl -u ${ELASTIC_USERNAME}:${ELASTIC_PASSWORD} http://localhost:${ELASTIC_PORT}/_cluster/health || exit 1"]
       interval: 20s
@@ -68,15 +64,15 @@ services:
       start_period: 3m
 
 volumes:
-  mysql_volume:
-  spring_storage:
-  elastic_volume:
+  video_hosting_db_volume:
+  video_hosting_app_volume:
+  video_hosting_search_volume:
 
 networks:
-  spring_boot_network:
+  video_hosting_network:
     driver: bridge
     ipam:
       driver: default
       config:
-        - subnet: "172.16.255.0/24"
-          gateway: "172.16.255.1"
+        - subnet: "172.16.0.0/24"
+          gateway: "172.16.0.1"
