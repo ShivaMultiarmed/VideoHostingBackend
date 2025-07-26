@@ -31,12 +31,10 @@ class UserController @Autowired constructor(
     private lateinit var HOST: String
     @GetMapping("/{userId}")
     fun get(
-        request: HttpServletRequest,
         @PathVariable userId: Long
     ): ResponseEntity<UserDto> {
-        val port = request.localPort
         val user = userService.get(userId)
-        val userDto = userToDto(user, port)
+        val userDto = userToDto(user)
         return ResponseEntity.ok(userDto)
     }
 
@@ -50,7 +48,6 @@ class UserController @Autowired constructor(
         @RequestPart avatarAction: EditAction,
         @RequestPart avatar: MultipartFile?
     ): ResponseEntity<UserDto> {
-        val port = request.localPort
         val token = request.getHeader("Authorization")?.substring(7)
             ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         val invokerId = jwtTokenUtil.extractUserId(token)
@@ -81,7 +78,7 @@ class UserController @Autowired constructor(
             )
         }
         val editedUser = userService.edit(user, avatarAction, avatarFile)
-        val editedUserDto = userToDto(editedUser, port)
+        val editedUserDto = userToDto(editedUser)
         return ResponseEntity.ok(editedUserDto)
     }
 
@@ -107,7 +104,7 @@ class UserController @Autowired constructor(
         return ResponseEntity.ok(avatarResource)
     }
 
-    private fun userToDto(user: User, port: Int) = user.toDto(
-        avatar = "https://$HOST:$port/api/v1/users/${user.userId}/avatar"
+    private fun userToDto(user: User) = user.toDto(
+        avatar = "https://${constructReferenceBaseApiUrl(HOST)}/users/${user.userId}/avatar"
     )
 }

@@ -52,7 +52,7 @@ class CommentController @Autowired constructor(
         @RequestParam before: Instant
     ): ResponseEntity<List<CommentWithUserDto>> {
         val comments = commentService.get(videoId, before)
-        val commentDtos = comments.map { it.toDto(avatar = "https://$HOST:${request.localPort}/api/v1/users/${it.user.userId}/avatar") }
+        val commentDtos = comments.map { it.toDto(avatar = "https://${constructReferenceBaseApiUrl(HOST)}/users/${it.user.userId}/avatar") }
         return ResponseEntity.status(HttpStatus.OK).body(commentDtos)
     }
     @DeleteMapping("/remove")

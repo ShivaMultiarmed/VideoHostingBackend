@@ -35,22 +35,20 @@ class ChannelController @Autowired constructor(
 
     @GetMapping("/{channelId}")
     fun provideChannel(
-        request: HttpServletRequest,
         @PathVariable channelId: Long
     ): ResponseEntity<ChannelDto> {
         val channel = channelService.getChannel(channelId)
-        val channelDto = channel.toDto(request.localPort, channelId)
+        val channelDto = channel.toDto(channelId)
         return ResponseEntity.status(HttpStatus.OK).body(channelDto)
     }
 
     @GetMapping("/{channelId}/details")
     fun provideChannelDetails(
-        request: HttpServletRequest,
         @RequestParam userId: Long,
         @PathVariable channelId: Long
     ): ResponseEntity<ChannelWithUserDto> {
         val channelForUser = channelService.provideChannelForUser(channelId, userId)
-        val channelForUserDto = channelForUser.toDto(request.localPort, channelId)
+        val channelForUserDto = channelForUser.toDto(channelId)
         return ResponseEntity.status(HttpStatus.OK).body(channelForUserDto)
     }
 
@@ -100,7 +98,6 @@ class ChannelController @Autowired constructor(
         consumes = ["multipart/form-data"]
     )
     fun createChannel(
-        request: HttpServletRequest,
         @RequestPart("channel") channel: ChannelDto,
         @RequestPart("cover") coverFile: MultipartFile?,
         @RequestPart("avatar") avatarFile: MultipartFile?
@@ -160,7 +157,7 @@ class ChannelController @Autowired constructor(
         )
         return ResponseEntity
             .status(HttpStatus.OK)
-            .body(createdChannel.toDto(request.localPort, createdChannel.channelId!!))
+            .body(createdChannel.toDto(createdChannel.channelId!!))
     }
 
     @PatchMapping(
@@ -168,7 +165,6 @@ class ChannelController @Autowired constructor(
         consumes = ["multipart/form-data"]
     )
     fun editChannel(
-        request: HttpServletRequest,
         @RequestPart("channel") channel: ChannelDto,
         @RequestPart("editCoverAction") editCoverAction: EditAction,
         @RequestPart("cover") coverFile: MultipartFile?,
@@ -226,40 +222,37 @@ class ChannelController @Autowired constructor(
                 )
             }
         )
-        val editedChannelDto = editedChannel.toDto(request.localPort, channel.channelId)
+        val editedChannelDto = editedChannel.toDto(channel.channelId)
         return ResponseEntity.status(HttpStatus.OK).body(editedChannelDto)
     }
 
     @GetMapping("/owner/{userId}")
     fun getAllChannelsByOwnerId(
-        request: HttpServletRequest,
         @PathVariable userId: Long
     ): ResponseEntity<List<ChannelDto>> {
         val channels = channelService.getChannelsByOwnerId(userId)
-        val channelDtos = channels.map { it.toDto(request.localPort, it.channelId!!) }
+        val channelDtos = channels.map { it.toDto(it.channelId!!) }
         return ResponseEntity.status(HttpStatus.OK).body(channelDtos)
     }
 
     @GetMapping("/subscriber/{userId}")
     fun getAllChannelsBySubscriberId(
-        request: HttpServletRequest,
         @PathVariable userId: Long
     ): ResponseEntity<List<ChannelDto>> {
         val channels = channelService.getChannelsBySubscriberId(userId)
-        val channelDtos = channels.map { it.toDto(request.localPort, it.channelId!!) }
+        val channelDtos = channels.map { it.toDto(it.channelId!!) }
         return ResponseEntity.status(HttpStatus.OK).body(channelDtos)
     }
 
     @PatchMapping("/{channelId}/subscribe")
     fun subscribeToChannel(
-        request: HttpServletRequest,
         @RequestParam userId: Long,
         @PathVariable channelId: Long,
         @RequestParam token: String,
         @RequestParam subscriptionState: SubscriptionState
     ): ResponseEntity<ChannelWithUserDto> {
         val channelWithUser = channelService.changeSubscriptionState(userId, channelId, token, subscriptionState)
-        val channelWithUserDto = channelWithUser.toDto(request.localPort, channelId)
+        val channelWithUserDto = channelWithUser.toDto(channelId)
         return ResponseEntity.status(HttpStatus.OK).body(channelWithUserDto)
     }
 
@@ -297,18 +290,16 @@ class ChannelController @Autowired constructor(
 
 
     private fun Channel.toDto(
-        port: Int,
         channelId: Long
     ): ChannelDto = toDto(
-        avatarUrl = "https://$HOST/api/v1/channels/$channelId/avatar",
-        coverUrl = "https://$HOST:$port/api/v1/channels/$channelId/cover"
+        avatarUrl = "https://${constructReferenceBaseApiUrl(HOST)}/channels/$channelId/avatar",
+        coverUrl = "https://${constructReferenceBaseApiUrl(HOST)}/channels/$channelId/cover"
     )
 
     private fun ChannelWithUser.toDto(
-        port: Int,
         channelId: Long
     ) = toDto(
-        avatarUrl = "https://$HOST:$port/api/v1/channels/$channelId/avatar",
-        coverUrl = "https://$HOST:$port/api/v1/channels/$channelId/cover"
+        avatarUrl = "https://${constructReferenceBaseApiUrl(HOST)}/channels/$channelId/avatar",
+        coverUrl = "https://${constructReferenceBaseApiUrl(HOST)}/channels/$channelId/cover"
     )
 }
