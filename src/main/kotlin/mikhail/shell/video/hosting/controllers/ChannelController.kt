@@ -300,7 +300,7 @@ class ChannelController @Autowired constructor(
         port: Int,
         channelId: Long
     ): ChannelDto = toDto(
-        avatarUrl = "https://$HOST:$port/api/v1/channels/$channelId/avatar",
+        avatarUrl = "https://$HOST/api/v1/channels/$channelId/avatar",
         coverUrl = "https://$HOST:$port/api/v1/channels/$channelId/cover"
     )
 

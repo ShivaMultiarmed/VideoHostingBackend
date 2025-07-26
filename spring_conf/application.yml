@@ -13,9 +13,8 @@ spring:
     url: jdbc:mysql://video_hosting_db:${MYSQL_PORT}/${MYSQL_DATABASE}
   jpa:
     show-sql: true
-
   elasticsearch:
-    uris: http://video_hosting_search:${ELASTIC_PORT}
+    uris: http://172.16.1.3:${ELASTIC_PORT}
     username: ${ELASTIC_USERNAME}
     password: ${ELASTIC_PASSWORD}
     connection-timeout: 5s
