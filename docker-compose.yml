@@ -22,6 +22,8 @@ services:
       SPRING_CONFIG_LOCATION: "file:${HOSTING_CONFIG_PATH}/application.yml"
     networks:
       - video_hosting_network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
   video_hosting_db:
     image: mysql:8.0
     environment:
