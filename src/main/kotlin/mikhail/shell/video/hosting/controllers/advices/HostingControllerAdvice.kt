@@ -15,7 +15,11 @@ class HostingControllerAdvice {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.error)
     }
     @ExceptionHandler(NoSuchElementException::class)
-    fun handleNotFoundException(e: NoSuchElementException): ResponseEntity<Void> {
+    fun handleNotFoundException(e: NoSuchElementException): ResponseEntity<Unit> {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).build()
+    }
+    @ExceptionHandler(IllegalArgumentException::class)
+    fun handleNotCorrectUserData(): ResponseEntity<Unit> {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).build()
     }
 }

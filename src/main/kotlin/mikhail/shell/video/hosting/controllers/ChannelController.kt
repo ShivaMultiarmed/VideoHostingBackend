@@ -1,6 +1,5 @@
 package mikhail.shell.video.hosting.controllers
 
-import jakarta.servlet.http.HttpServletRequest
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_AVATARS_BASE_PATH
 import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_COVERS_BASE_PATH
@@ -172,15 +171,15 @@ class ChannelController @Autowired constructor(
         @RequestPart("avatar") avatarFile: MultipartFile?
     ): ResponseEntity<ChannelDto> {
         val userId = SecurityContextHolder.getContext().authentication.principal as Long?
-            ?: return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         val compoundError = CompoundError<EditChannelError>()
         if (channel.channelId == null) {
-            compoundError.add(EditChannelError.CHANNEL_NOT_EXIST)
+            throw NoSuchElementException()
         }
-        if (compoundError.isNotNull()) {
-            throw HostingDataException(compoundError)
+        if (!channelService.checkExistsence(channel.channelId)) {
+            throw NoSuchElementException()
         }
-        if (!channelService.checkOwner(userId, channel.channelId!!)) {
+        if (!channelService.checkOwner(userId, channel.channelId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
         if (channel.title.isEmpty()) {

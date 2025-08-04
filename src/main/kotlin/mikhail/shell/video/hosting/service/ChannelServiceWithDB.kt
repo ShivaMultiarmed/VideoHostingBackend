@@ -18,6 +18,7 @@ import mikhail.shell.video.hosting.errors.HostingDataException
 import mikhail.shell.video.hosting.repository.entities.SubscriberId
 import mikhail.shell.video.hosting.repository.ChannelRepository
 import mikhail.shell.video.hosting.repository.SubscriberRepository
+import mikhail.shell.video.hosting.repository.UserRepository
 import mikhail.shell.video.hosting.repository.VideoRepository
 import mikhail.shell.video.hosting.repository.entities.Subscriber
 import mikhail.shell.video.hosting.repository.entities.toDomain
@@ -29,14 +30,12 @@ import org.springframework.stereotype.Service
 @Service
 class ChannelServiceWithDB @Autowired constructor(
     private val channelRepository: ChannelRepository,
+    private val userRepository: UserRepository,
     private val subscriberRepository: SubscriberRepository,
     private val videoRepository: VideoRepository,
     private val videoSearchRepository: VideoSearchRepository,
     private val fcm: FirebaseMessaging
 ) : ChannelService {
-    private val LOGGER = LoggerFactory.getLogger(ChannelServiceWithDB::class.java)
-
-    private val CHANNELS_TOPICS_PREFIX = "channels"
 
     override fun provideChannelInfo(
         channelId: Long
@@ -46,16 +45,19 @@ class ChannelServiceWithDB @Autowired constructor(
 
     override fun provideChannelForUser(channelId: Long, userId: Long): ChannelWithUser {
         val channel = channelRepository.findById(channelId).orElseThrow()
+        if (!userRepository.existsById(userId)) {
+            throw IllegalArgumentException()
+        }
         val subscription = if (subscriberRepository.existsById(SubscriberId(channelId, userId)))
             SUBSCRIBED else NOT_SUBSCRIBED
         return ChannelWithUser(
-            channel.channelId,
-            channel.ownerId,
-            channel.title,
-            channel.alias,
-            channel.description,
-            channel.subscribers,
-            subscription
+            channelId = channel.channelId,
+            ownerId = channel.ownerId,
+            title = channel.title,
+            alias = channel.alias,
+            description = channel.description,
+            subscribers = channel.subscribers,
+            subscription = subscription
         )
     }
 
@@ -118,10 +120,16 @@ class ChannelServiceWithDB @Autowired constructor(
     }
 
     override fun getChannelsByOwnerId(userId: Long): List<Channel> {
+        if (!userRepository.existsById(userId)) {
+            throw NoSuchElementException()
+        }
         return channelRepository.findByOwnerId(userId).map { it.toDomain() }
     }
 
     override fun getChannelsBySubscriberId(userId: Long): List<Channel> {
+        if (!userRepository.existsById(userId)) {
+            throw NoSuchElementException()
+        }
         val subscriptions = subscriberRepository.findById_UserId(userId)
         val channelIds = subscriptions.map { it.id.channelId }
         return channelRepository.findAllById(channelIds).map { it.toDomain() }
@@ -151,9 +159,9 @@ class ChannelServiceWithDB @Autowired constructor(
         }
         val newSubscriptionState = if (checkIfSubscribed(channelId, subscriberId)) SUBSCRIBED else NOT_SUBSCRIBED
         if (newSubscriptionState == SUBSCRIBED) {
-            fcm.subscribeToTopic(listOf(token), "$CHANNELS_TOPICS_PREFIX.$channelId")
+            fcm.subscribeToTopic(listOf(token), "${Companion.CHANNELS_TOPICS_PREFIX}.$channelId")
         } else {
-            fcm.unsubscribeFromTopic(listOf(token), "$CHANNELS_TOPICS_PREFIX.$channelId")
+            fcm.unsubscribeFromTopic(listOf(token), "${Companion.CHANNELS_TOPICS_PREFIX}.$channelId")
         }
         val channel = channelRepository.findById(channelId).orElseThrow().toDomain()
         return ChannelWithUser(
@@ -286,15 +294,23 @@ class ChannelServiceWithDB @Autowired constructor(
         return channelRepository.existsByOwnerIdAndChannelId(userId, channelId)
     }
 
+    override fun checkExistsence(channelId: Long): Boolean {
+        return channelRepository.existsById(channelId)
+    }
+
     override fun subscribeToNotifications(userId: Long, token: String) {
         subscriberRepository.findById_UserId(userId)
             .map { it.id.channelId }
-            .forEach { fcm.subscribeToTopic(listOf(token), "$CHANNELS_TOPICS_PREFIX.$it") }
+            .forEach { fcm.subscribeToTopic(listOf(token), "${Companion.CHANNELS_TOPICS_PREFIX}.$it") }
     }
 
     override fun unsubscribeFromNotifications(userId: Long, token: String) {
         subscriberRepository.findById_UserId(userId)
             .map { it.id.channelId }
-            .forEach { fcm.unsubscribeFromTopic(listOf(token), "$CHANNELS_TOPICS_PREFIX.$it") }
+            .forEach { fcm.unsubscribeFromTopic(listOf(token), "${Companion.CHANNELS_TOPICS_PREFIX}.$it") }
+    }
+
+    private companion object {
+        val CHANNELS_TOPICS_PREFIX = "channels"
     }
 }

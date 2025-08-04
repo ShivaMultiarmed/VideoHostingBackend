@@ -59,15 +59,19 @@ class VideoServiceWithDB @Autowired constructor(
         else userLikeVideoRepository.findById(likingId).orElseThrow().likingState
 
         return VideoWithUser(
-            v.videoId,
-            v.channelId,
-            v.title,
-            v.dateTime,
-            v.views,
-            v.likes,
-            v.dislikes,
-            liking
+            videoId = v.videoId,
+            channelId = v.channelId,
+            title = v.title,
+            dateTime = v.dateTime,
+            views = v.views,
+            likes = v.likes,
+            dislikes = v.dislikes,
+            liking = liking
         )
+    }
+
+    override fun checkExistence(videoId: Long): Boolean {
+        return videoRepository.existsById(videoId)
     }
 
     override fun checkVideoLikeState(videoId: Long, userId: Long): LikingState {

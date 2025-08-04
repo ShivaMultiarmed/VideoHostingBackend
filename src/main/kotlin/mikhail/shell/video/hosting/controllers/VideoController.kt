@@ -7,6 +7,7 @@ import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE
 import mikhail.shell.video.hosting.dto.*
 import mikhail.shell.video.hosting.errors.*
 import mikhail.shell.video.hosting.service.ChannelService
+import mikhail.shell.video.hosting.service.UserService
 import mikhail.shell.video.hosting.service.VideoService
 import mikhail.shell.video.hosting.utils.getMimeType
 import org.springframework.beans.factory.annotation.Autowired
@@ -31,6 +32,7 @@ import java.io.RandomAccessFile
 class VideoController @Autowired constructor(
     private val videoService: VideoService,
     private val channelService: ChannelService,
+    private val userService: UserService
 ) {
     @Value("\${hosting.server.host}")
     private lateinit var HOST: String
@@ -50,10 +52,23 @@ class VideoController @Autowired constructor(
         @PathVariable videoId: Long,
         @RequestParam userId: Long
     ): ResponseEntity<VideoDetailsDto> {
+        if (!videoService.checkExistence(videoId)) {
+            throw NoSuchElementException()
+        }
+        val compoundError = CompoundError<VideoLoadingError>()
+        if (!userService.checkExistence(userId)) {
+            compoundError.add(VideoLoadingError.USER_NOT_FOUND)
+        }
         val videoDto = videoService.getVideoForUser(videoId, userId).toDto(
             sourceUrl = "https://${constructReferenceBaseApiUrl(HOST)}/videos/${videoId}/play",
             coverUrl = "https://${constructReferenceBaseApiUrl(HOST)}/videos/${videoId}/cover"
         )
+        if (!channelService.checkExistsence(videoDto.channelId)) {
+            compoundError.add(VideoLoadingError.CHANNEL_NOT_FOUND)
+        }
+        if (compoundError.isNotNull()) {
+            throw HostingDataException(compoundError)
+        }
         val channelDto = channelService.provideChannelForUser(videoDto.channelId, userId).toDto(
             avatarUrl = "https://${constructReferenceBaseApiUrl(HOST)}/channels/${videoDto.channelId}/avatar",
             coverUrl = "https://${constructReferenceBaseApiUrl(HOST)}/channels/${videoDto.channelId}/cover"
@@ -347,8 +362,11 @@ class VideoController @Autowired constructor(
         @RequestPart(required = false) cover: MultipartFile? = null
     ): ResponseEntity<VideoDto> {
         val userId = SecurityContextHolder.getContext().authentication.principal as Long?
-            ?: return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
-        if (!videoService.checkOwner(userId, video.videoId!!)) {
+            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+        if (video.videoId == null || !videoService.checkExistence(video.videoId)) {
+            throw NoSuchElementException()
+        }
+        if (!videoService.checkOwner(userId, video.videoId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
         val coverFile = cover?.let {

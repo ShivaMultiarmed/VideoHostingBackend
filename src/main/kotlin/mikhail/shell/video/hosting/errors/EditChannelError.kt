@@ -3,6 +3,8 @@ package mikhail.shell.video.hosting.errors
 enum class EditChannelError: Error {
     CHANNEL_NOT_EXIST,
 
+    FORBIDDEN,
+
     TITLE_EMPTY,
     TITLE_TOO_LARGE,
     TITLE_EXISTS,

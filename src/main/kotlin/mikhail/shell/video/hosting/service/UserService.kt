@@ -9,4 +9,5 @@ interface UserService {
     fun edit(user: User, avatarAction: EditAction, avatar: File?): User
     fun remove(userId: Long)
     fun getAvatar(userId: Long): java.io.File
+    fun checkExistence(userId: Long): Boolean
 }

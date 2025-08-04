@@ -63,6 +63,10 @@ class UserServiceWithDB @Autowired constructor(
         return editedUserEntity.toDomain()
     }
 
+    override fun checkExistence(userId: Long): Boolean {
+        return userRepository.existsById(userId)
+    }
+
     override fun remove(userId: Long) {
         if (!userRepository.existsById(userId)) {
             throw NoSuchElementException()

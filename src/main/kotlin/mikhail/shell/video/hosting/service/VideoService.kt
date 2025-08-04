@@ -21,4 +21,5 @@ interface VideoService {
     fun confirmVideoUpload(videoId: Long): Boolean
     fun checkOwner(userId: Long, videoId: Long): Boolean
     fun getRecommendedVideos(userId: Long, partIndex: Long, partSize: Int): List<VideoWithChannel>
+    fun checkExistence(videoId: Long): Boolean
 }

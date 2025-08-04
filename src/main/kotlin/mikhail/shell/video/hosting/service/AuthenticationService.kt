@@ -26,16 +26,12 @@ class AuthenticationService (
         password: String
     ): AuthModel {
         val compoundError = CompoundError<SignInError>()
-        if (!authRepository.existsByUserNameAndId_Method(userName, AuthenticationMethod.PASSWORD)) {
-            compoundError.add(SignInError.USERNAME_NOT_FOUND)
+        val credentials = authRepository.findByUserNameAndId_Method(userName, AuthenticationMethod.PASSWORD).orElseThrow()
+        if (!passwordEncoder.matches(password, credentials.credential)) {
+            compoundError.add(SignInError.PASSWORD_INCORRECT)
         } else {
-            val credentials = authRepository.findByUserNameAndId_Method(userName, AuthenticationMethod.PASSWORD).get()
-            if (!passwordEncoder.matches(password, credentials.credential)) {
-                compoundError.add(SignInError.PASSWORD_INCORRECT)
-            } else {
-                val token = jwtTokenUtil.generateToken(credentials.id.userId.toString())
-                return AuthModel(token, credentials.id.userId)
-            }
+            val token = jwtTokenUtil.generateToken(credentials.id.userId.toString())
+            return AuthModel(token, credentials.id.userId)
         }
         throw HostingDataException(compoundError)
     }
