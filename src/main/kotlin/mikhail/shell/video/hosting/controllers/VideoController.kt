@@ -203,11 +203,6 @@ class VideoController @Autowired constructor(
         }
     }
 
-    private fun Video.toDto() = toDto(
-        sourceUrl = "https://${constructReferenceBaseApiUrl(HOST)}/videos/${videoId}/play",
-        coverUrl = "https://${constructReferenceBaseApiUrl(HOST)}/videos/${videoId}/cover"
-    )
-
     @GetMapping("/search")
     fun searchForVideos(
         request: HttpServletRequest,
@@ -307,6 +302,7 @@ class VideoController @Autowired constructor(
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
         }
     }
+
     @PostMapping("/upload/{videoId}/confirm")
     fun confirmVideoUpload(
         @PathVariable videoId: Long
@@ -323,7 +319,6 @@ class VideoController @Autowired constructor(
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
         }
     }
-
     @PatchMapping("/{videoId}/increment-views")
     fun incrementViews(@PathVariable videoId: Long) = videoService.incrementViews(videoId)
 
@@ -420,4 +415,9 @@ class VideoController @Autowired constructor(
             }
         return ResponseEntity.status(HttpStatus.OK).body(videoList)
     }
+
+    private fun Video.toDto() = toDto(
+        sourceUrl = "https://${constructReferenceBaseApiUrl(HOST)}/videos/${videoId}/play",
+        coverUrl = "https://${constructReferenceBaseApiUrl(HOST)}/videos/${videoId}/cover"
+    )
 }

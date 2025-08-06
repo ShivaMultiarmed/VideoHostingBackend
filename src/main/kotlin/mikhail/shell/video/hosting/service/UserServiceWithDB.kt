@@ -83,7 +83,7 @@ class UserServiceWithDB @Autowired constructor(
 
     override fun getAvatar(userId: Long): java.io.File {
         val file = findFileByName(java.io.File(ApplicationPaths.USER_AVATARS_BASE_PATH), userId.toString())
-        if (file?.exists() != true) {
+        if (file?.exists() != true || !userRepository.existsById(userId)) {
             throw NoSuchElementException()
         } else {
             return file

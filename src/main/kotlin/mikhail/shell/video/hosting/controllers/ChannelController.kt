@@ -43,9 +43,10 @@ class ChannelController @Autowired constructor(
 
     @GetMapping("/{channelId}/details")
     fun provideChannelDetails(
-        @RequestParam userId: Long,
         @PathVariable channelId: Long
     ): ResponseEntity<ChannelWithUserDto> {
+        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
+            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         val channelForUser = channelService.provideChannelForUser(channelId, userId)
         val channelForUserDto = channelForUser.toDto()
         return ResponseEntity.status(HttpStatus.OK).body(channelForUserDto)
@@ -216,10 +217,10 @@ class ChannelController @Autowired constructor(
         return ResponseEntity.status(HttpStatus.OK).body(channelDtos)
     }
 
-    @GetMapping("/subscriber/{userId}")
-    fun getAllChannelsBySubscriberId(
-        @PathVariable userId: Long
-    ): ResponseEntity<List<ChannelDto>> {
+    @GetMapping("/subscriptions")
+    fun getAllChannelsBySubscriberId(): ResponseEntity<List<ChannelDto>> {
+        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
+            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         val channels = channelService.getChannelsBySubscriberId(userId)
         val channelDtos = channels.map { it.toDto() }
         return ResponseEntity.status(HttpStatus.OK).body(channelDtos)
@@ -227,45 +228,33 @@ class ChannelController @Autowired constructor(
 
     @PatchMapping("/{channelId}/subscribe")
     fun subscribeToChannel(
-        @RequestParam userId: Long,
         @PathVariable channelId: Long,
-        @RequestParam token: String,
+        @RequestParam fcmToken: String,
         @RequestParam subscriptionState: SubscriptionState
     ): ResponseEntity<ChannelWithUserDto> {
-        val realUserId = SecurityContextHolder.getContext().authentication.principal as Long?
+        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
             ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        if (realUserId != userId) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
-        }
-        val channelWithUser = channelService.changeSubscriptionState(userId, channelId, token, subscriptionState)
+        val channelWithUser = channelService.changeSubscriptionState(userId, channelId, fcmToken, subscriptionState)
         val channelWithUserDto = channelWithUser.toDto()
         return ResponseEntity.status(HttpStatus.OK).body(channelWithUserDto)
     }
 
     @PatchMapping("/notifications/subscribe")
     fun resubscribeToFCM(
-        @RequestParam userId: Long,
         @RequestParam token: String
     ): ResponseEntity<Unit> {
-        val realUserId = SecurityContextHolder.getContext().authentication.principal as Long?
+        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
             ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        if (realUserId != userId) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
-        }
         channelService.subscribeToNotifications(userId, token)
         return ResponseEntity.status(HttpStatus.OK).build()
     }
 
     @PatchMapping("/notifications/unsubscribe")
     fun unsubscribeFromFCM(
-        @RequestParam userId: Long,
         @RequestParam token: String
     ): ResponseEntity<Unit> {
-        val realUserId = SecurityContextHolder.getContext().authentication.principal as Long?
+        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
             ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        if (realUserId != userId) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
-        }
         channelService.unsubscribeFromNotifications(userId, token)
         return ResponseEntity.status(HttpStatus.OK).build()
     }

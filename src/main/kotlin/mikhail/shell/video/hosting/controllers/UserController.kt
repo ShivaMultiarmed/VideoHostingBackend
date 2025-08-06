@@ -18,6 +18,7 @@ import org.springframework.core.io.FileSystemResource
 import org.springframework.core.io.Resource
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 
@@ -34,7 +35,7 @@ class UserController @Autowired constructor(
         @PathVariable userId: Long
     ): ResponseEntity<UserDto> {
         val user = userService.get(userId)
-        val userDto = userToDto(user)
+        val userDto = user.toDto()
         return ResponseEntity.ok(userDto)
     }
 
@@ -48,10 +49,12 @@ class UserController @Autowired constructor(
         @RequestPart avatarAction: EditAction,
         @RequestPart avatar: MultipartFile?
     ): ResponseEntity<UserDto> {
-        val token = request.getHeader("Authorization")?.substring(7)
+        if (!userService.checkExistence(userDto.userId?: 0)) {
+            throw NoSuchElementException()
+        }
+        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
             ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        val invokerId = jwtTokenUtil.extractUserId(token)
-        if (userDto.userId != invokerId) {
+        if (userDto.userId != userId) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
         val compoundError = CompoundError<EditUserError>()
@@ -78,21 +81,14 @@ class UserController @Autowired constructor(
             )
         }
         val editedUser = userService.edit(user, avatarAction, avatarFile)
-        val editedUserDto = userToDto(editedUser)
+        val editedUserDto = editedUser.toDto()
         return ResponseEntity.ok(editedUserDto)
     }
 
-    @DeleteMapping("/{userId}")
-    fun remove(
-        request: HttpServletRequest,
-        @PathVariable userId: Long
-    ): ResponseEntity<Unit> {
-        val token = request.getHeader("Authorization")?.substring(7)
+    @DeleteMapping
+    fun remove(): ResponseEntity<Unit> {
+        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
             ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        val invokerId = jwtTokenUtil.extractUserId(token)
-        if (userId != invokerId) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
-        }
         userService.remove(userId)
         return ResponseEntity.ok().build()
     }
@@ -104,7 +100,7 @@ class UserController @Autowired constructor(
         return ResponseEntity.ok(avatarResource)
     }
 
-    private fun userToDto(user: User) = user.toDto(
-        avatar = "https://${constructReferenceBaseApiUrl(HOST)}/users/${user.userId}/avatar"
+    private fun User.toDto() = toDto(
+        avatar = "https://${constructReferenceBaseApiUrl(HOST)}/users/${userId}/avatar"
     )
 }
