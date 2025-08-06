@@ -11,7 +11,7 @@ import mikhail.shell.video.hosting.errors.ChannelCreationError
 import mikhail.shell.video.hosting.errors.ChannelCreationError.*
 import mikhail.shell.video.hosting.errors.CompoundError
 import mikhail.shell.video.hosting.errors.EditChannelError
-import mikhail.shell.video.hosting.errors.HostingDataException
+import mikhail.shell.video.hosting.errors.ValidationException
 import mikhail.shell.video.hosting.service.ChannelService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
@@ -37,7 +37,7 @@ class ChannelController @Autowired constructor(
         @PathVariable channelId: Long
     ): ResponseEntity<ChannelDto> {
         val channel = channelService.getChannel(channelId)
-        val channelDto = channel.toDto(channelId)
+        val channelDto = channel.toDto()
         return ResponseEntity.status(HttpStatus.OK).body(channelDto)
     }
 
@@ -47,7 +47,7 @@ class ChannelController @Autowired constructor(
         @PathVariable channelId: Long
     ): ResponseEntity<ChannelWithUserDto> {
         val channelForUser = channelService.provideChannelForUser(channelId, userId)
-        val channelForUserDto = channelForUser.toDto(channelId)
+        val channelForUserDto = channelForUser.toDto()
         return ResponseEntity.status(HttpStatus.OK).body(channelForUserDto)
     }
 
@@ -58,7 +58,7 @@ class ChannelController @Autowired constructor(
         return try {
             val coverFolder = java.io.File(CHANNEL_COVERS_BASE_PATH)
             val image = findFileByName(coverFolder, channelId.toString())
-            if (image?.exists() != true) {
+            if (image?.exists() != true || !channelService.checkExistsence(channelId)) {
                 ResponseEntity.status(HttpStatus.NOT_FOUND).build()
             } else {
                 val coverResource = FileSystemResource(image)
@@ -66,7 +66,6 @@ class ChannelController @Autowired constructor(
                     .contentType(MediaType.parseMediaType("image/${image.name.parseExtension()}"))
                     .body(coverResource)
             }
-
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
         }
@@ -79,7 +78,7 @@ class ChannelController @Autowired constructor(
         return try {
             val avatarFolder = java.io.File(CHANNEL_AVATARS_BASE_PATH)
             val image = findFileByName(avatarFolder, channelId.toString())
-            if (image?.exists() != true) {
+            if (image?.exists() != true || !channelService.checkExistsence(channelId)) {
                 ResponseEntity.status(HttpStatus.NOT_FOUND).build()
             } else {
                 val avatarResource = FileSystemResource(image)
@@ -101,39 +100,27 @@ class ChannelController @Autowired constructor(
         @RequestPart("cover") coverFile: MultipartFile?,
         @RequestPart("avatar") avatarFile: MultipartFile?
     ): ResponseEntity<ChannelDto> {
+        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
+            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+        if (userId != channel.ownerId) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        }
         val compoundError = CompoundError<ChannelCreationError>()
         if (channel.title.isEmpty()) {
             compoundError.add(TITLE_EMPTY)
         }
-        if (compoundError.isNotNull()) {
-            throw HostingDataException(compoundError)
-        }
-        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
-            ?: return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
-        if (userId != channel.ownerId) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
-        }
-        if (channel.title.isEmpty()) {
-            compoundError.add(TITLE_EMPTY)
-        }
         coverFile?.let {
-            if (it.isEmpty) {
-                compoundError.add(COVER_EMPTY)
-            }
             if (!it.contentType!!.contains("image")) {
                 compoundError.add(COVER_TYPE_NOT_VALID)
             }
         }
         avatarFile?.let {
-            if (it.isEmpty) {
-                compoundError.add(AVATAR_EMPTY)
-            }
             if (!it.contentType!!.contains("image")) {
                 compoundError.add(AVATAR_TYPE_NOT_VALID)
             }
         }
         if (compoundError.isNotNull()) {
-            throw HostingDataException(compoundError)
+            throw ValidationException(compoundError)
         }
         val cover = coverFile?.let {
             File(
@@ -150,13 +137,15 @@ class ChannelController @Autowired constructor(
             )
         }
         val createdChannel = channelService.createChannel(
-            channel = channel.toDomain(),
+            channel = channel
+                .toDomain()
+                .copy(channelId = null),
             cover = cover,
             avatar = avatar
         )
         return ResponseEntity
-            .status(HttpStatus.OK)
-            .body(createdChannel.toDto(createdChannel.channelId!!))
+            .status(HttpStatus.CREATED)
+            .body(createdChannel.toDto())
     }
 
     @PatchMapping(
@@ -172,35 +161,28 @@ class ChannelController @Autowired constructor(
     ): ResponseEntity<ChannelDto> {
         val userId = SecurityContextHolder.getContext().authentication.principal as Long?
             ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        val compoundError = CompoundError<EditChannelError>()
-        if (channel.channelId == null) {
-            throw NoSuchElementException()
-        }
-        if (!channelService.checkExistsence(channel.channelId)) {
+        if (channel.channelId == null || !channelService.checkExistsence(channel.channelId)) {
             throw NoSuchElementException()
         }
         if (!channelService.checkOwner(userId, channel.channelId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
+        val compoundError = CompoundError<EditChannelError>()
         if (channel.title.isEmpty()) {
             compoundError.add(EditChannelError.TITLE_EMPTY)
         }
         coverFile?.let {
-            if (it.isEmpty) {
-                compoundError.add(EditChannelError.COVER_EMPTY)
-            } else if (!it.contentType!!.contains("image")) {
+            if (!it.contentType!!.contains("image")) {
                 compoundError.add(EditChannelError.COVER_TYPE_NOT_VALID)
             }
         }
         avatarFile?.let {
-            if (it.isEmpty) {
-                compoundError.add(EditChannelError.AVATAR_EMPTY)
-            } else if (!it.contentType!!.contains("image")) {
+            if (!it.contentType!!.contains("image")) {
                 compoundError.add(EditChannelError.AVATAR_TYPE_NOT_VALID)
             }
         }
         if (compoundError.isNotNull()) {
-            throw HostingDataException(compoundError)
+            throw ValidationException(compoundError)
         }
         val editedChannel = channelService.editChannel(
             channel.toDomain(),
@@ -221,7 +203,7 @@ class ChannelController @Autowired constructor(
                 )
             }
         )
-        val editedChannelDto = editedChannel.toDto(channel.channelId)
+        val editedChannelDto = editedChannel.toDto()
         return ResponseEntity.status(HttpStatus.OK).body(editedChannelDto)
     }
 
@@ -230,7 +212,7 @@ class ChannelController @Autowired constructor(
         @PathVariable userId: Long
     ): ResponseEntity<List<ChannelDto>> {
         val channels = channelService.getChannelsByOwnerId(userId)
-        val channelDtos = channels.map { it.toDto(it.channelId!!) }
+        val channelDtos = channels.map { it.toDto() }
         return ResponseEntity.status(HttpStatus.OK).body(channelDtos)
     }
 
@@ -239,7 +221,7 @@ class ChannelController @Autowired constructor(
         @PathVariable userId: Long
     ): ResponseEntity<List<ChannelDto>> {
         val channels = channelService.getChannelsBySubscriberId(userId)
-        val channelDtos = channels.map { it.toDto(it.channelId!!) }
+        val channelDtos = channels.map { it.toDto() }
         return ResponseEntity.status(HttpStatus.OK).body(channelDtos)
     }
 
@@ -250,8 +232,13 @@ class ChannelController @Autowired constructor(
         @RequestParam token: String,
         @RequestParam subscriptionState: SubscriptionState
     ): ResponseEntity<ChannelWithUserDto> {
+        val realUserId = SecurityContextHolder.getContext().authentication.principal as Long?
+            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+        if (realUserId != userId) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        }
         val channelWithUser = channelService.changeSubscriptionState(userId, channelId, token, subscriptionState)
-        val channelWithUserDto = channelWithUser.toDto(channelId)
+        val channelWithUserDto = channelWithUser.toDto()
         return ResponseEntity.status(HttpStatus.OK).body(channelWithUserDto)
     }
 
@@ -260,6 +247,11 @@ class ChannelController @Autowired constructor(
         @RequestParam userId: Long,
         @RequestParam token: String
     ): ResponseEntity<Unit> {
+        val realUserId = SecurityContextHolder.getContext().authentication.principal as Long?
+            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+        if (realUserId != userId) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        }
         channelService.subscribeToNotifications(userId, token)
         return ResponseEntity.status(HttpStatus.OK).build()
     }
@@ -269,6 +261,11 @@ class ChannelController @Autowired constructor(
         @RequestParam userId: Long,
         @RequestParam token: String
     ): ResponseEntity<Unit> {
+        val realUserId = SecurityContextHolder.getContext().authentication.principal as Long?
+            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+        if (realUserId != userId) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        }
         channelService.unsubscribeFromNotifications(userId, token)
         return ResponseEntity.status(HttpStatus.OK).build()
     }
@@ -277,8 +274,11 @@ class ChannelController @Autowired constructor(
     fun removeChannel(
         @PathVariable channelId: Long
     ): ResponseEntity<Unit> {
+        if (!channelService.checkExistsence(channelId)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build()
+        }
         val userId = SecurityContextHolder.getContext().authentication.principal as Long?
-            ?: return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         if (channelService.checkOwner(userId, channelId)) {
             channelService.removeChannel(channelId)
             return ResponseEntity.status(HttpStatus.OK).build()
@@ -287,17 +287,12 @@ class ChannelController @Autowired constructor(
         }
     }
 
-
-    private fun Channel.toDto(
-        channelId: Long
-    ): ChannelDto = toDto(
+    private fun Channel.toDto(): ChannelDto = toDto(
         avatarUrl = "https://${constructReferenceBaseApiUrl(HOST)}/channels/$channelId/avatar",
         coverUrl = "https://${constructReferenceBaseApiUrl(HOST)}/channels/$channelId/cover"
     )
 
-    private fun ChannelWithUser.toDto(
-        channelId: Long
-    ) = toDto(
+    private fun ChannelWithUser.toDto() = toDto(
         avatarUrl = "https://${constructReferenceBaseApiUrl(HOST)}/channels/$channelId/avatar",
         coverUrl = "https://${constructReferenceBaseApiUrl(HOST)}/channels/$channelId/cover"
     )

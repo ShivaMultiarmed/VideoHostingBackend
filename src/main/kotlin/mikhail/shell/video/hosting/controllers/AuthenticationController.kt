@@ -4,7 +4,7 @@ import mikhail.shell.video.hosting.domain.AuthModel
 import mikhail.shell.video.hosting.dto.SignUpDto
 import mikhail.shell.video.hosting.dto.toDomain
 import mikhail.shell.video.hosting.errors.CompoundError
-import mikhail.shell.video.hosting.errors.HostingDataException
+import mikhail.shell.video.hosting.errors.ValidationException
 import mikhail.shell.video.hosting.errors.SignInError
 import mikhail.shell.video.hosting.errors.SignUpError
 import mikhail.shell.video.hosting.service.AuthenticationService
@@ -36,7 +36,7 @@ class AuthenticationController(
             compoundError.add(SignInError.PASSWORD_EMPTY)
         }
         if (compoundError.isNotNull()) {
-            throw HostingDataException(compoundError)
+            throw ValidationException(compoundError)
         }
         return authenticationService.signInWithPassword(username, password)
     }
@@ -58,7 +58,7 @@ class AuthenticationController(
             compoundError.add(SignUpError.NICK_EMPTY)
         }
         if (compoundError.isNotNull()) {
-            throw HostingDataException(compoundError)
+            throw ValidationException(compoundError)
         }
         return authenticationService.signUpWithPassword(
             signUpDto.userName,

@@ -9,7 +9,7 @@ import mikhail.shell.video.hosting.dto.toDomain
 import mikhail.shell.video.hosting.dto.toDto
 import mikhail.shell.video.hosting.errors.CompoundError
 import mikhail.shell.video.hosting.errors.EditUserError
-import mikhail.shell.video.hosting.errors.HostingDataException
+import mikhail.shell.video.hosting.errors.ValidationException
 import mikhail.shell.video.hosting.security.JwtTokenUtil
 import mikhail.shell.video.hosting.service.UserService
 import org.springframework.beans.factory.annotation.Autowired
@@ -67,7 +67,7 @@ class UserController @Autowired constructor(
             compoundError.add(EditUserError.EMAIL_MALFORMED)
         }
         if (compoundError.isNotNull()) {
-            throw HostingDataException(compoundError)
+            throw ValidationException(compoundError)
         }
         val user = userDto.toDomain()
         val avatarFile = avatar?.let {

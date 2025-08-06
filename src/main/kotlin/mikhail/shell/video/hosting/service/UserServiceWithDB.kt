@@ -4,7 +4,7 @@ package mikhail.shell.video.hosting.service
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.errors.CompoundError
 import mikhail.shell.video.hosting.errors.EditUserError
-import mikhail.shell.video.hosting.errors.HostingDataException
+import mikhail.shell.video.hosting.errors.ValidationException
 import mikhail.shell.video.hosting.repository.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
@@ -45,7 +45,7 @@ class UserServiceWithDB @Autowired constructor(
             compoundError.add(EditUserError.AVATAR_TYPE_NOT_VALID)
         }
         if (compoundError.isNotNull()) {
-            throw HostingDataException(compoundError)
+            throw ValidationException(compoundError)
         }
         val userEntity = user.toEntity()
         val editedUserEntity = userRepository.save(userEntity)

@@ -10,11 +10,9 @@ interface VideoService {
     fun rate(videoId: Long, userId: Long, likingState: LikingState): Video
     fun getVideosByChannelId(channelId: Long, partSize: Int, partNumber: Long): List<Video>
     fun getVideosByQuery(query: String, partSize: Int, partNumber: Long): List<VideoWithChannel>
-    fun uploadVideo(video: Video, cover: File? = null, source: File): Video
-    fun incrementViews(videoId: Long): Long
+    fun incrementViews(videoId: Long)
     fun deleteVideo(videoId: Long): Boolean
     fun editVideo(video: Video, coverAction: EditAction, cover: File?): Video
-    fun sync()
     fun saveVideoDetails(video: Video): Video
     fun saveVideoSource(videoId: Long, source: File): Boolean
     fun saveVideoCover(videoId: Long, cover: File): Boolean

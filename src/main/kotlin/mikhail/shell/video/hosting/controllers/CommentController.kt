@@ -1,15 +1,14 @@
 package mikhail.shell.video.hosting.controllers
 
 import jakarta.servlet.http.HttpServletRequest
-import mikhail.shell.video.hosting.domain.User
 import mikhail.shell.video.hosting.dto.CommentDto
 import mikhail.shell.video.hosting.dto.CommentWithUserDto
 import mikhail.shell.video.hosting.dto.toDomain
 import mikhail.shell.video.hosting.dto.toDto
-import mikhail.shell.video.hosting.errors.CompoundError
 import mikhail.shell.video.hosting.errors.CommentError
-import mikhail.shell.video.hosting.errors.HostingDataException
+import mikhail.shell.video.hosting.errors.ValidationException
 import mikhail.shell.video.hosting.service.CommentService
+import mikhail.shell.video.hosting.service.VideoService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatus
@@ -28,19 +27,19 @@ import java.time.Instant
 @RestController
 @RequestMapping("/api/v1/comments")
 class CommentController @Autowired constructor(
-    private val commentService: CommentService
+    private val commentService: CommentService,
+    private val videoService: VideoService
 ) {
     @Value("\${hosting.server.host}")
     private lateinit var HOST: String
     @PostMapping("/save")
-    fun create(@RequestBody commentDto: CommentDto): ResponseEntity<Unit> {
+    fun save(@RequestBody commentDto: CommentDto): ResponseEntity<Unit> {
         val comment = commentDto.toDomain()
-        val compoundError = CompoundError<CommentError>()
         if (comment.text.isEmpty()) {
-            compoundError.add(CommentError.TEXT_EMPTY)
+            throw ValidationException(CommentError.TEXT_EMPTY)
         }
-        if (compoundError.isNotNull()) {
-            throw HostingDataException(compoundError)
+        if (!videoService.checkExistence(comment.videoId)) {
+            throw NoSuchElementException()
         }
         commentService.save(comment)
         return ResponseEntity.status(HttpStatus.CREATED).build()
@@ -51,6 +50,9 @@ class CommentController @Autowired constructor(
         @PathVariable videoId: Long,
         @RequestParam before: Instant
     ): ResponseEntity<List<CommentWithUserDto>> {
+        if (!videoService.checkExistence(videoId)) {
+            throw NoSuchElementException()
+        }
         val comments = commentService.get(videoId, before)
         val commentDtos = comments.map { it.toDto(avatar = "https://${constructReferenceBaseApiUrl(HOST)}/users/${it.user.userId}/avatar") }
         return ResponseEntity.status(HttpStatus.OK).body(commentDtos)
@@ -58,7 +60,7 @@ class CommentController @Autowired constructor(
     @DeleteMapping("/remove")
     fun remove(@RequestParam commentId: Long): ResponseEntity<Unit> {
         val userId = SecurityContextHolder.getContext().authentication.principal as Long?
-            ?: return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         if (!commentService.checkOwner(userId, commentId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }

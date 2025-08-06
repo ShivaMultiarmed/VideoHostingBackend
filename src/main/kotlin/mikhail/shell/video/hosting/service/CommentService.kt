@@ -10,4 +10,5 @@ interface CommentService {
     fun remove(commentId: Long)
     fun checkOwner(userId: Long, commentId: Long): Boolean
     fun removeAllByUserId(userId: Long): Boolean
+    fun checkExistence(commentId: Long): Boolean
 }

@@ -14,10 +14,7 @@ import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_COVERS_BASE_PATH
 import mikhail.shell.video.hosting.elastic.repository.VideoSearchRepository
 import mikhail.shell.video.hosting.errors.*
-import mikhail.shell.video.hosting.repository.UserLikeVideoRepository
-import mikhail.shell.video.hosting.repository.UserRepository
-import mikhail.shell.video.hosting.repository.VideoRepository
-import mikhail.shell.video.hosting.repository.VideoWithChannelsRepository
+import mikhail.shell.video.hosting.repository.*
 import mikhail.shell.video.hosting.repository.entities.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
@@ -42,6 +39,7 @@ class VideoServiceWithDB @Autowired constructor(
     private val elasticSearchOperations: ElasticsearchOperations,
     private val userRepository: UserRepository,
     private val userLikeVideoRepository: UserLikeVideoRepository,
+    private val channelRepository: ChannelRepository,
     private val fcm: FirebaseMessaging
 ) : VideoService {
     private val CHANNELS_TOPICS_PREFIX = "channels"
@@ -129,6 +127,9 @@ class VideoServiceWithDB @Autowired constructor(
         partSize: Int,
         partNumber: Long
     ): List<Video> {
+        if (!channelRepository.existsById(channelId)) {
+            throw NoSuchElementException()
+        }
         return videoRepository.findByChannelIdAndStateOrderByDateTimeDesc(
             channelId = channelId,
             pageable = PageRequest.of(
@@ -186,30 +187,16 @@ class VideoServiceWithDB @Autowired constructor(
         return videoWithChannelsRepository.findAllById(ids).map { it.toDomain() }
     }
 
-    override fun uploadVideo(
-        video: Video,
-        cover: mikhail.shell.video.hosting.domain.File?,
-        source: mikhail.shell.video.hosting.domain.File
-    ): Video {
-        val addedVideo = saveVideoDetails(video)
-        saveVideoSource(addedVideo.videoId!!, source)
-        cover?.let {
-            saveVideoCover(addedVideo.videoId, it)
-        }
-        confirmVideoUpload(addedVideo.videoId)
-        return addedVideo
-    }
-
     override fun saveVideoDetails(video: Video): Video {
         val compoundError = CompoundError<UploadVideoError>()
-        if (video.channelId <= 0) {
+        if (!channelRepository.existsById(video.channelId)) {
             compoundError.add(UploadVideoError.CHANNEL_NOT_VALID)
         }
         if (video.title.length > ValidationRules.MAX_TITLE_LENGTH) {
             compoundError.add(UploadVideoError.TITLE_TOO_LARGE)
         }
         if (compoundError.isNotNull()) {
-            throw HostingDataException(compoundError)
+            throw ValidationException(compoundError)
         }
         val videoEntityToAdd = video
             .toEntity()
@@ -227,6 +214,9 @@ class VideoServiceWithDB @Autowired constructor(
     }
 
     override fun saveVideoSource(videoId: Long, source: mikhail.shell.video.hosting.domain.File): Boolean {
+        if (!videoRepository.existsById(videoId)) {
+            throw NoSuchElementException()
+        }
         val compoundError = CompoundError<UploadVideoError>()
         if (source.content?.isEmpty() != false) {
             compoundError.add(UploadVideoError.SOURCE_EMPTY)
@@ -236,7 +226,7 @@ class VideoServiceWithDB @Autowired constructor(
             compoundError.add(UploadVideoError.SOURCE_TOO_LARGE)
         }
         if (compoundError.isNotNull()) {
-            throw HostingDataException(compoundError)
+            throw ValidationException(compoundError)
         }
         return saveFile(
             input = source.content!!.inputStream(),
@@ -245,6 +235,9 @@ class VideoServiceWithDB @Autowired constructor(
     }
 
     override fun saveVideoCover(videoId: Long, cover: mikhail.shell.video.hosting.domain.File): Boolean {
+        if (!videoRepository.existsById(videoId)) {
+            throw NoSuchElementException()
+        }
         val compoundError = CompoundError<UploadVideoError>()
         if (cover.content?.isEmpty() != false) {
             compoundError.add(UploadVideoError.COVER_EMPTY)
@@ -254,7 +247,7 @@ class VideoServiceWithDB @Autowired constructor(
             compoundError.add(UploadVideoError.COVER_TOO_LARGE)
         }
         if (compoundError.isNotNull()) {
-            throw HostingDataException(compoundError)
+            throw ValidationException(compoundError)
         }
         return saveFile(
             input = cover.content!!.inputStream(),
@@ -263,6 +256,9 @@ class VideoServiceWithDB @Autowired constructor(
     }
 
     override fun confirmVideoUpload(videoId: Long): Boolean {
+        if (!videoRepository.existsById(videoId)) {
+            throw NoSuchElementException()
+        }
         val videoEntityToConfirm = videoRepository
             .findById(videoId)
             .get()
@@ -292,7 +288,7 @@ class VideoServiceWithDB @Autowired constructor(
 
     override fun getRecommendedVideos(userId: Long, partIndex: Long, partSize: Int): List<VideoWithChannel> {
         if (!userRepository.existsById(userId)) {
-            throw HostingDataException(VideoRecommendationsLoadingError.USER_ID_NOT_FOUND)
+            throw NoSuchElementException()
         }
         return videoWithChannelsRepository
             .findRecommendedVideos(
@@ -303,32 +299,38 @@ class VideoServiceWithDB @Autowired constructor(
                 recommendationWeights.likes,
                 recommendationWeights.dislikes,
                 PageRequest.of(partIndex.toInt(), partSize)
-            ).map {
-                it.toDomain()
-            }.toList()
+            ).map { it.toDomain() }
+            .toList()
     }
 
     private fun saveFile(input: InputStream, path: String): Boolean {
-        input.use { inStream ->
-            val output = FileOutputStream(File(path), true)
-            output.use { outStream ->
-                val buffer = ByteArray(IO_BUFFER_SIZE)
-                var bytesRead: Int
-                while (inStream.read(buffer).also { bytesRead = it } != -1) {
-                    outStream.write(buffer, 0, bytesRead)
+        return try {
+            input.use { inStream ->
+                val output = FileOutputStream(File(path), true)
+                output.use { outStream ->
+                    val buffer = ByteArray(IO_BUFFER_SIZE)
+                    var bytesRead: Int
+                    while (inStream.read(buffer).also { bytesRead = it } != -1) {
+                        outStream.write(buffer, 0, bytesRead)
+                    }
                 }
             }
+            true
+        } catch (e: Exception) {
+            false
         }
-        return true
     }
 
-    override fun incrementViews(videoId: Long): Long {
+    override fun incrementViews(videoId: Long) {
         val video = videoRepository.findById(videoId).orElseThrow()
         videoSearchRepository.save(video.copy(views = video.views + 1))
-        return videoRepository.save(video.copy(views = video.views + 1)).views
+        videoRepository.save(video.copy(views = video.views + 1))
     }
 
     override fun deleteVideo(videoId: Long): Boolean {
+        if (!videoRepository.existsById(videoId)) {
+            throw NoSuchElementException()
+        }
         videoRepository.deleteById(videoId)
         videoSearchRepository.deleteById(videoId)
         findFileByName(File(VIDEOS_PLAYABLES_BASE_PATH), videoId.toString())?.delete()
@@ -356,7 +358,7 @@ class VideoServiceWithDB @Autowired constructor(
             }
         }
         if (compoundError.isNotNull()) {
-            throw HostingDataException(compoundError)
+            throw ValidationException(compoundError)
         }
         val videoEntityToEdit = videoRepository
             .findById(video.videoId!!)
@@ -378,14 +380,7 @@ class VideoServiceWithDB @Autowired constructor(
         return updatedVideoEntity.toDomain()
     }
 
-    override fun sync() {
-        videoSearchRepository.deleteAll()
-        val videos = videoRepository.findAll()
-        videoSearchRepository.saveAll(videos)
-    }
-
-    companion object {
-        private const val TRANSFER_BUFFER_SIZE = 40 * 1024 * 1024
-        private const val IO_BUFFER_SIZE = 100 * 1024
+    private companion object {
+        const val IO_BUFFER_SIZE = 100 * 1024
     }
 }

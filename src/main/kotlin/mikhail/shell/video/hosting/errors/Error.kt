@@ -6,6 +6,10 @@ import com.fasterxml.jackson.annotation.JsonProperty
 
 interface Error
 
+object UnexpectedError: Error
+
+class ValidationException(val error: Error): RuntimeException()
+
 class CompoundError<T: Error>(): Error {
     @JsonProperty("errors") private val _errors: MutableList<T> = mutableListOf()
     constructor(errors: List<T>): this() {

@@ -5,7 +5,7 @@ import mikhail.shell.video.hosting.domain.AuthModel
 import mikhail.shell.video.hosting.domain.User
 import mikhail.shell.video.hosting.domain.ValidationRules
 import mikhail.shell.video.hosting.errors.CompoundError
-import mikhail.shell.video.hosting.errors.HostingDataException
+import mikhail.shell.video.hosting.errors.ValidationException
 import mikhail.shell.video.hosting.errors.SignInError
 import mikhail.shell.video.hosting.errors.SignUpError
 import mikhail.shell.video.hosting.errors.SignUpError.*
@@ -33,7 +33,7 @@ class AuthenticationService (
             val token = jwtTokenUtil.generateToken(credentials.id.userId.toString())
             return AuthModel(token, credentials.id.userId)
         }
-        throw HostingDataException(compoundError)
+        throw ValidationException(compoundError)
     }
     @Transactional
     fun signUpWithPassword(
@@ -42,9 +42,6 @@ class AuthenticationService (
         user: User?
     ): AuthModel {
         val compoundError = CompoundError<SignUpError>()
-        if (user == null) {
-            compoundError.add(UNEXPECTED)
-        }
         if (userName.length > ValidationRules.MAX_USERNAME_LENGTH) {
             compoundError.add(USERNAME_TOO_LARGE)
         } else if (authRepository.existsByUserNameAndId_Method(userName, AuthenticationMethod.PASSWORD)) {
@@ -60,7 +57,7 @@ class AuthenticationService (
             compoundError.add(NICK_EXISTS)
         }
         if (compoundError.isNotNull()) {
-            throw HostingDataException(compoundError)
+            throw ValidationException(compoundError)
         }
         val createdUser = userRepository.save(user!!.toEntity())
         val userId = createdUser.userId

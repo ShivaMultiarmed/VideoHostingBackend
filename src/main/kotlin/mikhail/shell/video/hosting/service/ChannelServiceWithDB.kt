@@ -14,7 +14,7 @@ import mikhail.shell.video.hosting.errors.ChannelCreationError
 import mikhail.shell.video.hosting.errors.ChannelCreationError.*
 import mikhail.shell.video.hosting.errors.CompoundError
 import mikhail.shell.video.hosting.errors.EditChannelError
-import mikhail.shell.video.hosting.errors.HostingDataException
+import mikhail.shell.video.hosting.errors.ValidationException
 import mikhail.shell.video.hosting.repository.entities.SubscriberId
 import mikhail.shell.video.hosting.repository.ChannelRepository
 import mikhail.shell.video.hosting.repository.SubscriberRepository
@@ -23,7 +23,6 @@ import mikhail.shell.video.hosting.repository.VideoRepository
 import mikhail.shell.video.hosting.repository.entities.Subscriber
 import mikhail.shell.video.hosting.repository.entities.toDomain
 import mikhail.shell.video.hosting.repository.entities.toEntity
-import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
 
@@ -99,7 +98,7 @@ class ChannelServiceWithDB @Autowired constructor(
             }
         }
         if (error.isNotNull()) {
-            throw HostingDataException(error)
+            throw ValidationException(error)
         }
         val channelEntityToCreate = channel
             .toEntity()
@@ -217,7 +216,7 @@ class ChannelServiceWithDB @Autowired constructor(
             }
         }
         if (error.isNotNull()) {
-            throw HostingDataException(error)
+            throw ValidationException(error)
         }
         val editedChannel = channelRepository.save(channel.toEntity()).toDomain() // TODO: prevent fields' abuse
         when (editCoverAction) {

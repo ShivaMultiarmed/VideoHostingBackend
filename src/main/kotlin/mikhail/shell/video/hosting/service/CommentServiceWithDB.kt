@@ -7,7 +7,7 @@ import jakarta.transaction.Transactional
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.dto.toDto
 import mikhail.shell.video.hosting.errors.CommentError
-import mikhail.shell.video.hosting.errors.HostingDataException
+import mikhail.shell.video.hosting.errors.ValidationException
 import mikhail.shell.video.hosting.repository.CommentRepository
 import mikhail.shell.video.hosting.repository.CommentWithUserRepository
 import mikhail.shell.video.hosting.repository.entities.toDomain
@@ -30,13 +30,17 @@ class CommentServiceWithDB @Autowired constructor(
     private lateinit var PORT: String
     override fun save(comment: Comment) {
         if (comment.text.length > ValidationRules.MAX_TEXT_LENGTH) {
-            throw HostingDataException(CommentError.TEXT_TOO_LARGE)
+            throw ValidationException(CommentError.TEXT_TOO_LARGE)
         }
         val commentEntity = comment.toEntity()
         val exists = comment.commentId?.let { commentRepository.existsById(it) }?: false
         val action = if (!exists) Action.ADD else Action.UPDATE
         val createdCommentEntity = commentRepository.save(commentEntity)
         sendMessage(createdCommentEntity.commentId!!, action)
+    }
+
+    override fun checkExistence(commentId: Long): Boolean {
+        return commentRepository.existsById(commentId)
     }
 
     @Transactional
