@@ -1,5 +1,6 @@
 package mikhail.shell.video.hosting.controllers
 
+import jakarta.servlet.http.HttpServletRequest
 import mikhail.shell.video.hosting.domain.AuthModel
 import mikhail.shell.video.hosting.dto.SignUpDto
 import mikhail.shell.video.hosting.dto.toDomain
@@ -8,6 +9,7 @@ import mikhail.shell.video.hosting.errors.ValidationException
 import mikhail.shell.video.hosting.errors.SignInError
 import mikhail.shell.video.hosting.errors.SignUpError
 import mikhail.shell.video.hosting.service.AuthenticationService
+import mikhail.shell.video.hosting.service.AuthenticationServiceWithDB
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -65,5 +67,29 @@ class AuthenticationController(
             signUpDto.password,
             signUpDto.userDto.toDomain()
         )
+    }
+
+    @PostMapping("/reset/password/request")
+    fun requestPasswordReset(@RequestParam userName: String) = authenticationService.requestPasswordReset(userName)
+
+    @PostMapping("/reset/password/verify")
+    fun verifyPasswordReset(
+        @RequestParam userId: Long,
+        @RequestParam resetCode: String
+    ) = authenticationService.verifyPasswordReset(
+        userId = userId,
+        resetCode = resetCode
+    )
+
+    @PostMapping("/reset/password/confirm")
+    fun confirmPasswordReset(
+        request: HttpServletRequest,
+        @RequestParam password: String
+    ) {
+        val resetToken = request.getHeader("Authorization")?.substring("Bearer ".length)?: throw IllegalAccessException()
+        if (password.isEmpty()) {
+            throw IllegalArgumentException()
+        }
+        return authenticationService.resetPassword(resetToken, password)
     }
 }

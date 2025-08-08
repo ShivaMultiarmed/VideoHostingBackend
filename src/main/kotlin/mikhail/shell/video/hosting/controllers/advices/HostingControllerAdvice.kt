@@ -18,7 +18,11 @@ class HostingControllerAdvice {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).build()
     }
     @ExceptionHandler(IllegalArgumentException::class)
-    fun handleNotCorrectUserData(): ResponseEntity<Unit> {
+    fun handleNotCorrectUserData(e: IllegalArgumentException): ResponseEntity<Unit> {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).build()
+    }
+    @ExceptionHandler(IllegalAccessException::class)
+    fun handleIllegalAccess(e: IllegalAccessException): ResponseEntity<Unit> {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
     }
 }

@@ -17,7 +17,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 
 @Configuration
 @EnableWebSecurity
-class HostingSecurityConfiguration(
+class SecurityConfiguration(
     private val jwtTokenFilter: JwtTokenFilter
 ){
     @Bean
@@ -29,6 +29,7 @@ class HostingSecurityConfiguration(
                 it.requestMatchers(
                     "/api/v1/auth/signin/**",
                     "/api/v1/auth/signup/**",
+                    "/api/v1/auth/reset/**",
                     "/docs/**",
                     "/css/**",
                     "/.well-known/assetlinks.json",
