@@ -3,6 +3,7 @@ package mikhail.shell.video.hosting.errors
 enum class EditUserError: Error {
     NICK_EMPTY,
     NICK_TOO_LARGE,
+    NICK_EXISTS,
 
     NAME_TOO_LARGE,
 

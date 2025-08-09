@@ -3,42 +3,23 @@ package mikhail.shell.video.hosting.service
 import mikhail.shell.video.hosting.domain.*
 
 interface ChannelService {
-    fun provideChannelInfo(
-        channelId: Long
-    ): Channel
-    fun provideChannelForUser(
-        channelId: Long,
-        userId: Long
-    ): ChannelWithUser
-    fun checkIfSubscribed(
-        channelId: Long,
-        userId: Long
-    ): Boolean
+    fun provideChannelInfo(channelId: Long): Channel
+    fun provideChannelForUser(channelId: Long, userId: Long): ChannelWithUser
+    fun checkIfSubscribed(channelId: Long, userId: Long): Boolean
     fun createChannel(
         channel: Channel,
         avatar: File?,
         cover: File?
     ): Channel
-    fun getChannelsByOwnerId(
-        userId: Long
-    ): List<Channel>
-    fun getChannelsBySubscriberId(
-        userId: Long
-    ): List<Channel>
+    fun getChannelsByOwnerId(userId: Long): List<Channel>
+    fun getChannelsBySubscriberId(userId: Long): List<Channel>
     fun changeSubscriptionState(
         subscriberId: Long,
         channelId: Long,
-        token: String,
-        subscriptionState: SubscriptionState
-    ): ChannelWithUser
-    fun subscribeToNotifications(
-        userId: Long,
         token: String
     )
-    fun unsubscribeFromNotifications(
-        userId: Long,
-        token: String
-    )
+    fun subscribeToNotifications(userId: Long, token: String)
+    fun unsubscribeFromNotifications(userId: Long, token: String)
     fun editChannel(
         channel: Channel,
         editCoverAction: EditAction,

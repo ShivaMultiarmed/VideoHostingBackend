@@ -47,8 +47,7 @@ class ChannelServiceWithDB @Autowired constructor(
         if (!userRepository.existsById(userId)) {
             throw IllegalArgumentException()
         }
-        val subscription = if (subscriberRepository.existsById(SubscriberId(channelId, userId)))
-            SUBSCRIBED else NOT_SUBSCRIBED
+        val subscription = if (subscriberRepository.existsById(SubscriberId(channelId, userId))) SUBSCRIBED else NOT_SUBSCRIBED
         return ChannelWithUser(
             channelId = channel.channelId,
             ownerId = channel.ownerId,
@@ -137,18 +136,17 @@ class ChannelServiceWithDB @Autowired constructor(
     override fun changeSubscriptionState(
         subscriberId: Long,
         channelId: Long,
-        token: String,
-        subscriptionState: SubscriptionState
-    ): ChannelWithUser {
+        token: String
+    ) {
         val channelEntity = channelRepository.findById(channelId).orElseThrow()
-        if (checkIfSubscribed(channelId, subscriberId) && subscriptionState == NOT_SUBSCRIBED) {
+        if (checkIfSubscribed(channelId, subscriberId)) {
             channelRepository.save(
                 channelEntity.copy(
                     subscribers = channelEntity.subscribers - 1
                 )
             )
             subscriberRepository.deleteById(SubscriberId(channelId, subscriberId))
-        } else if (!checkIfSubscribed(channelId, subscriberId) && subscriptionState == SUBSCRIBED) {
+        } else if (!checkIfSubscribed(channelId, subscriberId)) {
             subscriberRepository.save(Subscriber(SubscriberId(channelId, subscriberId)))
             channelRepository.save(
                 channelEntity.copy(
@@ -158,20 +156,10 @@ class ChannelServiceWithDB @Autowired constructor(
         }
         val newSubscriptionState = if (checkIfSubscribed(channelId, subscriberId)) SUBSCRIBED else NOT_SUBSCRIBED
         if (newSubscriptionState == SUBSCRIBED) {
-            fcm.subscribeToTopic(listOf(token), "${Companion.CHANNELS_TOPICS_PREFIX}.$channelId")
+            fcm.subscribeToTopic(listOf(token), "${CHANNELS_TOPICS_PREFIX}.$channelId")
         } else {
-            fcm.unsubscribeFromTopic(listOf(token), "${Companion.CHANNELS_TOPICS_PREFIX}.$channelId")
+            fcm.unsubscribeFromTopic(listOf(token), "${CHANNELS_TOPICS_PREFIX}.$channelId")
         }
-        val channel = channelRepository.findById(channelId).orElseThrow().toDomain()
-        return ChannelWithUser(
-            channelId = channelId,
-            ownerId = channel.ownerId,
-            title = channel.title,
-            alias = channel.alias,
-            description = channel.description,
-            subscribers = channel.subscribers,
-            subscription = newSubscriptionState
-        )
     }
 
     override fun editChannel(
@@ -300,16 +288,16 @@ class ChannelServiceWithDB @Autowired constructor(
     override fun subscribeToNotifications(userId: Long, token: String) {
         subscriberRepository.findById_UserId(userId)
             .map { it.id.channelId }
-            .forEach { fcm.subscribeToTopic(listOf(token), "${Companion.CHANNELS_TOPICS_PREFIX}.$it") }
+            .forEach { fcm.subscribeToTopic(listOf(token), "${CHANNELS_TOPICS_PREFIX}.$it") }
     }
 
     override fun unsubscribeFromNotifications(userId: Long, token: String) {
         subscriberRepository.findById_UserId(userId)
             .map { it.id.channelId }
-            .forEach { fcm.unsubscribeFromTopic(listOf(token), "${Companion.CHANNELS_TOPICS_PREFIX}.$it") }
+            .forEach { fcm.unsubscribeFromTopic(listOf(token), "${CHANNELS_TOPICS_PREFIX}.$it") }
     }
 
     private companion object {
-        val CHANNELS_TOPICS_PREFIX = "channels"
+        const val CHANNELS_TOPICS_PREFIX = "channels"
     }
 }

@@ -28,6 +28,8 @@ class UserServiceWithDB @Autowired constructor(
         }
         if (user.nick.length > ValidationRules.MAX_NAME_LENGTH) {
             compoundError.add(EditUserError.NICK_TOO_LARGE)
+        } else if (userRepository.existsByNick(user.nick)) {
+            compoundError.add(EditUserError.NICK_EXISTS)
         }
         if ((user.name?.length?: 0) > ValidationRules.MAX_NAME_LENGTH) {
             compoundError.add(EditUserError.NAME_TOO_LARGE)

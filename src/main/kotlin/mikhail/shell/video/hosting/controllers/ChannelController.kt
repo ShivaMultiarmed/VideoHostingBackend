@@ -53,9 +53,7 @@ class ChannelController @Autowired constructor(
     }
 
     @GetMapping("/{channelId}/cover")
-    fun provideChannelCover(
-        @PathVariable channelId: Long
-    ): ResponseEntity<Resource> {
+    fun provideChannelCover(@PathVariable channelId: Long): ResponseEntity<Resource> {
         return try {
             val coverFolder = java.io.File(CHANNEL_COVERS_BASE_PATH)
             val image = findFileByName(coverFolder, channelId.toString())
@@ -73,9 +71,7 @@ class ChannelController @Autowired constructor(
     }
 
     @GetMapping("/{channelId}/avatar")
-    fun provideChannelAvatar(
-        @PathVariable channelId: Long
-    ): ResponseEntity<Resource> {
+    fun provideChannelAvatar(@PathVariable channelId: Long): ResponseEntity<Resource> {
         return try {
             val avatarFolder = java.io.File(CHANNEL_AVATARS_BASE_PATH)
             val image = findFileByName(avatarFolder, channelId.toString())
@@ -209,9 +205,7 @@ class ChannelController @Autowired constructor(
     }
 
     @GetMapping("/owner/{userId}")
-    fun getAllChannelsByOwnerId(
-        @PathVariable userId: Long
-    ): ResponseEntity<List<ChannelDto>> {
+    fun getAllChannelsByOwnerId(@PathVariable userId: Long): ResponseEntity<List<ChannelDto>> {
         val channels = channelService.getChannelsByOwnerId(userId)
         val channelDtos = channels.map { it.toDto() }
         return ResponseEntity.status(HttpStatus.OK).body(channelDtos)
@@ -227,16 +221,11 @@ class ChannelController @Autowired constructor(
     }
 
     @PatchMapping("/{channelId}/subscribe")
-    fun subscribeToChannel(
-        @PathVariable channelId: Long,
-        @RequestParam fcmToken: String,
-        @RequestParam subscriptionState: SubscriptionState
-    ): ResponseEntity<ChannelWithUserDto> {
+    fun subscribeToChannel(@PathVariable channelId: Long, @RequestParam fcmToken: String): ResponseEntity<Unit> {
         val userId = SecurityContextHolder.getContext().authentication.principal as Long?
             ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        val channelWithUser = channelService.changeSubscriptionState(userId, channelId, fcmToken, subscriptionState)
-        val channelWithUserDto = channelWithUser.toDto()
-        return ResponseEntity.status(HttpStatus.OK).body(channelWithUserDto)
+        channelService.changeSubscriptionState(userId, channelId, fcmToken)
+        return ResponseEntity.status(HttpStatus.OK).build()
     }
 
     @PatchMapping("/notifications/subscribe")

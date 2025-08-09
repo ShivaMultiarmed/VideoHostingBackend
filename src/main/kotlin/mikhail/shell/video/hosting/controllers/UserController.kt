@@ -25,8 +25,7 @@ import org.springframework.web.multipart.MultipartFile
 @RestController
 @RequestMapping("/api/v1/users")
 class UserController @Autowired constructor(
-    private val userService: UserService,
-    private val jwtTokenUtil: JwtTokenUtil
+    private val userService: UserService
 ) {
     @Value("\${hosting.server.host}")
     private lateinit var HOST: String
