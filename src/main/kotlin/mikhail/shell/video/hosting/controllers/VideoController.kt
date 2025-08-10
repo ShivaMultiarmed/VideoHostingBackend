@@ -56,7 +56,7 @@ class VideoController @Autowired constructor(
         val userId = SecurityContextHolder.getContext().authentication.principal as Long?
             ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         if (!userService.checkExistence(userId)) {
-            throw IllegalArgumentException()
+            throw IllegalAccessException()
         }
         val videoDto = videoService.getVideoForUser(videoId, userId).toDto(
             sourceUrl = "https://${constructReferenceBaseApiUrl(HOST)}/videos/${videoId}/play",
@@ -75,23 +75,16 @@ class VideoController @Autowired constructor(
 
     @PatchMapping("/{videoId}/rate")
     fun rateVideo(
-        request: HttpServletRequest,
         @PathVariable videoId: Long,
         @RequestParam likingState: LikingState
-    ): ResponseEntity<VideoDto> {
+    ):ResponseEntity<Unit> {
         val userId = SecurityContextHolder.getContext().authentication.principal as Long?
             ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         if (!userService.checkExistence(userId)) {
-            throw IllegalArgumentException()
-        }
-        val realUserId = SecurityContextHolder.getContext().authentication.principal as Long?
-            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        if (realUserId != userId) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
-        val video = videoService.rate(videoId, userId, likingState)
-        val videoDto = video.toDto()
-        return ResponseEntity.ok(videoDto)
+        videoService.rate(videoId, userId, likingState)
+        return ResponseEntity.status(HttpStatus.OK).build()
     }
 
     @GetMapping(
@@ -164,7 +157,6 @@ class VideoController @Autowired constructor(
 
     @GetMapping("/channel/{channelId}")
     fun provideVideosFromChannel(
-        request: HttpServletRequest,
         @PathVariable channelId: Long,
         @Param("partSize") partSize: Int = 10,
         @Param("partNumber") partNumber: Long = 0
@@ -324,7 +316,6 @@ class VideoController @Autowired constructor(
 
     @PatchMapping("/edit")
     fun editVideo(
-        request: HttpServletRequest,
         @RequestPart video: VideoDto,
         @RequestPart coverAction: EditAction,
         @RequestPart cover: MultipartFile? = null
@@ -384,7 +375,6 @@ class VideoController @Autowired constructor(
 
     @GetMapping("/recommendations")
     fun getRecommendations(
-        request: HttpServletRequest,
         @RequestParam partIndex: Long = 0,
         @RequestParam partSize: Int = 10
     ): ResponseEntity<List<VideoWithChannelDto>> {

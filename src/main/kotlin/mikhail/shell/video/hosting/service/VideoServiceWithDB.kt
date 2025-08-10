@@ -78,7 +78,7 @@ class VideoServiceWithDB @Autowired constructor(
     }
 
     @Transactional
-    override fun rate(videoId: Long, userId: Long, likingState: LikingState): Video {
+    override fun rate(videoId: Long, userId: Long, likingState: LikingState) {
         val id = UserLikeVideoId(userId, videoId)
         val previousLikingState = checkVideoLikeState(videoId, userId)
         val videoEntity = videoRepository.findById(videoId).orElseThrow()
@@ -119,7 +119,6 @@ class VideoServiceWithDB @Autowired constructor(
                 dislikes = newDislikes,
             )
         )
-        return videoRepository.findById(videoId).orElseThrow().toDomain()
     }
 
     override fun getVideosByChannelId(
@@ -136,9 +135,7 @@ class VideoServiceWithDB @Autowired constructor(
                 partNumber.toInt(),
                 partSize
             )
-        ).map {
-            it.toDomain()
-        }
+        ).map { it.toDomain() }
     }
 
     override fun getVideosByQuery(
