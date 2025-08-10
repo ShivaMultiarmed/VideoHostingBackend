@@ -236,11 +236,9 @@ class VideoServiceWithDB @Autowired constructor(
             throw NoSuchElementException()
         }
         val compoundError = CompoundError<UploadVideoError>()
-        if (cover.content?.isEmpty() != false) {
-            compoundError.add(UploadVideoError.COVER_EMPTY)
-        } else if (!cover.mimeType!!.contains("image")) {
+        if (!cover.mimeType!!.contains("image")) {
             compoundError.add(UploadVideoError.COVER_TYPE_NOT_VALID)
-        } else if (cover.content.size > ValidationRules.MAX_IMAGE_SIZE) {
+        } else if ((cover.content?.size ?: 0) > ValidationRules.MAX_IMAGE_SIZE) {
             compoundError.add(UploadVideoError.COVER_TOO_LARGE)
         }
         if (compoundError.isNotNull()) {
