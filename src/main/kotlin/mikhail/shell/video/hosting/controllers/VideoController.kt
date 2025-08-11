@@ -76,14 +76,14 @@ class VideoController @Autowired constructor(
     @PatchMapping("/{videoId}/rate")
     fun rateVideo(
         @PathVariable videoId: Long,
-        @RequestParam likingState: LikingState
+        @RequestParam liking: Liking
     ): ResponseEntity<Unit> {
         val userId = SecurityContextHolder.getContext().authentication.principal as Long?
             ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         if (!userService.checkExistence(userId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
-        videoService.rate(videoId, userId, likingState)
+        videoService.rate(videoId, userId, liking)
         return ResponseEntity.status(HttpStatus.OK).build()
     }
 

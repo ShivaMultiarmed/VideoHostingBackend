@@ -10,6 +10,9 @@ import mikhail.shell.video.hosting.errors.SignInError
 import mikhail.shell.video.hosting.errors.SignUpError
 import mikhail.shell.video.hosting.service.AuthenticationService
 import mikhail.shell.video.hosting.service.AuthenticationServiceWithDB
+import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -91,5 +94,13 @@ class AuthenticationController(
             throw IllegalArgumentException()
         }
         return authenticationService.resetPassword(resetToken, password)
+    }
+
+    @PostMapping("/signout")
+    fun signOut(request: HttpServletRequest): ResponseEntity<Unit> {
+        val token = request.getHeader("Authorization")?.substring("Bearer ".length)
+            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+        authenticationService.signOut(token)
+        return ResponseEntity.ok().build()
     }
 }

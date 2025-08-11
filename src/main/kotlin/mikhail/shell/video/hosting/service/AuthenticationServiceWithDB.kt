@@ -13,8 +13,10 @@ import mikhail.shell.video.hosting.repository.*
 import mikhail.shell.video.hosting.repository.entities.RecoveryEntity
 import mikhail.shell.video.hosting.security.CryptoUtils
 import mikhail.shell.video.hosting.security.JwtTokenUtil
+import org.springframework.http.ResponseEntity
 import org.springframework.mail.MailSender
 import org.springframework.mail.SimpleMailMessage
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import java.time.LocalDateTime
@@ -43,6 +45,10 @@ class AuthenticationServiceWithDB(
             return AuthModel(token, credentials.id.userId)
         }
         throw ValidationException(compoundError)
+    }
+
+    override fun signOut(token: String) {
+
     }
 
     @Transactional

@@ -1,19 +1,19 @@
 package mikhail.shell.video.hosting.repository.entities
 
 import jakarta.persistence.*
-import mikhail.shell.video.hosting.domain.LikingState
+import mikhail.shell.video.hosting.domain.Liking
 import java.io.Serializable
 
 @Entity
-@Table(name = "users_like_videos")
-data class UserLikeVideo(
-    @EmbeddedId val id: UserLikeVideoId,
+@Table(name = "video_likings")
+data class VideoLiking(
+    @EmbeddedId val id: VideoLikingId,
     @Enumerated(value = EnumType.STRING)
-    val likingState: LikingState
+    val liking: Liking
 )
 
 @Embeddable
-data class UserLikeVideoId(
+data class VideoLikingId(
     val userId: Long,
     val videoId: Long,
 ): Serializable

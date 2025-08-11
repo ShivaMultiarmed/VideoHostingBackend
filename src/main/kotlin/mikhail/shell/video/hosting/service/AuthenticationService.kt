@@ -24,4 +24,5 @@ interface AuthenticationService {
         userId: Long,
         resetCode: String
     ): String
+    fun signOut(token: String)
 }

@@ -50,11 +50,11 @@ class VideoServiceWithDB @Autowired constructor(
 
     override fun getVideoForUser(videoId: Long, userId: Long): VideoWithUser {
         val v = videoRepository.findById(videoId).orElseThrow()
-        val likingId = UserLikeVideoId(userId, videoId)
+        val likingId = VideoLikingId(userId, videoId)
 
         val liking = if (!userLikeVideoRepository.existsById(likingId))
-            LikingState.NONE
-        else userLikeVideoRepository.findById(likingId).orElseThrow().likingState
+            Liking.NONE
+        else userLikeVideoRepository.findById(likingId).orElseThrow().liking
 
         return VideoWithUser(
             videoId = v.videoId,
@@ -72,38 +72,38 @@ class VideoServiceWithDB @Autowired constructor(
         return videoRepository.existsById(videoId)
     }
 
-    override fun checkVideoLikeState(videoId: Long, userId: Long): LikingState {
-        val id = UserLikeVideoId(userId, videoId)
-        return userLikeVideoRepository.findById(id).orElse(null)?.likingState ?: LikingState.NONE
+    override fun checkVideoLikeState(videoId: Long, userId: Long): Liking {
+        val id = VideoLikingId(userId, videoId)
+        return userLikeVideoRepository.findById(id).orElse(null)?.liking ?: Liking.NONE
     }
 
     @Transactional
-    override fun rate(videoId: Long, userId: Long, likingState: LikingState) {
-        val id = UserLikeVideoId(userId, videoId)
-        val previousLikingState = checkVideoLikeState(videoId, userId)
+    override fun rate(videoId: Long, userId: Long, liking: Liking) {
+        val id = VideoLikingId(userId, videoId)
+        val previousLiking = checkVideoLikeState(videoId, userId)
         val videoEntity = videoRepository.findById(videoId).orElseThrow()
-        if (likingState != LikingState.NONE) {
-            userLikeVideoRepository.save(UserLikeVideo(id, likingState))
+        if (liking != Liking.NONE) {
+            userLikeVideoRepository.save(VideoLiking(id, liking))
         } else if (userLikeVideoRepository.existsById(id)) {
             userLikeVideoRepository.deleteById(id)
         }
         var newLikes = videoEntity.likes
         var newDislikes = videoEntity.dislikes
-        if (likingState == LikingState.LIKED) {
-            if (previousLikingState != LikingState.LIKED)
+        if (liking == Liking.LIKED) {
+            if (previousLiking != Liking.LIKED)
                 newLikes += 1
-            if (previousLikingState == LikingState.DISLIKED)
+            if (previousLiking == Liking.DISLIKED)
                 newDislikes -= 1
-        } else if (likingState == LikingState.DISLIKED) {
-            if (previousLikingState != LikingState.DISLIKED)
+        } else if (liking == Liking.DISLIKED) {
+            if (previousLiking != Liking.DISLIKED)
                 newDislikes += 1
-            if (previousLikingState == LikingState.LIKED)
+            if (previousLiking == Liking.LIKED)
                 newLikes -= 1
         } else {
-            if (previousLikingState == LikingState.LIKED) {
+            if (previousLiking == Liking.LIKED) {
                 newLikes -= 1
             }
-            if (previousLikingState == LikingState.DISLIKED) {
+            if (previousLiking == Liking.DISLIKED) {
                 newDislikes -= 1
             }
         }

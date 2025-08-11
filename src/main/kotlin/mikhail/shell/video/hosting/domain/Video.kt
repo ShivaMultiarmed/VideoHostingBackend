@@ -25,6 +25,6 @@ data class VideoWithUser(
     val views: Long,
     val likes: Long,
     val dislikes: Long,
-    val liking: LikingState
+    val liking: Liking
 )
 
