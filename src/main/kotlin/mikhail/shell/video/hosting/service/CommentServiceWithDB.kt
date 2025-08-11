@@ -32,11 +32,18 @@ class CommentServiceWithDB @Autowired constructor(
         if (comment.text.length > ValidationRules.MAX_TEXT_LENGTH) {
             throw ValidationException(CommentError.TEXT_TOO_LARGE)
         }
-        val commentEntity = comment.toEntity()
-        val exists = comment.commentId?.let { commentRepository.existsById(it) }?: false
-        val action = if (!exists) Action.ADD else Action.UPDATE
-        val createdCommentEntity = commentRepository.save(commentEntity)
-        sendMessage(createdCommentEntity.commentId!!, action)
+        val action = if (comment.commentId != null && commentRepository.existsById(comment.commentId)) Action.UPDATE else Action.ADD
+        val commentEntity = comment
+            .toEntity()
+            .let {
+                it.copy(
+                    commentId = if (it.commentId != null && !commentRepository.existsById(it.commentId!!)) null else it.commentId,
+                    dateTime = if (it.commentId == null) Instant.now() else commentRepository.findById(it.commentId!!).orElseThrow().dateTime
+                )
+            }
+
+        val savedCommentEntity = commentRepository.save(commentEntity)
+        sendMessage(savedCommentEntity.commentId!!, action)
     }
 
     override fun checkExistence(commentId: Long): Boolean {

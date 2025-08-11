@@ -40,7 +40,18 @@ class CommentController @Autowired constructor(
         }
         if (!videoService.checkExistence(comment.videoId)) {
             throw NoSuchElementException()
+        } else {
+            val userId = SecurityContextHolder.getContext().authentication.principal as Long?
+                ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+            if (comment.commentId != null) {
+                if (!commentService.checkExistence(comment.commentId)) {
+                    throw NoSuchElementException()
+                } else if (!commentService.checkOwner(userId, comment.commentId)) {
+                    throw IllegalAccessException()
+                }
+            }
         }
+
         commentService.save(comment)
         return ResponseEntity.status(HttpStatus.CREATED).build()
     }
