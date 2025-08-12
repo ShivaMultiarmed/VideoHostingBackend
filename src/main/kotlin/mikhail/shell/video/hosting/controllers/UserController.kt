@@ -10,7 +10,6 @@ import mikhail.shell.video.hosting.dto.toDto
 import mikhail.shell.video.hosting.errors.CompoundError
 import mikhail.shell.video.hosting.errors.EditUserError
 import mikhail.shell.video.hosting.errors.ValidationException
-import mikhail.shell.video.hosting.security.JwtTokenUtil
 import mikhail.shell.video.hosting.service.UserService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
@@ -68,7 +67,7 @@ class UserController @Autowired constructor(
         if (userDto.email?.let { !emailRegex.matches(it) } == true) {
             compoundError.add(EditUserError.EMAIL_MALFORMED)
         }
-        if (compoundError.isNotNull()) {
+        if (compoundError.isNotEmpty()) {
             throw ValidationException(compoundError)
         }
         val user = userDto.toDomain()

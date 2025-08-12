@@ -192,7 +192,7 @@ class VideoServiceWithDB @Autowired constructor(
         if (video.title.length > ValidationRules.MAX_TITLE_LENGTH) {
             compoundError.add(UploadVideoError.TITLE_TOO_LARGE)
         }
-        if (compoundError.isNotNull()) {
+        if (compoundError.isNotEmpty()) {
             throw ValidationException(compoundError)
         }
         val videoEntityToAdd = video
@@ -222,7 +222,7 @@ class VideoServiceWithDB @Autowired constructor(
         } else if (source.content.size > ValidationRules.MAX_VIDEO_SIZE) {
             compoundError.add(UploadVideoError.SOURCE_TOO_LARGE)
         }
-        if (compoundError.isNotNull()) {
+        if (compoundError.isNotEmpty()) {
             throw ValidationException(compoundError)
         }
         return saveFile(
@@ -241,7 +241,7 @@ class VideoServiceWithDB @Autowired constructor(
         } else if ((cover.content?.size ?: 0) > ValidationRules.MAX_IMAGE_SIZE) {
             compoundError.add(UploadVideoError.COVER_TOO_LARGE)
         }
-        if (compoundError.isNotNull()) {
+        if (compoundError.isNotEmpty()) {
             throw ValidationException(compoundError)
         }
         return saveFile(
@@ -352,7 +352,7 @@ class VideoServiceWithDB @Autowired constructor(
                 compoundError.add(EditVideoError.COVER_TYPE_NOT_VALID)
             }
         }
-        if (compoundError.isNotNull()) {
+        if (compoundError.isNotEmpty()) {
             throw ValidationException(compoundError)
         }
         val videoEntityToEdit = videoRepository

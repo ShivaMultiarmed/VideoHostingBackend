@@ -9,10 +9,8 @@ import mikhail.shell.video.hosting.errors.ValidationException
 import mikhail.shell.video.hosting.errors.SignInError
 import mikhail.shell.video.hosting.errors.SignUpError
 import mikhail.shell.video.hosting.service.AuthenticationService
-import mikhail.shell.video.hosting.service.AuthenticationServiceWithDB
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -40,7 +38,7 @@ class AuthenticationController(
         if (password.isEmpty()) {
             compoundError.add(SignInError.PASSWORD_EMPTY)
         }
-        if (compoundError.isNotNull()) {
+        if (compoundError.isNotEmpty()) {
             throw ValidationException(compoundError)
         }
         return authenticationService.signInWithPassword(username, password)
@@ -62,7 +60,7 @@ class AuthenticationController(
         if (signUpDto.userDto.nick.isEmpty()) {
             compoundError.add(SignUpError.NICK_EMPTY)
         }
-        if (compoundError.isNotNull()) {
+        if (compoundError.isNotEmpty()) {
             throw ValidationException(compoundError)
         }
         return authenticationService.signUpWithPassword(

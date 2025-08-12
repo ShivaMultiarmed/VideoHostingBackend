@@ -46,7 +46,7 @@ class UserServiceWithDB @Autowired constructor(
         if (avatar?.mimeType?.substringBefore("/") != "image" && avatar != null) {
             compoundError.add(EditUserError.AVATAR_TYPE_NOT_VALID)
         }
-        if (compoundError.isNotNull()) {
+        if (compoundError.isNotEmpty()) {
             throw ValidationException(compoundError)
         }
         val userEntity = user.toEntity()

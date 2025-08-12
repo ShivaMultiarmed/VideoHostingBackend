@@ -13,10 +13,8 @@ import mikhail.shell.video.hosting.repository.*
 import mikhail.shell.video.hosting.repository.entities.RecoveryEntity
 import mikhail.shell.video.hosting.security.CryptoUtils
 import mikhail.shell.video.hosting.security.JwtTokenUtil
-import org.springframework.http.ResponseEntity
 import org.springframework.mail.MailSender
 import org.springframework.mail.SimpleMailMessage
-import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import java.time.LocalDateTime
@@ -72,7 +70,7 @@ class AuthenticationServiceWithDB(
         } else if (userRepository.existsByNick(user!!.nick)) {
             compoundError.add(NICK_EXISTS)
         }
-        if (compoundError.isNotNull()) {
+        if (compoundError.isNotEmpty()) {
             throw ValidationException(compoundError)
         }
         val createdUser = userRepository.save(user!!.toEntity())

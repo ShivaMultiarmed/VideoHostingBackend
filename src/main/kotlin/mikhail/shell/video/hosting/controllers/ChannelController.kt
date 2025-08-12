@@ -116,7 +116,7 @@ class ChannelController @Autowired constructor(
                 compoundError.add(AVATAR_TYPE_NOT_VALID)
             }
         }
-        if (compoundError.isNotNull()) {
+        if (compoundError.isNotEmpty()) {
             throw ValidationException(compoundError)
         }
         val cover = coverFile?.let {
@@ -178,7 +178,7 @@ class ChannelController @Autowired constructor(
                 compoundError.add(EditChannelError.AVATAR_TYPE_NOT_VALID)
             }
         }
-        if (compoundError.isNotNull()) {
+        if (compoundError.isNotEmpty()) {
             throw ValidationException(compoundError)
         }
         val editedChannel = channelService.editChannel(

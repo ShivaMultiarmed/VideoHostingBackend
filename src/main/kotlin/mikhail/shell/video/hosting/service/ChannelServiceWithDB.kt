@@ -71,33 +71,33 @@ class ChannelServiceWithDB @Autowired constructor(
 
     @Transactional
     override fun createChannel(channel: Channel, avatar: File?, cover: File?): Channel {
-        val error = CompoundError<ChannelCreationError>()
+        val compoundError = CompoundError<ChannelCreationError>()
         if (channelRepository.existsByTitle(channel.title)) {
-            error.add(TITLE_EXISTS)
+            compoundError.add(TITLE_EXISTS)
         }
         if (channel.title.length > ValidationRules.MAX_TITLE_LENGTH) {
-            error.add(TITLE_TOO_LARGE)
+            compoundError.add(TITLE_TOO_LARGE)
         }
         if ((channel.alias?.length ?: 0) > ValidationRules.MAX_TITLE_LENGTH) {
-            error.add(ALIAS_TOO_LARGE)
+            compoundError.add(ALIAS_TOO_LARGE)
         } else if (channel.alias != null && channelRepository.existsByAlias(channel.alias)) {
-            error.add(ALIAS_EXISTS)
+            compoundError.add(ALIAS_EXISTS)
         }
         if ((channel.description?.length ?: 0) > ValidationRules.MAX_TEXT_LENGTH) {
-            error.add(DESCRIPTION_TOO_LARGE)
+            compoundError.add(DESCRIPTION_TOO_LARGE)
         }
         cover?.let {
             if (it.content!!.size > ValidationRules.MAX_IMAGE_SIZE) {
-                error.add(COVER_TOO_LARGE)
+                compoundError.add(COVER_TOO_LARGE)
             }
         }
         avatar?.let {
             if (it.content!!.size > ValidationRules.MAX_IMAGE_SIZE) {
-                error.add(AVATAR_TOO_LARGE)
+                compoundError.add(AVATAR_TOO_LARGE)
             }
         }
-        if (error.isNotNull()) {
-            throw ValidationException(error)
+        if (compoundError.isNotEmpty()) {
+            throw ValidationException(compoundError)
         }
         val channelEntityToCreate = channel
             .toEntity()
@@ -172,39 +172,39 @@ class ChannelServiceWithDB @Autowired constructor(
         val currentChannelEntity = channelRepository
             .findById(channel.channelId!!)
             .get()
-        val error = CompoundError<EditChannelError>()
+        val compoundError = CompoundError<EditChannelError>()
         if (channel.title.length > ValidationRules.MAX_TITLE_LENGTH) {
-            error.add(EditChannelError.TITLE_TOO_LARGE)
+            compoundError.add(EditChannelError.TITLE_TOO_LARGE)
         } else if (
             channelRepository.existsByTitle(channel.title)
             && currentChannelEntity.title != channel.title
             ) {
-            error.add(EditChannelError.TITLE_EXISTS)
+            compoundError.add(EditChannelError.TITLE_EXISTS)
         }
         if ((channel.alias?.length ?: 0) > ValidationRules.MAX_TITLE_LENGTH) {
-            error.add(EditChannelError.ALIAS_TOO_LARGE)
+            compoundError.add(EditChannelError.ALIAS_TOO_LARGE)
         } else if (
             channel.alias != null
             && channelRepository.existsByAlias(channel.alias)
             && currentChannelEntity.alias != channel.alias
             ) {
-            error.add(EditChannelError.ALIAS_EXISTS)
+            compoundError.add(EditChannelError.ALIAS_EXISTS)
         }
         if ((channel.description?.length ?: 0) > ValidationRules.MAX_TEXT_LENGTH) {
-            error.add(EditChannelError.DESCRIPTION_TOO_LARGE)
+            compoundError.add(EditChannelError.DESCRIPTION_TOO_LARGE)
         }
         coverFile?.let {
             if ((it.content?.size ?: 0) > ValidationRules.MAX_IMAGE_SIZE) {
-                error.add(EditChannelError.COVER_TOO_LARGE)
+                compoundError.add(EditChannelError.COVER_TOO_LARGE)
             }
         }
         avatarFile?.let {
             if ((it.content?.size ?: 0) > ValidationRules.MAX_IMAGE_SIZE) {
-                error.add(EditChannelError.AVATAR_TOO_LARGE)
+                compoundError.add(EditChannelError.AVATAR_TOO_LARGE)
             }
         }
-        if (error.isNotNull()) {
-            throw ValidationException(error)
+        if (compoundError.isNotEmpty()) {
+            throw ValidationException(compoundError)
         }
         val editedChannel = channelRepository.save(channel.toEntity()).toDomain() // TODO: prevent fields' abuse
         when (editCoverAction) {

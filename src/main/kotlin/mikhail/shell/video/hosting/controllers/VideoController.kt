@@ -223,7 +223,7 @@ class VideoController @Autowired constructor(
         if (video.title.isEmpty()) {
             compoundError.add(UploadVideoError.TITLE_EMPTY)
         }
-        if (compoundError.isNotNull()) {
+        if (compoundError.isNotEmpty()) {
             throw ValidationException(compoundError)
         }
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -336,7 +336,7 @@ class VideoController @Autowired constructor(
         if (video.title.isEmpty()) {
             compoundError.add(EditVideoError.TITLE_EMPTY)
         }
-        if (compoundError.isNotNull()) {
+        if (compoundError.isNotEmpty()) {
             throw ValidationException(compoundError)
         }
         val updatedVideo = videoService.editVideo(video.toDomain(), coverAction, coverFile)
