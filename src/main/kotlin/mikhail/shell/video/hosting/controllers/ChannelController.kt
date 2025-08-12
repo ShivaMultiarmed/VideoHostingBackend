@@ -249,7 +249,8 @@ class ChannelController @Autowired constructor(
     }
 
     private fun Channel.toDto(): ChannelDto = toDto(
-        avatarUrl = "https://${constructReferenceBaseApiUrl(HOST)}/channels/$channelId/avatar"
+        avatarUrl = "https://${constructReferenceBaseApiUrl(HOST)}/channels/$channelId/avatar",
+        coverUrl = "https://${constructReferenceBaseApiUrl(HOST)}/channels/$channelId/cover"
     )
 
     private fun ChannelWithUser.toDto() = toDto(
