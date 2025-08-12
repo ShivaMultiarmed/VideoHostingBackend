@@ -21,25 +21,25 @@ fun Video.toDto(
     sourceUrl: String? = null,
     coverUrl: String? = null
 ) = VideoDto(
-    videoId,
-    channelId,
-    title,
-    dateTime,
-    views,
-    likes,
-    dislikes,
-    sourceUrl,
-    coverUrl
+    videoId = videoId,
+    channelId = channelId,
+    title = title,
+    dateTime = dateTime,
+    views = views,
+    likes = likes,
+    dislikes = dislikes,
+    sourceUrl = sourceUrl,
+    coverUrl = coverUrl
 )
 
 fun VideoDto.toDomain() = Video(
-    videoId,
-    channelId,
-    title,
-    dateTime,
-    views,
-    likes,
-    dislikes
+    videoId = videoId,
+    channelId = channelId,
+    title = title,
+    dateTime = dateTime,
+    views = views,
+    likes = likes,
+    dislikes = dislikes
 )
 
 data class VideoWithChannelDto(
@@ -66,15 +66,15 @@ fun VideoWithUser.toDto(
     coverUrl: String? = null
 ): VideoWithUserDto {
     return VideoWithUserDto(
-        videoId,
-        channelId,
-        title,
-        dateTime,
-        views,
-        likes,
-        liking,
-        dislikes,
-        sourceUrl,
-        coverUrl
+        videoId = videoId,
+        channelId = channelId,
+        title = title,
+        dateTime = dateTime,
+        views = views,
+        likes = likes,
+        liking = liking,
+        dislikes = dislikes,
+        sourceUrl = sourceUrl,
+        coverUrl = coverUrl
     )
 }

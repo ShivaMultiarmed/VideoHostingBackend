@@ -1,9 +1,8 @@
 package mikhail.shell.video.hosting.controllers
 
 import jakarta.servlet.http.HttpServletRequest
-import mikhail.shell.video.hosting.domain.EditAction
-import mikhail.shell.video.hosting.domain.File
-import mikhail.shell.video.hosting.domain.User
+import mikhail.shell.video.hosting.domain.*
+import mikhail.shell.video.hosting.domain.ApplicationPaths.USER_AVATARS_BASE_PATH
 import mikhail.shell.video.hosting.dto.UserDto
 import mikhail.shell.video.hosting.dto.toDomain
 import mikhail.shell.video.hosting.dto.toDto
@@ -20,6 +19,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
+import java.nio.file.Paths
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -67,17 +67,14 @@ class UserController @Autowired constructor(
         if (userDto.email?.let { !emailRegex.matches(it) } == true) {
             compoundError.add(EditUserError.EMAIL_MALFORMED)
         }
+        if ((avatar?.size?: 0) > ValidationRules.MAX_IMAGE_SIZE) {
+            compoundError.add(EditUserError.AVATAR_TOO_LARGE)
+        }
         if (compoundError.isNotEmpty()) {
             throw ValidationException(compoundError)
         }
         val user = userDto.toDomain()
-        val avatarFile = avatar?.let {
-            File(
-                name = it.originalFilename,
-                mimeType = it.contentType,
-                content = it.bytes
-            )
-        }
+        val avatarFile = avatar?.toUploadedFile()
         val editedUser = userService.edit(user, avatarAction, avatarFile)
         val editedUserDto = editedUser.toDto()
         return ResponseEntity.ok(editedUserDto)
@@ -92,13 +89,20 @@ class UserController @Autowired constructor(
     }
 
     @GetMapping("/{userId}/avatar")
-    fun getAvatar(@PathVariable userId: Long): ResponseEntity<Resource> {
-        val avatarFile = userService.getAvatar(userId)
+    fun getAvatar(
+        @PathVariable userId: Long,
+        @PathVariable size: String
+    ): ResponseEntity<Resource> {
+        val avatarFolder = Paths.get(USER_AVATARS_BASE_PATH).toFile()
+        val avatarFile = findFileByName(avatarFolder, userId.toString())
+        if (avatarFile == null || !userService.checkExistence(userId)) {
+            throw NoSuchElementException()
+        }
         val avatarResource = FileSystemResource(avatarFile)
         return ResponseEntity.ok(avatarResource)
     }
 
     private fun User.toDto() = toDto(
-        avatar = "https://${constructReferenceBaseApiUrl(HOST)}/users/${userId}/avatar"
+        avatar = "https://${constructReferenceBaseApiUrl(HOST)}/users/$userId/avatar"
     )
 }

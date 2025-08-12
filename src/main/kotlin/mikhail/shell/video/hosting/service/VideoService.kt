@@ -11,10 +11,10 @@ interface VideoService {
     fun getVideosByQuery(query: String, partSize: Int, partNumber: Long): List<VideoWithChannel>
     fun incrementViews(videoId: Long)
     fun deleteVideo(videoId: Long): Boolean
-    fun editVideo(video: Video, coverAction: EditAction, cover: File?): Video
+    fun editVideo(video: Video, coverAction: EditAction, cover: UploadedFile?): Video
     fun saveVideoDetails(video: Video): Video
     fun saveVideoSource(videoId: Long, source: File): Boolean
-    fun saveVideoCover(videoId: Long, cover: File): Boolean
+    fun saveVideoCover(videoId: Long, cover: UploadedFile): Boolean
     fun confirmVideoUpload(videoId: Long): Boolean
     fun checkOwner(userId: Long, videoId: Long): Boolean
     fun getRecommendedVideos(userId: Long, partIndex: Long, partSize: Int): List<VideoWithChannel>

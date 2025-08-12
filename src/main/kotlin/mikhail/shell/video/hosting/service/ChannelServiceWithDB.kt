@@ -25,6 +25,10 @@ import mikhail.shell.video.hosting.repository.entities.toDomain
 import mikhail.shell.video.hosting.repository.entities.toEntity
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
+import java.io.File
+import java.nio.file.Paths
+import kotlin.io.path.ExperimentalPathApi
+import kotlin.io.path.deleteRecursively
 
 @Service
 class ChannelServiceWithDB @Autowired constructor(
@@ -47,7 +51,8 @@ class ChannelServiceWithDB @Autowired constructor(
         if (!userRepository.existsById(userId)) {
             throw IllegalArgumentException()
         }
-        val subscription = if (subscriberRepository.existsById(SubscriberId(channelId, userId))) SUBSCRIBED else NOT_SUBSCRIBED
+        val subscription =
+            if (subscriberRepository.existsById(SubscriberId(channelId, userId))) SUBSCRIBED else NOT_SUBSCRIBED
         return ChannelWithUser(
             channelId = channel.channelId,
             ownerId = channel.ownerId,
@@ -70,7 +75,7 @@ class ChannelServiceWithDB @Autowired constructor(
     }
 
     @Transactional
-    override fun createChannel(channel: Channel, avatar: File?, cover: File?): Channel {
+    override fun createChannel(channel: Channel, avatar: UploadedFile?, cover: UploadedFile?): Channel {
         val compoundError = CompoundError<ChannelCreationError>()
         if (channelRepository.existsByTitle(channel.title)) {
             compoundError.add(TITLE_EXISTS)
@@ -86,16 +91,6 @@ class ChannelServiceWithDB @Autowired constructor(
         if ((channel.description?.length ?: 0) > ValidationRules.MAX_TEXT_LENGTH) {
             compoundError.add(DESCRIPTION_TOO_LARGE)
         }
-        cover?.let {
-            if (it.content!!.size > ValidationRules.MAX_IMAGE_SIZE) {
-                compoundError.add(COVER_TOO_LARGE)
-            }
-        }
-        avatar?.let {
-            if (it.content!!.size > ValidationRules.MAX_IMAGE_SIZE) {
-                compoundError.add(AVATAR_TOO_LARGE)
-            }
-        }
         if (compoundError.isNotEmpty()) {
             throw ValidationException(compoundError)
         }
@@ -107,12 +102,22 @@ class ChannelServiceWithDB @Autowired constructor(
             )
         val createdChannel = channelRepository.save(channelEntityToCreate).toDomain()
         val coverExtension = cover?.name?.parseExtension()
-        cover?.content?.let {
-            java.io.File("$CHANNEL_COVERS_BASE_PATH/${createdChannel.channelId}.$coverExtension").writeBytes(it)
+        cover?.let {
+            uploadImage(
+                uploadedFile = it,
+                targetFile = "$CHANNEL_COVERS_BASE_PATH/${createdChannel.channelId}.$coverExtension",
+                width = 512,
+                height = 128
+            )
         }
         val avatarExtension = cover?.name?.parseExtension()
-        avatar?.content?.let {
-            java.io.File("$CHANNEL_AVATARS_BASE_PATH/${createdChannel.channelId}.$avatarExtension").writeBytes(it)
+        avatar?.let {
+            uploadImage(
+                uploadedFile = it,
+                targetFile = "$CHANNEL_AVATARS_BASE_PATH/${createdChannel.channelId}.$avatarExtension",
+                width = 128,
+                height = 128
+            )
         }
         return createdChannel
     }
@@ -162,12 +167,13 @@ class ChannelServiceWithDB @Autowired constructor(
         }
     }
 
+    @OptIn(ExperimentalPathApi::class)
     override fun editChannel(
         channel: Channel,
         editCoverAction: EditAction,
-        coverFile: File?,
+        coverFile: UploadedFile?,
         editAvatarAction: EditAction,
-        avatarFile: File?
+        avatarFile: UploadedFile?
     ): Channel {
         val currentChannelEntity = channelRepository
             .findById(channel.channelId!!)
@@ -178,7 +184,7 @@ class ChannelServiceWithDB @Autowired constructor(
         } else if (
             channelRepository.existsByTitle(channel.title)
             && currentChannelEntity.title != channel.title
-            ) {
+        ) {
             compoundError.add(EditChannelError.TITLE_EXISTS)
         }
         if ((channel.alias?.length ?: 0) > ValidationRules.MAX_TITLE_LENGTH) {
@@ -187,68 +193,57 @@ class ChannelServiceWithDB @Autowired constructor(
             channel.alias != null
             && channelRepository.existsByAlias(channel.alias)
             && currentChannelEntity.alias != channel.alias
-            ) {
+        ) {
             compoundError.add(EditChannelError.ALIAS_EXISTS)
         }
         if ((channel.description?.length ?: 0) > ValidationRules.MAX_TEXT_LENGTH) {
             compoundError.add(EditChannelError.DESCRIPTION_TOO_LARGE)
         }
-        coverFile?.let {
-            if ((it.content?.size ?: 0) > ValidationRules.MAX_IMAGE_SIZE) {
-                compoundError.add(EditChannelError.COVER_TOO_LARGE)
-            }
-        }
-        avatarFile?.let {
-            if ((it.content?.size ?: 0) > ValidationRules.MAX_IMAGE_SIZE) {
-                compoundError.add(EditChannelError.AVATAR_TOO_LARGE)
-            }
-        }
         if (compoundError.isNotEmpty()) {
             throw ValidationException(compoundError)
         }
-        val editedChannel = channelRepository.save(channel.toEntity()).toDomain() // TODO: prevent fields' abuse
+        val editedChannel = channelRepository.save(channel.toEntity()).toDomain()
         when (editCoverAction) {
             EditAction.KEEP -> Unit
             EditAction.REMOVE -> {
-                findFileByName(
-                    java.io.File(CHANNEL_COVERS_BASE_PATH),
-                    channel.channelId.toString()
-                )?.delete()
+                File(CHANNEL_COVERS_BASE_PATH, channel.channelId.toString()).delete()
             }
+
             EditAction.UPDATE -> {
-                coverFile?.let {
-                    findFileByName(
-                        java.io.File(CHANNEL_COVERS_BASE_PATH),
-                        channel.channelId.toString()
-                    )?.delete()
-                    val extension = it.name!!.parseExtension()
-                    val fileName = "${channel.channelId}.$extension"
-                    java.io.File(CHANNEL_COVERS_BASE_PATH, fileName).writeBytes(coverFile.content!!)
+                coverFile?.let { uploadedFile ->
+                    File(CHANNEL_COVERS_BASE_PATH, channel.channelId.toString()).delete()
+                    val coverExtension = uploadedFile.name.parseExtension()
+                    uploadImage(
+                        uploadedFile = uploadedFile,
+                        targetFile = "$CHANNEL_COVERS_BASE_PATH/${editedChannel.channelId}.$coverExtension",
+                        width = 512,
+                        height = 128
+                    )
                 }
             }
         }
         when (editAvatarAction) {
             EditAction.KEEP -> Unit
             EditAction.REMOVE -> {
-                findFileByName(
-                    java.io.File(CHANNEL_AVATARS_BASE_PATH),
-                    channel.channelId.toString()
-                )?.delete()
+                File(CHANNEL_AVATARS_BASE_PATH, channel.channelId.toString()).delete()
             }
+
             EditAction.UPDATE -> {
-                avatarFile?.let {
-                    findFileByName(
-                        java.io.File(CHANNEL_AVATARS_BASE_PATH),
-                        channel.channelId.toString()
-                    )?.delete()
-                    val extension = it.name!!.parseExtension()
-                    val fileName = "${channel.channelId}.$extension"
-                    java.io.File(CHANNEL_AVATARS_BASE_PATH, fileName).writeBytes(avatarFile.content!!)
+                avatarFile?.let { uploadedFile ->
+                    File(CHANNEL_AVATARS_BASE_PATH, channel.channelId.toString()).delete()
+                    val avatarExtension = uploadedFile.name.parseExtension()
+                    uploadImage(
+                        uploadedFile = uploadedFile,
+                        targetFile = "$CHANNEL_AVATARS_BASE_PATH/${editedChannel.channelId}.$avatarExtension",
+                        width = 128,
+                        height = 128
+                    )
                 }
             }
         }
         return editedChannel
     }
+
     override fun removeChannel(channelId: Long) {
         if (!channelRepository.existsById(channelId)) {
             throw NoSuchElementException()
@@ -281,7 +276,7 @@ class ChannelServiceWithDB @Autowired constructor(
         return channelRepository.existsByOwnerIdAndChannelId(userId, channelId)
     }
 
-    override fun checkExistsence(channelId: Long): Boolean {
+    override fun checkExistence(channelId: Long): Boolean {
         return channelRepository.existsById(channelId)
     }
 

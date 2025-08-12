@@ -8,8 +8,8 @@ interface ChannelService {
     fun checkIfSubscribed(channelId: Long, userId: Long): Boolean
     fun createChannel(
         channel: Channel,
-        avatar: File?,
-        cover: File?
+        avatar: UploadedFile?,
+        cover: UploadedFile?
     ): Channel
     fun getChannelsByOwnerId(userId: Long): List<Channel>
     fun getChannelsBySubscriberId(userId: Long): List<Channel>
@@ -23,12 +23,12 @@ interface ChannelService {
     fun editChannel(
         channel: Channel,
         editCoverAction: EditAction,
-        coverFile: File?,
+        coverFile: UploadedFile?,
         editAvatarAction: EditAction,
-        avatarFile: File?
+        avatarFile: UploadedFile?
     ): Channel
     fun getChannel(channelId: Long): Channel
     fun removeChannel(channelId: Long)
     fun checkOwner(userId: Long, channelId: Long): Boolean
-    fun checkExistsence(channelId: Long): Boolean
+    fun checkExistence(channelId: Long): Boolean
 }

@@ -21,7 +21,7 @@ class UserServiceWithDB @Autowired constructor(
         return userEntity.toDomain()
     }
 
-    override fun edit(user: User, avatarAction: EditAction, avatar: File?): User {
+    override fun edit(user: User, avatarAction: EditAction, avatar: UploadedFile?): User {
         val compoundError = CompoundError<EditUserError>()
         if (!userRepository.existsById(user.userId!!)) {
             throw NoSuchElementException()
@@ -40,9 +40,6 @@ class UserServiceWithDB @Autowired constructor(
         if ((user.bio?.length ?: 0) > ValidationRules.MAX_TEXT_LENGTH) {
             compoundError.add(EditUserError.BIO_TOO_LARGE)
         }
-        if ((avatar?.content?.size?: 0) > ValidationRules.MAX_IMAGE_SIZE) {
-            compoundError.add(EditUserError.AVATAR_TOO_LARGE)
-        }
         if (avatar?.mimeType?.substringBefore("/") != "image" && avatar != null) {
             compoundError.add(EditUserError.AVATAR_TYPE_NOT_VALID)
         }
@@ -56,10 +53,10 @@ class UserServiceWithDB @Autowired constructor(
         }
         if (avatarAction == EditAction.UPDATE) {
             avatar?.let {
-                val fileName = user.userId.toString() + "." + it.name!!.parseExtension()
-                val file = java.io.File(ApplicationPaths.USER_AVATARS_BASE_PATH, fileName)
-                file.createNewFile()
-                file.writeBytes(it.content!!)
+                uploadImage(
+                    uploadedFile = it,
+                    targetFile = "${ApplicationPaths.USER_AVATARS_BASE_PATH}/${user.userId}.${it.name.parseExtension()}"
+                )
             }
         }
         return editedUserEntity.toDomain()

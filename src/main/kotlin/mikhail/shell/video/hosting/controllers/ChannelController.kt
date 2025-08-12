@@ -23,6 +23,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
+import java.nio.file.Paths
 
 @RestController
 @RequestMapping("/api/v1/channels")
@@ -54,37 +55,29 @@ class ChannelController @Autowired constructor(
 
     @GetMapping("/{channelId}/cover")
     fun provideChannelCover(@PathVariable channelId: Long): ResponseEntity<Resource> {
-        return try {
-            val coverFolder = java.io.File(CHANNEL_COVERS_BASE_PATH)
-            val image = findFileByName(coverFolder, channelId.toString())
-            if (image?.exists() != true || !channelService.checkExistsence(channelId)) {
-                ResponseEntity.status(HttpStatus.NOT_FOUND).build()
-            } else {
-                val coverResource = FileSystemResource(image)
-                ResponseEntity.status(HttpStatus.OK)
-                    .contentType(MediaType.parseMediaType("image/${image.name.parseExtension()}"))
-                    .body(coverResource)
-            }
-        } catch (e: Exception) {
-            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
+        val coverFolder = Paths.get(CHANNEL_COVERS_BASE_PATH).toFile()
+        val image = findFileByName(coverFolder, channelId.toString())
+        return if (image?.exists() != true || !channelService.checkExistence(channelId)) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND).build()
+        } else {
+            val coverResource = FileSystemResource(image)
+            ResponseEntity.status(HttpStatus.OK)
+                .contentType(MediaType.parseMediaType("image/${image.name.parseExtension()}"))
+                .body(coverResource)
         }
     }
 
     @GetMapping("/{channelId}/avatar")
     fun provideChannelAvatar(@PathVariable channelId: Long): ResponseEntity<Resource> {
-        return try {
-            val avatarFolder = java.io.File(CHANNEL_AVATARS_BASE_PATH)
-            val image = findFileByName(avatarFolder, channelId.toString())
-            if (image?.exists() != true || !channelService.checkExistsence(channelId)) {
-                ResponseEntity.status(HttpStatus.NOT_FOUND).build()
-            } else {
-                val avatarResource = FileSystemResource(image)
-                ResponseEntity.status(HttpStatus.OK)
-                    .contentType(MediaType.parseMediaType("image/${image.name.parseExtension()}"))
-                    .body(avatarResource)
-            }
-        } catch (e: Exception) {
-            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
+        val avatarFolder = Paths.get(CHANNEL_AVATARS_BASE_PATH).toFile()
+        val image = findFileByName(avatarFolder, channelId.toString())
+        return if (image?.exists() != true || !channelService.checkExistence(channelId)) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND).build()
+        } else {
+            val avatarResource = FileSystemResource(image)
+            ResponseEntity.status(HttpStatus.OK)
+                .contentType(MediaType.parseMediaType("image/${image.name.parseExtension()}"))
+                .body(avatarResource)
         }
     }
 
@@ -110,29 +103,25 @@ class ChannelController @Autowired constructor(
             if (!it.contentType!!.contains("image")) {
                 compoundError.add(COVER_TYPE_NOT_VALID)
             }
+            if (it.size > ValidationRules.MAX_IMAGE_SIZE) {
+                compoundError.add(COVER_TOO_LARGE)
+            }
         }
         avatarFile?.let {
             if (!it.contentType!!.contains("image")) {
                 compoundError.add(AVATAR_TYPE_NOT_VALID)
             }
+            if (it.size > ValidationRules.MAX_IMAGE_SIZE) {
+                compoundError.add(AVATAR_TOO_LARGE)
+            }
         }
+
         if (compoundError.isNotEmpty()) {
             throw ValidationException(compoundError)
         }
-        val cover = coverFile?.let {
-            File(
-                it.originalFilename,
-                it.contentType,
-                it.bytes
-            )
-        }
-        val avatar = avatarFile?.let {
-            File(
-                it.originalFilename,
-                it.contentType,
-                it.bytes
-            )
-        }
+
+        val cover = coverFile?.toUploadedFile()
+        val avatar = avatarFile?.toUploadedFile()
         val createdChannel = channelService.createChannel(
             channel = channel
                 .toDomain()
@@ -158,7 +147,7 @@ class ChannelController @Autowired constructor(
     ): ResponseEntity<ChannelDto> {
         val userId = SecurityContextHolder.getContext().authentication.principal as Long?
             ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        if (channel.channelId == null || !channelService.checkExistsence(channel.channelId)) {
+        if (channel.channelId == null || !channelService.checkExistence(channel.channelId)) {
             throw NoSuchElementException()
         }
         if (!channelService.checkOwner(userId, channel.channelId)) {
@@ -172,33 +161,27 @@ class ChannelController @Autowired constructor(
             if (!it.contentType!!.contains("image")) {
                 compoundError.add(EditChannelError.COVER_TYPE_NOT_VALID)
             }
+            if (it.size > ValidationRules.MAX_IMAGE_SIZE) {
+                compoundError.add(EditChannelError.COVER_TOO_LARGE)
+            }
         }
         avatarFile?.let {
             if (!it.contentType!!.contains("image")) {
                 compoundError.add(EditChannelError.AVATAR_TYPE_NOT_VALID)
+            }
+            if (it.size > ValidationRules.MAX_IMAGE_SIZE) {
+                compoundError.add(EditChannelError.AVATAR_TOO_LARGE)
             }
         }
         if (compoundError.isNotEmpty()) {
             throw ValidationException(compoundError)
         }
         val editedChannel = channelService.editChannel(
-            channel.toDomain(),
-            editCoverAction,
-            coverFile?.let {
-                File(
-                    name = it.originalFilename,
-                    mimeType = it.contentType,
-                    content = it.bytes
-                )
-            },
-            editAvatarAction,
-            avatarFile?.let {
-                File(
-                    name = it.originalFilename,
-                    mimeType = it.contentType,
-                    content = it.bytes
-                )
-            }
+            channel = channel.toDomain(),
+            editCoverAction = editCoverAction,
+            coverFile = coverFile?.toUploadedFile(),
+            editAvatarAction = editAvatarAction,
+            avatarFile = avatarFile?.toUploadedFile()
         )
         val editedChannelDto = editedChannel.toDto()
         return ResponseEntity.status(HttpStatus.OK).body(editedChannelDto)
@@ -252,7 +235,7 @@ class ChannelController @Autowired constructor(
     fun removeChannel(
         @PathVariable channelId: Long
     ): ResponseEntity<Unit> {
-        if (!channelService.checkExistsence(channelId)) {
+        if (!channelService.checkExistence(channelId)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build()
         }
         val userId = SecurityContextHolder.getContext().authentication.principal as Long?
@@ -266,8 +249,7 @@ class ChannelController @Autowired constructor(
     }
 
     private fun Channel.toDto(): ChannelDto = toDto(
-        avatarUrl = "https://${constructReferenceBaseApiUrl(HOST)}/channels/$channelId/avatar",
-        coverUrl = "https://${constructReferenceBaseApiUrl(HOST)}/channels/$channelId/cover"
+        avatarUrl = "https://${constructReferenceBaseApiUrl(HOST)}/channels/$channelId/avatar"
     )
 
     private fun ChannelWithUser.toDto() = toDto(

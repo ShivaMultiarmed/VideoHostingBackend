@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
+import java.nio.file.Paths
 import java.time.LocalDateTime
 
 @Service
@@ -231,22 +232,26 @@ class VideoServiceWithDB @Autowired constructor(
         )
     }
 
-    override fun saveVideoCover(videoId: Long, cover: mikhail.shell.video.hosting.domain.File): Boolean {
+    override fun saveVideoCover(videoId: Long, cover: UploadedFile): Boolean {
         if (!videoRepository.existsById(videoId)) {
             throw NoSuchElementException()
         }
         val compoundError = CompoundError<UploadVideoError>()
-        if (!cover.mimeType!!.contains("image")) {
+        if (!cover.mimeType.contains("image")) {
             compoundError.add(UploadVideoError.COVER_TYPE_NOT_VALID)
-        } else if ((cover.content?.size ?: 0) > ValidationRules.MAX_IMAGE_SIZE) {
+        }
+        val imageBytes = cover.inputStream.use { it.readBytes() }
+        if (imageBytes.size > ValidationRules.MAX_IMAGE_SIZE) {
             compoundError.add(UploadVideoError.COVER_TOO_LARGE)
         }
         if (compoundError.isNotEmpty()) {
             throw ValidationException(compoundError)
         }
-        return saveFile(
-            input = cover.content!!.inputStream(),
-            path = "$VIDEOS_COVERS_BASE_PATH/$videoId.${cover.name!!.parseExtension()}"
+        return uploadImage(
+            uploadedFile = cover,
+            targetFile = "$VIDEOS_COVERS_BASE_PATH/$videoId.${cover.name.parseExtension()}",
+            width = 500,
+            height = 280
         )
     }
 
@@ -287,13 +292,13 @@ class VideoServiceWithDB @Autowired constructor(
         }
         return videoWithChannelsRepository
             .findRecommendedVideos(
-                userId,
-                recommendationWeights.dateTime,
-                recommendationWeights.subscribers,
-                recommendationWeights.views,
-                recommendationWeights.likes,
-                recommendationWeights.dislikes,
-                PageRequest.of(partIndex.toInt(), partSize)
+                userId = userId,
+                dateTimeWeight = recommendationWeights.dateTime,
+                subscribersWeight = recommendationWeights.subscribers,
+                viewsWeight = recommendationWeights.views,
+                likesWeight = recommendationWeights.likes,
+                dislikesWeight = recommendationWeights.dislikes,
+                pageable = PageRequest.of(partIndex.toInt(), partSize)
             ).map { it.toDomain() }
             .toList()
     }
@@ -336,21 +341,11 @@ class VideoServiceWithDB @Autowired constructor(
     override fun editVideo(
         video: Video,
         coverAction: EditAction,
-        cover: mikhail.shell.video.hosting.domain.File?
+        cover: UploadedFile?
     ): Video {
         val compoundError = CompoundError<EditVideoError>()
         if (video.title.length > ValidationRules.MAX_TITLE_LENGTH) {
             compoundError.add(EditVideoError.TITLE_TOO_LARGE)
-        }
-        cover?.let {
-            if (it.content!!.isEmpty()) {
-                compoundError.add(EditVideoError.COVER_EMPTY)
-            } else if (it.content.size > ValidationRules.MAX_IMAGE_SIZE) {
-                compoundError.add(EditVideoError.COVER_TOO_LARGE)
-            }
-            if (!it.mimeType!!.contains("image")) {
-                compoundError.add(EditVideoError.COVER_TYPE_NOT_VALID)
-            }
         }
         if (compoundError.isNotEmpty()) {
             throw ValidationException(compoundError)
@@ -363,14 +358,17 @@ class VideoServiceWithDB @Autowired constructor(
             )
         val updatedVideoEntity = videoRepository.save(videoEntityToEdit)
         videoSearchRepository.save(updatedVideoEntity)
-        val coverDir = File(VIDEOS_COVERS_BASE_PATH)
         if (coverAction != EditAction.KEEP) {
-            val coverFile = coverDir.listFiles()?.firstOrNull { it.nameWithoutExtension == video.videoId.toString() }
-            coverFile?.delete()
+            findFileByName(Paths.get(VIDEOS_COVERS_BASE_PATH).toFile(), video.videoId.toString())?.delete()
         }
         if (cover != null) {
-            val coverExtension = cover.name?.parseExtension()
-            File("$VIDEOS_COVERS_BASE_PATH/${updatedVideoEntity.videoId}.$coverExtension").writeBytes(cover.content!!)
+            val coverExtension = cover.name.parseExtension()
+            uploadImage(
+                uploadedFile = cover,
+                targetFile = "$VIDEOS_COVERS_BASE_PATH/${updatedVideoEntity.videoId}.$coverExtension",
+                width = 500,
+                height = 280
+            )
         }
         return updatedVideoEntity.toDomain()
     }

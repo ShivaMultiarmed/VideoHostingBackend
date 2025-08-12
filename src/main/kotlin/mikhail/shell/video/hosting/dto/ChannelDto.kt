@@ -16,26 +16,26 @@ data class ChannelDto(
 )
 
 fun ChannelDto.toDomain() = Channel(
-    channelId,
-    ownerId,
-    title,
-    alias,
-    description,
-    subscribers
+    channelId = channelId,
+    ownerId = ownerId,
+    title = title,
+    alias = alias,
+    description = description,
+    subscribers = subscribers
 )
 
 fun Channel.toDto(
     coverUrl: String? = null,
     avatarUrl: String? = null
 ) = ChannelDto(
-    channelId,
-    ownerId,
-    title,
-    alias,
-    description,
-    subscribers,
-    coverUrl,
-    avatarUrl
+    channelId = channelId,
+    ownerId = ownerId,
+    title = title,
+    alias = alias,
+    description = description,
+    subscribers = subscribers,
+    coverUrl = coverUrl,
+    avatarUrl = avatarUrl
 )
 
 data class ChannelWithUserDto(
@@ -54,13 +54,13 @@ fun ChannelWithUser.toDto(
     coverUrl: String? = null,
     avatarUrl: String? = null
 ) = ChannelWithUserDto(
-    channelId,
-    ownerId,
-    title,
-    alias,
-    description,
-    subscribers,
-    subscription,
-    coverUrl,
-    avatarUrl
+    channelId = channelId,
+    ownerId = ownerId,
+    title = title,
+    alias = alias,
+    description = description,
+    subscribers = subscribers,
+    subscription = subscription,
+    coverUrl = coverUrl,
+    avatarUrl = avatarUrl
 )

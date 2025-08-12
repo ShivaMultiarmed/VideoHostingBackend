@@ -60,6 +60,8 @@ dependencies {
 	implementation ("org.glassfish.jaxb:jaxb-runtime:2.3.1")
 
 	implementation ("com.google.firebase:firebase-admin:9.4.3")
+
+	implementation("net.coobird:thumbnailator:0.4.8")
 }
 
 kotlin {

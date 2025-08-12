@@ -271,7 +271,7 @@ class VideoController @Autowired constructor(
     fun uploadVideoCover(
         @PathVariable videoId: Long,
         @RequestParam extension: String,
-        input: InputStream
+        inputStream: InputStream
     ): ResponseEntity<Unit> {
         val userId = SecurityContextHolder.getContext().authentication.principal as Long?
             ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
@@ -283,11 +283,11 @@ class VideoController @Autowired constructor(
         }
         val fileName = "cover.$extension"
         val result = videoService.saveVideoCover(
-            videoId,
-            File(
+            videoId = videoId,
+            cover = UploadedFile(
                 name = fileName,
                 mimeType = getMimeType(fileName),
-                content = input.use { it.readAllBytes() }
+                inputStream = inputStream
             )
         )
         return if (result) {
@@ -325,16 +325,17 @@ class VideoController @Autowired constructor(
         if (!videoService.checkOwner(userId, video.videoId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
-        val coverFile = cover?.let {
-            File(
-                name = cover.originalFilename,
-                mimeType = cover.contentType,
-                content = cover.bytes
-            )
-        }
+        val coverFile = cover?.toUploadedFile()
         val compoundError = CompoundError<EditVideoError>()
         if (video.title.isEmpty()) {
             compoundError.add(EditVideoError.TITLE_EMPTY)
+        }
+        if (cover?.isEmpty == true) {
+            compoundError.add(EditVideoError.COVER_EMPTY)
+        } else if ((cover?.size ?: 0) > ValidationRules.MAX_IMAGE_SIZE) {
+            compoundError.add(EditVideoError.COVER_TOO_LARGE)
+        } else if (cover?.contentType?.contains("image") == false) {
+            compoundError.add(EditVideoError.COVER_TYPE_NOT_VALID)
         }
         if (compoundError.isNotEmpty()) {
             throw ValidationException(compoundError)

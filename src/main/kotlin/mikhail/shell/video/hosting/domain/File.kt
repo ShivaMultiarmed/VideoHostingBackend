@@ -1,5 +1,7 @@
 package mikhail.shell.video.hosting.domain
 
+import java.io.InputStream
+
 data class File(
     val name: String? = null,
     val mimeType: String? = null,
@@ -17,9 +19,11 @@ data class File(
         return true
     }
 
-    override fun hashCode(): Int {
-        var result = name.hashCode()
-        result = 31 * result + content.contentHashCode()
-        return result
-    }
+    override fun hashCode() = 31 * name.hashCode() + content.contentHashCode()
 }
+
+data class UploadedFile(
+    val name: String,
+    val mimeType: String,
+    val inputStream: InputStream
+)
