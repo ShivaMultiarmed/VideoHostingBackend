@@ -55,7 +55,9 @@ class UserServiceWithDB @Autowired constructor(
             avatar?.let {
                 uploadImage(
                     uploadedFile = it,
-                    targetFile = "${ApplicationPaths.USER_AVATARS_BASE_PATH}/${user.userId}.${it.name.parseExtension()}"
+                    targetFile = "${ApplicationPaths.USER_AVATARS_BASE_PATH}/${user.userId}.jpg",
+                    width = 480,
+                    height = 480
                 )
             }
         }

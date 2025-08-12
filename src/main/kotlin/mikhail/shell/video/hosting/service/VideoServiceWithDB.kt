@@ -249,7 +249,7 @@ class VideoServiceWithDB @Autowired constructor(
         }
         return uploadImage(
             uploadedFile = cover,
-            targetFile = "$VIDEOS_COVERS_BASE_PATH/$videoId.${cover.name.parseExtension()}",
+            targetFile = "$VIDEOS_COVERS_BASE_PATH/$videoId.jpg",
             width = 500,
             height = 280
         )
@@ -362,10 +362,9 @@ class VideoServiceWithDB @Autowired constructor(
             findFileByName(Paths.get(VIDEOS_COVERS_BASE_PATH).toFile(), video.videoId.toString())?.delete()
         }
         if (cover != null) {
-            val coverExtension = cover.name.parseExtension()
             uploadImage(
                 uploadedFile = cover,
-                targetFile = "$VIDEOS_COVERS_BASE_PATH/${updatedVideoEntity.videoId}.$coverExtension",
+                targetFile = "$VIDEOS_COVERS_BASE_PATH/${updatedVideoEntity.videoId}.jpg",
                 width = 500,
                 height = 280
             )

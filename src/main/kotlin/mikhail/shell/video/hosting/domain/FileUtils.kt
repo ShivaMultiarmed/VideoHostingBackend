@@ -5,7 +5,6 @@ import net.coobird.thumbnailator.geometry.Positions
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.IOException
 import javax.imageio.ImageIO
 import kotlin.math.min
 
@@ -26,8 +25,8 @@ fun String.parseFileName(): String {
 fun uploadImage(
     uploadedFile: UploadedFile,
     targetFile: String,
-    width: Int = 0,
-    height: Int = 0
+    width: Int = 500,
+    height: Int = 280
 ) = uploadImage(
     uploadedFile = uploadedFile,
     targetFile = File(targetFile),
@@ -45,10 +44,8 @@ fun uploadImage(
         uploadedFile.inputStream.use {
             val inputImage = ImageIO.read(it)
             val outputImage = inputImage.crop(width, height)
-            val outputStream = ByteArrayOutputStream()
-            ImageIO.write(outputImage, targetFile.extension, outputStream)
             targetFile.outputStream().use {
-                it.write(outputStream.toByteArray())
+                ImageIO.write(outputImage, targetFile.extension, it)
             }
         }
         true
@@ -75,6 +72,7 @@ fun BufferedImage.crop(
     return Thumbnails.of(this)
         .sourceRegion(Positions.CENTER, cropWidth, cropHeight)
         .size(min(cropWidth, width), min(cropHeight, height))
+        .outputQuality(0.8f)
         .asBufferedImage()
 }
 

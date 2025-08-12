@@ -101,11 +101,10 @@ class ChannelServiceWithDB @Autowired constructor(
                 subscribers = 0
             )
         val createdChannel = channelRepository.save(channelEntityToCreate).toDomain()
-        val coverExtension = cover?.name?.parseExtension()
         cover?.let {
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$CHANNEL_COVERS_BASE_PATH/${createdChannel.channelId}.$coverExtension",
+                targetFile = "$CHANNEL_COVERS_BASE_PATH/${createdChannel.channelId}.jpg",
                 width = 512,
                 height = 128
             )
@@ -114,7 +113,7 @@ class ChannelServiceWithDB @Autowired constructor(
         avatar?.let {
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$CHANNEL_AVATARS_BASE_PATH/${createdChannel.channelId}.$avatarExtension",
+                targetFile = "$CHANNEL_AVATARS_BASE_PATH/${createdChannel.channelId}.jpg",
                 width = 128,
                 height = 128
             )
@@ -212,10 +211,9 @@ class ChannelServiceWithDB @Autowired constructor(
             EditAction.UPDATE -> {
                 coverFile?.let { uploadedFile ->
                     File(CHANNEL_COVERS_BASE_PATH, channel.channelId.toString()).delete()
-                    val coverExtension = uploadedFile.name.parseExtension()
                     uploadImage(
                         uploadedFile = uploadedFile,
-                        targetFile = "$CHANNEL_COVERS_BASE_PATH/${editedChannel.channelId}.$coverExtension",
+                        targetFile = "$CHANNEL_COVERS_BASE_PATH/${editedChannel.channelId}.jpg",
                         width = 512,
                         height = 128
                     )
@@ -231,10 +229,9 @@ class ChannelServiceWithDB @Autowired constructor(
             EditAction.UPDATE -> {
                 avatarFile?.let { uploadedFile ->
                     File(CHANNEL_AVATARS_BASE_PATH, channel.channelId.toString()).delete()
-                    val avatarExtension = uploadedFile.name.parseExtension()
                     uploadImage(
                         uploadedFile = uploadedFile,
-                        targetFile = "$CHANNEL_AVATARS_BASE_PATH/${editedChannel.channelId}.$avatarExtension",
+                        targetFile = "$CHANNEL_AVATARS_BASE_PATH/${editedChannel.channelId}.jpg",
                         width = 128,
                         height = 128
                     )
