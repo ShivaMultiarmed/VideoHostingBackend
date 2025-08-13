@@ -7,8 +7,8 @@ import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_COVERS_BASE_P
 import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_AVATARS_BASE_PATH
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_COVERS_BASE_PATH
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH
-import mikhail.shell.video.hosting.domain.SubscriptionState.NOT_SUBSCRIBED
-import mikhail.shell.video.hosting.domain.SubscriptionState.SUBSCRIBED
+import mikhail.shell.video.hosting.domain.Subscription.NOT_SUBSCRIBED
+import mikhail.shell.video.hosting.domain.Subscription.SUBSCRIBED
 import mikhail.shell.video.hosting.elastic.repository.VideoSearchRepository
 import mikhail.shell.video.hosting.errors.ChannelCreationError
 import mikhail.shell.video.hosting.errors.ChannelCreationError.*
@@ -26,9 +26,7 @@ import mikhail.shell.video.hosting.repository.entities.toEntity
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
 import java.io.File
-import java.nio.file.Paths
 import kotlin.io.path.ExperimentalPathApi
-import kotlin.io.path.deleteRecursively
 
 @Service
 class ChannelServiceWithDB @Autowired constructor(
