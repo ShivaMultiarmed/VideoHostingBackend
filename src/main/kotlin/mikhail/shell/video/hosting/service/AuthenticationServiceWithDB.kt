@@ -61,8 +61,7 @@ class AuthenticationServiceWithDB(
         } else if (authRepository.existsByUserNameAndId_Method(userName, AuthenticationMethod.PASSWORD)) {
             compoundError.add(USERNAME_EXISTS)
         }
-        val passwordLengthRange = ValidationRules.MIN_PASSWORD_LENGTH..ValidationRules.MAX_PASSWORD_LENGTH
-        if (password.length !in passwordLengthRange) {
+        if (password.matches(ValidationRules.PASSWORD_REGEX)) {
             compoundError.add(PASSWORD_NOT_VALID)
         }
         if ((user?.nick?.length ?: 0) > ValidationRules.MAX_NAME_LENGTH) {
@@ -130,8 +129,7 @@ class AuthenticationServiceWithDB(
         if (!jwtTokenUtil.validateToken(resetToken)) {
             throw IllegalAccessException()
         }
-        val passwordLengthRange = ValidationRules.MIN_PASSWORD_LENGTH..ValidationRules.MAX_PASSWORD_LENGTH
-        if (password.length !in passwordLengthRange) {
+        if (password.matches(ValidationRules.PASSWORD_REGEX)) {
             throw IllegalArgumentException()
         }
         val userId = jwtTokenUtil.extractUserId(resetToken) ?: throw IllegalAccessException()
