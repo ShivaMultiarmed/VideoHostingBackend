@@ -15,5 +15,19 @@ data class ChannelEntity(
     val subscribers: Long = 0
 )
 
-fun ChannelEntity.toDomain() = Channel(channelId, ownerId, title, alias, description, subscribers)
-fun Channel.toEntity() = ChannelEntity(channelId, ownerId, title, alias, description, subscribers)
+fun ChannelEntity.toDomain() = Channel(
+    channelId = channelId,
+    ownerId = ownerId,
+    title = title,
+    alias = alias,
+    description = description,
+    subscribers = subscribers
+)
+fun Channel.toEntity() = ChannelEntity(
+    channelId = channelId,
+    ownerId = ownerId,
+    title = title,
+    alias = alias,
+    description = description,
+    subscribers = subscribers
+)

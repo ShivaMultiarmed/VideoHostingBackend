@@ -9,9 +9,7 @@ import javax.imageio.ImageIO
 import kotlin.math.min
 
 fun findFileByName(directory: File, fileName: String): File? {
-    return directory.listFiles { dir, name ->
-        name.parseFileName() == fileName
-    }?.firstOrNull()
+    return directory.listFiles { _, name -> name.parseFileName() == fileName }?.firstOrNull()
 }
 fun String.parseExtension(): String {
     return substringAfterLast(".", "")

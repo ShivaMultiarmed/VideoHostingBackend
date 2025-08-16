@@ -1,4 +1,4 @@
-package mikhail.shell.video.hosting.elastic.repository.coverters
+package mikhail.shell.video.hosting.elastic.repository.converters
 
 
 import org.springframework.core.convert.converter.Converter

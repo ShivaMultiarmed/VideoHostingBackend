@@ -17,7 +17,8 @@ interface ChannelService {
         subscriberId: Long,
         channelId: Long,
         token: String
-    )
+    ): ChannelWithUser
+
     fun subscribeToNotifications(userId: Long, token: String)
     fun unsubscribeFromNotifications(userId: Long, token: String)
     fun editChannel(

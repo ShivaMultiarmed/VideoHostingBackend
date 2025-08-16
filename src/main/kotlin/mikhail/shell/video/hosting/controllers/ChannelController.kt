@@ -204,11 +204,11 @@ class ChannelController @Autowired constructor(
     }
 
     @PatchMapping("/{channelId}/subscribe")
-    fun subscribeToChannel(@PathVariable channelId: Long, @RequestParam fcmToken: String): ResponseEntity<Unit> {
+    fun subscribeToChannel(@PathVariable channelId: Long, @RequestParam fcmToken: String): ResponseEntity<ChannelWithUserDto> {
         val userId = SecurityContextHolder.getContext().authentication.principal as Long?
             ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        channelService.changeSubscriptionState(userId, channelId, fcmToken)
-        return ResponseEntity.status(HttpStatus.OK).build()
+        val updatedChannel = channelService.changeSubscriptionState(userId, channelId, fcmToken)
+        return ResponseEntity.status(HttpStatus.OK).body(updatedChannel.toDto())
     }
 
     @PatchMapping("/notifications/subscribe")

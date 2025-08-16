@@ -51,15 +51,7 @@ class ChannelServiceWithDB @Autowired constructor(
         }
         val subscription =
             if (subscriberRepository.existsById(SubscriberId(channelId, userId))) SUBSCRIBED else NOT_SUBSCRIBED
-        return ChannelWithUser(
-            channelId = channel.channelId,
-            ownerId = channel.ownerId,
-            title = channel.title,
-            alias = channel.alias,
-            description = channel.description,
-            subscribers = channel.subscribers,
-            subscription = subscription
-        )
+        return channel.toDomain() with subscription
     }
 
     override fun getChannel(channelId: Long): Channel {
@@ -107,7 +99,6 @@ class ChannelServiceWithDB @Autowired constructor(
                 height = 128
             )
         }
-        val avatarExtension = cover?.name?.parseExtension()
         avatar?.let {
             uploadImage(
                 uploadedFile = it,
@@ -139,21 +130,17 @@ class ChannelServiceWithDB @Autowired constructor(
         subscriberId: Long,
         channelId: Long,
         token: String
-    ) {
+    ): ChannelWithUser {
         val channelEntity = channelRepository.findById(channelId).orElseThrow()
         if (checkIfSubscribed(channelId, subscriberId)) {
             channelRepository.save(
-                channelEntity.copy(
-                    subscribers = channelEntity.subscribers - 1
-                )
+                channelEntity.copy(subscribers = channelEntity.subscribers - 1)
             )
             subscriberRepository.deleteById(SubscriberId(channelId, subscriberId))
         } else if (!checkIfSubscribed(channelId, subscriberId)) {
             subscriberRepository.save(Subscriber(SubscriberId(channelId, subscriberId)))
             channelRepository.save(
-                channelEntity.copy(
-                    subscribers = channelEntity.subscribers + 1
-                )
+                channelEntity.copy(subscribers = channelEntity.subscribers + 1)
             )
         }
         val newSubscriptionState = if (checkIfSubscribed(channelId, subscriberId)) SUBSCRIBED else NOT_SUBSCRIBED
@@ -162,9 +149,10 @@ class ChannelServiceWithDB @Autowired constructor(
         } else {
             fcm.unsubscribeFromTopic(listOf(token), "${CHANNELS_TOPICS_PREFIX}.$channelId")
         }
+        val savedChannel = channelRepository.findById(channelId).get().toDomain()
+        return savedChannel with newSubscriptionState
     }
 
-    @OptIn(ExperimentalPathApi::class)
     override fun editChannel(
         channel: Channel,
         editCoverAction: EditAction,

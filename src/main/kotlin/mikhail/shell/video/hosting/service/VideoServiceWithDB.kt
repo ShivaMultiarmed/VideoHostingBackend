@@ -27,6 +27,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.nio.file.Paths
+import java.time.Instant
 import java.time.LocalDateTime
 
 @Service
@@ -50,23 +51,15 @@ class VideoServiceWithDB @Autowired constructor(
     }
 
     override fun getVideoForUser(videoId: Long, userId: Long): VideoWithUser {
-        val v = videoRepository.findById(videoId).orElseThrow()
+        if (!videoRepository.existsById(videoId)) {
+            throw NoSuchElementException()
+        }
         val likingId = VideoLikingId(userId, videoId)
 
-        val liking = if (!userLikeVideoRepository.existsById(likingId))
-            Liking.NONE
-        else userLikeVideoRepository.findById(likingId).orElseThrow().liking
+        val liking = if (!userLikeVideoRepository.existsById(likingId)) Liking.NONE
+        else userLikeVideoRepository.findById(likingId).get().liking
 
-        return VideoWithUser(
-            videoId = v.videoId,
-            channelId = v.channelId,
-            title = v.title,
-            dateTime = v.dateTime,
-            views = v.views,
-            likes = v.likes,
-            dislikes = v.dislikes,
-            liking = liking
-        )
+        return videoRepository.findById(videoId).get().toDomain() with liking
     }
 
     override fun checkExistence(videoId: Long): Boolean {
@@ -79,7 +72,7 @@ class VideoServiceWithDB @Autowired constructor(
     }
 
     @Transactional
-    override fun rate(videoId: Long, userId: Long, liking: Liking) {
+    override fun rate(videoId: Long, userId: Long, liking: Liking): VideoWithUser {
         val id = VideoLikingId(userId, videoId)
         val previousLiking = checkVideoLikeState(videoId, userId)
         val videoEntity = videoRepository.findById(videoId).orElseThrow()
@@ -108,18 +101,13 @@ class VideoServiceWithDB @Autowired constructor(
                 newDislikes -= 1
             }
         }
-        videoRepository.save(
-            videoEntity.copy(
-                likes = newLikes,
-                dislikes = newDislikes,
-            )
+        val videoEntityToSave = videoEntity.copy(
+            likes = newLikes,
+            dislikes = newDislikes,
         )
-        videoSearchRepository.save(
-            videoEntity.copy(
-                likes = newLikes,
-                dislikes = newDislikes,
-            )
-        )
+        videoRepository.save(videoEntityToSave)
+        videoSearchRepository.save(videoEntityToSave)
+        return getVideoForUser(videoId, userId)
     }
 
     override fun getVideosByChannelId(
@@ -203,7 +191,7 @@ class VideoServiceWithDB @Autowired constructor(
                 views = 0,
                 likes = 0,
                 dislikes = 0,
-                dateTime = LocalDateTime.now(),
+                dateTime = Instant.now(),
                 state = VideoState.CREATED
             )
         val addedVideoEntity = videoRepository.save(videoEntityToAdd)
@@ -264,7 +252,7 @@ class VideoServiceWithDB @Autowired constructor(
             .get()
             .copy(
                 state = VideoState.UPLOADED,
-                dateTime = LocalDateTime.now()
+                dateTime = Instant.now()
             )
         videoRepository.save(videoEntityToConfirm)
         videoSearchRepository.save(videoEntityToConfirm)
@@ -321,10 +309,11 @@ class VideoServiceWithDB @Autowired constructor(
         }
     }
 
-    override fun incrementViews(videoId: Long) {
+    override fun incrementViews(videoId: Long): Long {
         val video = videoRepository.findById(videoId).orElseThrow()
         videoSearchRepository.save(video.copy(views = video.views + 1))
         videoRepository.save(video.copy(views = video.views + 1))
+        return video.views + 1
     }
 
     override fun deleteVideo(videoId: Long): Boolean {

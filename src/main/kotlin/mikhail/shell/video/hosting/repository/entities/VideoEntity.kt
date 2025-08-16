@@ -3,12 +3,7 @@ package mikhail.shell.video.hosting.repository.entities
 import jakarta.persistence.*
 import mikhail.shell.video.hosting.domain.Video
 import mikhail.shell.video.hosting.domain.VideoWithChannel
-import org.springframework.data.elasticsearch.annotations.DateFormat
-import org.springframework.data.elasticsearch.annotations.Document
-import org.springframework.data.elasticsearch.annotations.Field
-import org.springframework.data.elasticsearch.annotations.FieldType
-import java.time.LocalDateTime
-import java.time.ZoneOffset
+import java.time.Instant
 
 enum class VideoState {
     CREATED, UPLOADED
@@ -16,16 +11,12 @@ enum class VideoState {
 
 @Entity
 @Table(name = "videos")
-@Document(indexName = "videos")
 data class VideoEntity(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @org.springframework.data.annotation.Id
-    @Column(name = "video_id") val videoId: Long? = null,
-    @Column(name = "channel_id") val channelId: Long,
-    @Field(type = FieldType.Text, analyzer = "custom_multilingual_analyzer", searchAnalyzer = "custom_multilingual_analyzer")
+    val videoId: Long? = null,
+    val channelId: Long,
     val title: String,
-    @Field(type = FieldType.Date, format = [DateFormat.date_hour_minute_second_millis])
-    val dateTime: LocalDateTime? = null,
+    val dateTime: Instant? = null,
     val views: Long = 0,
     val likes: Long = 0,
     val dislikes: Long = 0,
@@ -34,8 +25,25 @@ data class VideoEntity(
 )
 
 
-fun VideoEntity.toDomain() = Video(videoId, channelId, title, dateTime, views, likes, dislikes)
-fun Video.toEntity(state: VideoState = VideoState.CREATED) = VideoEntity(videoId, channelId, title, dateTime, views, likes, dislikes, state)
+fun VideoEntity.toDomain() = Video(
+    videoId = videoId,
+    channelId = channelId,
+    title = title,
+    dateTime = dateTime!!,
+    views = views,
+    likes = likes,
+    dislikes = dislikes
+)
+fun Video.toEntity(state: VideoState = VideoState.CREATED) = VideoEntity(
+    videoId = videoId,
+    channelId = channelId,
+    title = title,
+    dateTime = dateTime!!,
+    views = views,
+    likes = likes,
+    dislikes = dislikes,
+    state = state
+)
 
 @Entity
 @Table(name = "videos")
@@ -44,7 +52,7 @@ data class VideoWithChannelEntity(
     @Column(name = "video_id") val videoId: Long? = null,
     @Column(name = "channel_id") val channelId: Long,
     val title: String,
-    val dateTime: LocalDateTime?,
+    val dateTime: Instant?,
     val views: Long,
     val likes: Long,
     val dislikes: Long,
@@ -61,9 +69,27 @@ data class VideoWithChannelEntity(
 )
 
 fun VideoWithChannelEntity.toDomain() = VideoWithChannel(
-    video = Video(videoId, channelId, title, dateTime, views, likes, dislikes),
+    video = Video(
+        videoId = videoId,
+        channelId = channelId,
+        title = title,
+        dateTime = dateTime!!,
+        views = views,
+        likes = likes,
+        dislikes = dislikes
+    ),
     channel = channel.toDomain()
 )
 fun VideoWithChannel.toEntity(
     state: VideoState
-) = VideoWithChannelEntity(video.videoId, video.channelId, video.title, video.dateTime, video.views, video.likes, video.dislikes, state, channel.toEntity())
+) = VideoWithChannelEntity(
+    videoId = video.videoId,
+    channelId = video.channelId,
+    title = video.title,
+    dateTime = video.dateTime!!,
+    views = video.views,
+    likes = video.likes,
+    dislikes = video.dislikes,
+    state = state,
+    channel = channel.toEntity()
+)

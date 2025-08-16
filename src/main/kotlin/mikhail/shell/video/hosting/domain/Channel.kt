@@ -18,3 +18,13 @@ data class ChannelWithUser(
     val subscribers: Long = 0,
     val subscription: Subscription = Subscription.NOT_SUBSCRIBED
 )
+
+infix fun Channel.with(subscription: Subscription) = ChannelWithUser(
+    channelId = channelId,
+    ownerId = ownerId,
+    title = title,
+    alias = alias,
+    description = description,
+    subscribers = subscribers,
+    subscription = subscription
+)

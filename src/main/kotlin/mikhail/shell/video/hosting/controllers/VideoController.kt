@@ -77,14 +77,14 @@ class VideoController @Autowired constructor(
     fun rateVideo(
         @PathVariable videoId: Long,
         @RequestParam liking: Liking
-    ): ResponseEntity<Unit> {
+    ): ResponseEntity<VideoWithUserDto> {
         val userId = SecurityContextHolder.getContext().authentication.principal as Long?
             ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         if (!userService.checkExistence(userId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
-        videoService.rate(videoId, userId, liking)
-        return ResponseEntity.status(HttpStatus.OK).build()
+        val videoWithUserDto = videoService.rate(videoId, userId, liking)
+        return ResponseEntity.status(HttpStatus.OK).body(videoWithUserDto.toDto())
     }
 
     @GetMapping(
@@ -400,6 +400,11 @@ class VideoController @Autowired constructor(
     }
 
     private fun Video.toDto() = toDto(
+        sourceUrl = "https://${constructReferenceBaseApiUrl(HOST)}/videos/${videoId}/play",
+        coverUrl = "https://${constructReferenceBaseApiUrl(HOST)}/videos/${videoId}/cover"
+    )
+
+    private fun VideoWithUser.toDto() = toDto(
         sourceUrl = "https://${constructReferenceBaseApiUrl(HOST)}/videos/${videoId}/play",
         coverUrl = "https://${constructReferenceBaseApiUrl(HOST)}/videos/${videoId}/cover"
     )

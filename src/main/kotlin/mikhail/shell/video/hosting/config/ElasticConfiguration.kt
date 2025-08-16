@@ -1,7 +1,7 @@
 package mikhail.shell.video.hosting.config
 
-import mikhail.shell.video.hosting.elastic.repository.coverters.LocalDateTimeToSecondsConverter
-import mikhail.shell.video.hosting.elastic.repository.coverters.SecondsToLocalDateTimeConverter
+import mikhail.shell.video.hosting.elastic.repository.converters.LocalDateTimeToSecondsConverter
+import mikhail.shell.video.hosting.elastic.repository.converters.SecondsToLocalDateTimeConverter
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.data.elasticsearch.core.convert.ElasticsearchCustomConversions
