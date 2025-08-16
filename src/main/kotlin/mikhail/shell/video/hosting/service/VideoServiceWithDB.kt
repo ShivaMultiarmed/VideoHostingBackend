@@ -12,6 +12,7 @@ import jakarta.transaction.Transactional
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_COVERS_BASE_PATH
+import mikhail.shell.video.hosting.elastic.documents.toDocument
 import mikhail.shell.video.hosting.elastic.repository.VideoSearchRepository
 import mikhail.shell.video.hosting.errors.*
 import mikhail.shell.video.hosting.repository.*
@@ -28,15 +29,12 @@ import java.io.FileOutputStream
 import java.io.InputStream
 import java.nio.file.Paths
 import java.time.Instant
-import java.time.LocalDateTime
 
 @Service
 class VideoServiceWithDB @Autowired constructor(
     private val recommendationWeights: RecommendationWeights,
-    @Qualifier("videoRepository_mysql")
     private val videoRepository: VideoRepository,
     private val videoWithChannelsRepository: VideoWithChannelsRepository,
-    @Qualifier("videoRepository_elastic")
     private val videoSearchRepository: VideoSearchRepository,
     private val elasticSearchOperations: ElasticsearchOperations,
     private val userRepository: UserRepository,
@@ -44,7 +42,6 @@ class VideoServiceWithDB @Autowired constructor(
     private val channelRepository: ChannelRepository,
     private val fcm: FirebaseMessaging
 ) : VideoService {
-    private val CHANNELS_TOPICS_PREFIX = "channels"
 
     override fun getVideoInfo(videoId: Long): Video {
         return videoRepository.findById(videoId).orElseThrow().toDomain()
@@ -106,7 +103,7 @@ class VideoServiceWithDB @Autowired constructor(
             dislikes = newDislikes,
         )
         videoRepository.save(videoEntityToSave)
-        videoSearchRepository.save(videoEntityToSave)
+        videoSearchRepository.save(videoEntityToSave.toDocument())
         return getVideoForUser(videoId, userId)
     }
 
@@ -195,7 +192,7 @@ class VideoServiceWithDB @Autowired constructor(
                 state = VideoState.CREATED
             )
         val addedVideoEntity = videoRepository.save(videoEntityToAdd)
-        videoSearchRepository.save(addedVideoEntity)
+        videoSearchRepository.save(addedVideoEntity.toDocument())
         return addedVideoEntity.toDomain()
     }
 
@@ -255,10 +252,10 @@ class VideoServiceWithDB @Autowired constructor(
                 dateTime = Instant.now()
             )
         videoRepository.save(videoEntityToConfirm)
-        videoSearchRepository.save(videoEntityToConfirm)
+        videoSearchRepository.save(videoEntityToConfirm.toDocument())
         val videoWithChannel = videoWithChannelsRepository.findById(videoId).get()
         val message = Message.builder()
-            .setTopic("$CHANNELS_TOPICS_PREFIX.${videoWithChannel.channelId}")
+            .setTopic("${Companion.CHANNELS_TOPICS_PREFIX}.${videoWithChannel.channelId}")
             .putAllData(
                 mapOf(
                     "channelTitle" to videoWithChannel.channel.title,
@@ -309,11 +306,11 @@ class VideoServiceWithDB @Autowired constructor(
         }
     }
 
-    override fun incrementViews(videoId: Long): Long {
+    override fun incrementViews(videoId: Long): Video {
         val video = videoRepository.findById(videoId).orElseThrow()
-        videoSearchRepository.save(video.copy(views = video.views + 1))
         videoRepository.save(video.copy(views = video.views + 1))
-        return video.views + 1
+        videoSearchRepository.save(video.toDocument().copy(views = video.views + 1))
+        return videoRepository.findById(videoId).get().toDomain()
     }
 
     override fun deleteVideo(videoId: Long): Boolean {
@@ -346,7 +343,7 @@ class VideoServiceWithDB @Autowired constructor(
                 title = video.title
             )
         val updatedVideoEntity = videoRepository.save(videoEntityToEdit)
-        videoSearchRepository.save(updatedVideoEntity)
+        videoSearchRepository.save(updatedVideoEntity.toDocument())
         if (coverAction != EditAction.KEEP) {
             findFileByName(Paths.get(VIDEOS_COVERS_BASE_PATH).toFile(), video.videoId.toString())?.delete()
         }
@@ -363,5 +360,6 @@ class VideoServiceWithDB @Autowired constructor(
 
     private companion object {
         const val IO_BUFFER_SIZE = 100 * 1024
+        const val CHANNELS_TOPICS_PREFIX = "channels"
     }
 }

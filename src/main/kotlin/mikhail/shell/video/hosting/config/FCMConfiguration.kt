@@ -14,11 +14,9 @@ import java.io.FileInputStream
 
 @Configuration
 class FCMConfiguration {
-    @Value("\${hosting.application.path}")
-    private lateinit var HOSTING_APPLICATION_PATH: String
     @Value("\${FCM_CONFIG}")
     private lateinit var FCM_CONFIG: String
-    private val FIREBASE_APP = "hosting"
+
     @Bean
     fun firebaseApplication(): FirebaseApp {
         val inputStream = ClassPathResource(FCM_CONFIG).inputStream
@@ -26,11 +24,15 @@ class FCMConfiguration {
             .setCredentials(
                 GoogleCredentials.fromStream(inputStream)
             ).build()
-        return FirebaseApp.initializeApp(firebaseOptions, FIREBASE_APP)
+        return FirebaseApp.initializeApp(firebaseOptions, Companion.FIREBASE_APP)
     }
     @Bean
     fun fcm(): FirebaseMessaging {
         val app = firebaseApplication()
         return FirebaseMessaging.getInstance(app)
+    }
+
+    private companion object {
+        val FIREBASE_APP = "hosting"
     }
 }

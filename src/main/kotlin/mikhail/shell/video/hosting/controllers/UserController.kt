@@ -26,8 +26,8 @@ import java.nio.file.Paths
 class UserController @Autowired constructor(
     private val userService: UserService
 ) {
-    @Value("\${hosting.server.host}")
-    private lateinit var HOST: String
+    @Value("\${video-hosting.server.base-url}")
+    private lateinit var BASE_URL: String
     @GetMapping("/{userId}")
     fun get(
         @PathVariable userId: Long
@@ -103,6 +103,6 @@ class UserController @Autowired constructor(
     }
 
     private fun User.toDto() = toDto(
-        avatar = "https://${constructReferenceBaseApiUrl(HOST)}/users/$userId/avatar"
+        avatar = "$BASE_URL/users/$userId/avatar"
     )
 }

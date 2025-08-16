@@ -13,9 +13,12 @@ enum class VideoState {
 @Table(name = "videos")
 data class VideoEntity(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "video_id")
     val videoId: Long? = null,
+    @Column(name = "channel_id")
     val channelId: Long,
     val title: String,
+    @Column(name = "date_time")
     val dateTime: Instant? = null,
     val views: Long = 0,
     val likes: Long = 0,
@@ -23,7 +26,6 @@ data class VideoEntity(
     @Enumerated(value = EnumType.STRING)
     val state: VideoState
 )
-
 
 fun VideoEntity.toDomain() = Video(
     videoId = videoId,
@@ -52,6 +54,7 @@ data class VideoWithChannelEntity(
     @Column(name = "video_id") val videoId: Long? = null,
     @Column(name = "channel_id") val channelId: Long,
     val title: String,
+    @Column(name = "date_time")
     val dateTime: Instant?,
     val views: Long,
     val likes: Long,

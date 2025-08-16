@@ -23,7 +23,7 @@ class JwtTokenFilter @Autowired constructor(
     ) {
         val authHeader = request.getHeader("Authorization")
         if (authHeader != null) {
-            val token = authHeader.substring(7)
+            val token = authHeader.removePrefix("Bearer ")
             if (util.validateToken(token)) {
                 val claims = util.parseClaims(token)
                 val userId = claims!!.subject.toLong()

@@ -49,19 +49,16 @@ class ChannelServiceWithDB @Autowired constructor(
         if (!userRepository.existsById(userId)) {
             throw IllegalArgumentException()
         }
-        val subscription =
-            if (subscriberRepository.existsById(SubscriberId(channelId, userId))) SUBSCRIBED else NOT_SUBSCRIBED
+        val subscription = if (subscriberRepository.existsById(SubscriberId(channelId, userId))) SUBSCRIBED else NOT_SUBSCRIBED
         return channel.toDomain() with subscription
     }
 
     override fun getChannel(channelId: Long): Channel {
-        val channelEntity = channelRepository.findById(channelId).orElseThrow()
-        return channelEntity.toDomain()
+        return channelRepository.findById(channelId).orElseThrow().toDomain()
     }
 
     override fun checkIfSubscribed(channelId: Long, userId: Long): Boolean {
-        val id = SubscriberId(channelId, userId)
-        return subscriberRepository.existsById(id)
+        return subscriberRepository.existsById(SubscriberId(channelId, userId))
     }
 
     @Transactional

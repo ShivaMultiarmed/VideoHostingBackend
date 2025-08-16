@@ -29,6 +29,7 @@ class AuthenticationServiceWithDB(
     private val cryptoUtils: CryptoUtils,
     private val recoveryRepository: RecoveryRepository
 ) : AuthenticationService {
+
     override fun signInWithPassword(
         userName: String,
         password: String

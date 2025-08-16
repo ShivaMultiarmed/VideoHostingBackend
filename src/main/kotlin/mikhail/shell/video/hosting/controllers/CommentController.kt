@@ -30,8 +30,8 @@ class CommentController @Autowired constructor(
     private val commentService: CommentService,
     private val videoService: VideoService
 ) {
-    @Value("\${hosting.server.host}")
-    private lateinit var HOST: String
+    @Value("\${video-hosting.server.base-url}")
+    private lateinit var BASE_URL: String
     @PostMapping("/save")
     fun save(@RequestBody commentDto: CommentDto): ResponseEntity<Unit> {
         val comment = commentDto.toDomain()
@@ -65,7 +65,7 @@ class CommentController @Autowired constructor(
             throw NoSuchElementException()
         }
         val comments = commentService.get(videoId, before)
-        val commentDtos = comments.map { it.toDto(avatar = "https://${constructReferenceBaseApiUrl(HOST)}/users/${it.user.userId}/avatar") }
+        val commentDtos = comments.map { it.toDto(avatar = "$BASE_URL/users/${it.user.userId}/avatar") }
         return ResponseEntity.status(HttpStatus.OK).body(commentDtos)
     }
     @DeleteMapping("/remove")

@@ -6,7 +6,7 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository
 
-@Repository("videoRepository_mysql")
+@Repository
 interface VideoRepository: JpaRepository<VideoEntity, Long> {
     fun findByTitle(
         title: String,

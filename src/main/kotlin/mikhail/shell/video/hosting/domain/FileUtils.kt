@@ -3,7 +3,6 @@ package mikhail.shell.video.hosting.domain
 import net.coobird.thumbnailator.Thumbnails
 import net.coobird.thumbnailator.geometry.Positions
 import java.awt.image.BufferedImage
-import java.io.ByteArrayOutputStream
 import java.io.File
 import javax.imageio.ImageIO
 import kotlin.math.min
@@ -17,8 +16,6 @@ fun String.parseExtension(): String {
 fun String.parseFileName(): String {
     return substringBeforeLast(".")
 }
-
-
 
 fun uploadImage(
     uploadedFile: UploadedFile,

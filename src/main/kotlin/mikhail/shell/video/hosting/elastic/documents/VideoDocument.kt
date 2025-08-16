@@ -1,5 +1,6 @@
 package mikhail.shell.video.hosting.elastic.documents
 
+import mikhail.shell.video.hosting.repository.entities.VideoEntity
 import mikhail.shell.video.hosting.repository.entities.VideoState
 import org.springframework.data.annotation.Id
 import org.springframework.data.elasticsearch.annotations.Document
@@ -15,4 +16,26 @@ data class VideoDocument(
     val likes: Long = 0,
     val dislikes: Long = 0,
     val state: VideoState
+)
+
+fun VideoEntity.toDocument() = VideoDocument(
+    videoId = videoId,
+    channelId = channelId,
+    title = title,
+    dateTime = dateTime,
+    views = views,
+    likes = likes,
+    dislikes = dislikes,
+    state = state
+)
+
+fun VideoDocument.toEntity() = VideoEntity(
+    videoId = videoId,
+    channelId = channelId,
+    title = title,
+    dateTime = dateTime,
+    views = views,
+    likes = likes,
+    dislikes = dislikes,
+    state = state
 )

@@ -24,7 +24,7 @@ class CommentServiceWithDB @Autowired constructor(
     private val fcm: FirebaseMessaging,
     private val objectMapper: ObjectMapper
 ): CommentService {
-    @Value("\${hosting.server.host}")
+    @Value("\${video-hosting.server.host}")
     private lateinit var HOST: String
     @Value("\${server.port}")
     private lateinit var PORT: String

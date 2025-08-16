@@ -41,9 +41,10 @@ logging:
     springframework:
       data.elasticsearch: DEBUG
 
-hosting:
+video-hosting:
   server:
     host: ${HOST}
+    base-url: ${BASE_URL}
   application:
     path: ${HOSTING_APP_PATH}
     ranking:

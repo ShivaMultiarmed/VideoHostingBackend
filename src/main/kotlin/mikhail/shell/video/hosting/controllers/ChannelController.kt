@@ -30,8 +30,8 @@ import java.nio.file.Paths
 class ChannelController @Autowired constructor(
     private val channelService: ChannelService
 ) {
-    @Value("\${hosting.server.host}")
-    private lateinit var HOST: String
+    @Value("\${video-hosting.server.base-url}")
+    private lateinit var BASE_URL: String
 
     @GetMapping("/{channelId}")
     fun provideChannel(
@@ -249,12 +249,12 @@ class ChannelController @Autowired constructor(
     }
 
     private fun Channel.toDto(): ChannelDto = toDto(
-        avatarUrl = "https://${constructReferenceBaseApiUrl(HOST)}/channels/$channelId/avatar",
-        coverUrl = "https://${constructReferenceBaseApiUrl(HOST)}/channels/$channelId/cover"
+        avatarUrl = "$BASE_URL/channels/$channelId/avatar",
+        coverUrl = "$BASE_URL/channels/$channelId/cover"
     )
 
     private fun ChannelWithUser.toDto() = toDto(
-        avatarUrl = "https://${constructReferenceBaseApiUrl(HOST)}/channels/$channelId/avatar",
-        coverUrl = "https://${constructReferenceBaseApiUrl(HOST)}/channels/$channelId/cover"
+        avatarUrl = "$BASE_URL/channels/$channelId/avatar",
+        coverUrl = "$BASE_URL/channels/$channelId/cover"
     )
 }
