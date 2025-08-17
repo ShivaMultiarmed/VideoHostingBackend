@@ -16,6 +16,7 @@ interface ChannelService {
     fun changeSubscriptionState(
         subscriberId: Long,
         channelId: Long,
+        subscription: Subscription,
         token: String
     ): ChannelWithUser
 

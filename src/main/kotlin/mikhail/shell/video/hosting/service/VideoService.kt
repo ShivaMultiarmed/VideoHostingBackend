@@ -19,4 +19,5 @@ interface VideoService {
     fun checkOwner(userId: Long, videoId: Long): Boolean
     fun getRecommendedVideos(userId: Long, partIndex: Long, partSize: Int): List<VideoWithChannel>
     fun checkExistence(videoId: Long): Boolean
+    fun sync()
 }

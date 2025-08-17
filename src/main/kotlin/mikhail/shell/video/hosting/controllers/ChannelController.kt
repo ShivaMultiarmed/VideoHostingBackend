@@ -123,9 +123,7 @@ class ChannelController @Autowired constructor(
         val cover = coverFile?.toUploadedFile()
         val avatar = avatarFile?.toUploadedFile()
         val createdChannel = channelService.createChannel(
-            channel = channel
-                .toDomain()
-                .copy(channelId = null),
+            channel = channel.toDomain(),
             cover = cover,
             avatar = avatar
         )
@@ -204,10 +202,14 @@ class ChannelController @Autowired constructor(
     }
 
     @PatchMapping("/{channelId}/subscribe")
-    fun subscribeToChannel(@PathVariable channelId: Long, @RequestParam fcmToken: String): ResponseEntity<ChannelWithUserDto> {
+    fun subscribe(
+        @PathVariable channelId: Long,
+        @RequestParam subscription: Subscription,
+        @RequestParam fcmToken: String
+    ): ResponseEntity<ChannelWithUserDto> {
         val userId = SecurityContextHolder.getContext().authentication.principal as Long?
             ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        val updatedChannel = channelService.changeSubscriptionState(userId, channelId, fcmToken)
+        val updatedChannel = channelService.changeSubscriptionState(userId, channelId, subscription, fcmToken)
         return ResponseEntity.status(HttpStatus.OK).body(updatedChannel.toDto())
     }
 

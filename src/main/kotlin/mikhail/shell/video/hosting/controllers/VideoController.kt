@@ -399,6 +399,11 @@ class VideoController @Autowired constructor(
         return ResponseEntity.status(HttpStatus.OK).body(videoList)
     }
 
+    @PostMapping("/search/sync")
+    fun sync() {
+        videoService
+    }
+
     private fun Video.toDto() = toDto(
         sourceUrl = "$BASE_URL/videos/${videoId}/play",
         coverUrl = "$BASE_URL/videos/${videoId}/cover"

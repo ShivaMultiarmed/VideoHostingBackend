@@ -288,6 +288,16 @@ class VideoServiceWithDB @Autowired constructor(
             .toList()
     }
 
+    override fun sync() {
+        videoRepository
+            .findAll()
+            .map { it.toDocument() }
+            .let {
+                videoSearchRepository.deleteAll()
+                videoSearchRepository.saveAll(it)
+            }
+    }
+
     private fun saveFile(input: InputStream, path: String): Boolean {
         return try {
             input.use { inStream ->

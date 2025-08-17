@@ -26,7 +26,6 @@ import mikhail.shell.video.hosting.repository.entities.toEntity
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
 import java.io.File
-import kotlin.io.path.ExperimentalPathApi
 
 @Service
 class ChannelServiceWithDB @Autowired constructor(
@@ -126,28 +125,28 @@ class ChannelServiceWithDB @Autowired constructor(
     override fun changeSubscriptionState(
         subscriberId: Long,
         channelId: Long,
+        subscription: Subscription,
         token: String
     ): ChannelWithUser {
         val channelEntity = channelRepository.findById(channelId).orElseThrow()
-        if (checkIfSubscribed(channelId, subscriberId)) {
-            channelRepository.save(
-                channelEntity.copy(subscribers = channelEntity.subscribers - 1)
-            )
+        var newSubscribersNumber = channelEntity.subscribers
+        if (checkIfSubscribed(channelId, subscriberId) && subscription == NOT_SUBSCRIBED) {
             subscriberRepository.deleteById(SubscriberId(channelId, subscriberId))
-        } else if (!checkIfSubscribed(channelId, subscriberId)) {
-            subscriberRepository.save(Subscriber(SubscriberId(channelId, subscriberId)))
-            channelRepository.save(
-                channelEntity.copy(subscribers = channelEntity.subscribers + 1)
-            )
+            newSubscribersNumber--
         }
-        val newSubscriptionState = if (checkIfSubscribed(channelId, subscriberId)) SUBSCRIBED else NOT_SUBSCRIBED
-        if (newSubscriptionState == SUBSCRIBED) {
+        if (!checkIfSubscribed(channelId, subscriberId) && subscription == SUBSCRIBED) {
+            subscriberRepository.save(Subscriber(SubscriberId(channelId, subscriberId)))
+            newSubscribersNumber++
+        }
+        val savedChannel = channelRepository.save(
+            channelEntity.copy(subscribers = newSubscribersNumber)
+        )
+        if (subscription == SUBSCRIBED) {
             fcm.subscribeToTopic(listOf(token), "${CHANNELS_TOPICS_PREFIX}.$channelId")
         } else {
             fcm.unsubscribeFromTopic(listOf(token), "${CHANNELS_TOPICS_PREFIX}.$channelId")
         }
-        val savedChannel = channelRepository.findById(channelId).get().toDomain()
-        return savedChannel with newSubscriptionState
+        return savedChannel.toDomain() with subscription
     }
 
     override fun editChannel(
