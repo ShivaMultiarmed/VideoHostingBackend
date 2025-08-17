@@ -40,7 +40,7 @@ fun Video.toEntity(state: VideoState = VideoState.CREATED) = VideoEntity(
     videoId = videoId,
     channelId = channelId,
     title = title,
-    dateTime = dateTime!!,
+    dateTime = dateTime,
     views = views,
     likes = likes,
     dislikes = dislikes,

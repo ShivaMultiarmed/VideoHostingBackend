@@ -32,8 +32,8 @@ fun uploadImage(
 fun uploadImage(
     uploadedFile: UploadedFile,
     targetFile: File,
-    width: Int = 0,
-    height: Int = 0
+    width: Int = 500,
+    height: Int = 280
 ): Boolean {
     return try {
         uploadedFile.inputStream.use {
@@ -44,7 +44,8 @@ fun uploadImage(
             }
         }
         true
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+        e.printStackTrace()
         false
     }
 }

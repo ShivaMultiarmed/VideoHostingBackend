@@ -189,7 +189,6 @@ class ChannelServiceWithDB @Autowired constructor(
             EditAction.REMOVE -> {
                 File(CHANNEL_COVERS_BASE_PATH, channel.channelId.toString()).delete()
             }
-
             EditAction.UPDATE -> {
                 coverFile?.let { uploadedFile ->
                     File(CHANNEL_COVERS_BASE_PATH, channel.channelId.toString()).delete()

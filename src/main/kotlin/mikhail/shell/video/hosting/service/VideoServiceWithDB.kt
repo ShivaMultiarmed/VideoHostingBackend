@@ -233,7 +233,9 @@ class VideoServiceWithDB @Autowired constructor(
             throw ValidationException(compoundError)
         }
         return uploadImage(
-            uploadedFile = cover,
+            uploadedFile = cover.copy(
+                inputStream = imageBytes.inputStream()
+            ),
             targetFile = "$VIDEOS_COVERS_BASE_PATH/$videoId.jpg",
             width = 500,
             height = 280
