@@ -48,10 +48,15 @@ class JwtTokenUtil(
     }
 
     fun extractUserId(token: String): Long? {
-        return parseClaims(token)?.subject?.toLong()
+        return extractSubject(token)?.toLong()
+    }
+
+    fun extractSubject(token: String): String? {
+        return parseClaims(token)?.subject
     }
 
     companion object {
         const val AUTH_TOKEN_EXPIRATION_DURATION = 1000L * 60 * 60 * 24 * 30
+        const val SHORT_LIVED_TOKEN_EXPIRATION_DURATION = 1000L * 60 * 5
     }
 }

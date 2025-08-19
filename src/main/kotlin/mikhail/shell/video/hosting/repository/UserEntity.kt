@@ -16,25 +16,45 @@ data class UserEntity(
     val email: String? = null
 )
 
-fun User.toEntity() = UserEntity(userId, name, nick, bio, tel, email)
-fun UserEntity.toDomain() = User(userId, name, nick, bio, tel, email)
+fun User.toEntity() = UserEntity(
+    userId = userId,
+    name = name,
+    nick = nick,
+    bio = bio,
+    tel = tel,
+    email = email
+)
+fun UserEntity.toDomain() = User(
+    userId = userId,
+    name = name,
+    nick = nick,
+    bio = bio,
+    tel = tel,
+    email = email
+)
 
 @Entity
-@Table(name = "credentials")
-data class Credential(
+@Table(name = "auth_details")
+data class AuthDetailEntity(
     @EmbeddedId
-    val id: CredentialId,
-    val userName: String,
-    val credential: String // TODO make it nullable (If authentication method is NOT PASSWORD)
+    val id: AuthDetailEntityId,
+    val username: String,
 )
 
 @Embeddable
-data class CredentialId(
+data class AuthDetailEntityId(
     val userId: Long,
     @Enumerated(value = EnumType.STRING)
     val method: AuthenticationMethod
 )
 
 enum class AuthenticationMethod {
-    PASSWORD, GOOGLE, VK
+    EMAIL, TEL, GOOGLE, VK, TG
 }
+
+@Entity
+@Table(name = "passwords")
+data class PasswordEntity(
+    val id: Long,
+    val password: String
+)

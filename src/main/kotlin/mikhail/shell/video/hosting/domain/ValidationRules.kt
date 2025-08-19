@@ -1,6 +1,7 @@
 package mikhail.shell.video.hosting.domain
 
 object ValidationRules {
+    const val CODE_LENGTH = 4
     const val MAX_TITLE_LENGTH = 100
     const val MAX_NAME_LENGTH = 50
     const val MAX_TEXT_LENGTH = 255

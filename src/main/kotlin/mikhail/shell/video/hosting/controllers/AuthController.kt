@@ -8,7 +8,8 @@ import mikhail.shell.video.hosting.errors.CompoundError
 import mikhail.shell.video.hosting.errors.ValidationException
 import mikhail.shell.video.hosting.errors.SignInError
 import mikhail.shell.video.hosting.errors.SignUpError
-import mikhail.shell.video.hosting.service.AuthenticationService
+import mikhail.shell.video.hosting.service.AuthService
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PostMapping
@@ -19,10 +20,11 @@ import org.springframework.web.bind.annotation.RestController
 
 @RestController
 @RequestMapping("/api/v1/auth")
-class AuthenticationController(
-    private val authenticationService: AuthenticationService
+class AuthController(
+    private val authService: AuthService
 ) {
     val emailRegex = Regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}\$")
+    val telRegex = Regex("^\\d{8,15}\$")
 
     @PostMapping("/signin/password")
     fun signInWithPassword(
@@ -32,7 +34,7 @@ class AuthenticationController(
         val compoundError = CompoundError<SignInError>()
         if (username.isEmpty()) {
             compoundError.add(SignInError.USERNAME_EMPTY)
-        } else if (!username.matches(emailRegex)) {
+        } else if (!username.matches(emailRegex) && !username.matches(telRegex)) {
             compoundError.add(SignInError.USERNAME_MALFORMED)
         }
         if (password.isEmpty()) {
@@ -41,19 +43,47 @@ class AuthenticationController(
         if (compoundError.isNotEmpty()) {
             throw ValidationException(compoundError)
         }
-        return authenticationService.signInWithPassword(username, password)
+        return authService.signInWithPassword(username, password)
     }
 
-    @PostMapping("/signup/password")
-    fun signUpWithPassword(
-        @RequestBody signUpDto: SignUpDto
-    ): AuthModel {
+    @PostMapping("/signup/password/request")
+    fun requestSignUpWithPassword(@RequestParam userName: String) {
         val compoundError = CompoundError<SignUpError>()
-        if (signUpDto.userName.isEmpty()) {
+        if (userName.isEmpty()) {
             compoundError.add(SignUpError.USERNAME_EMPTY)
-        } else if (!signUpDto.userName.matches(emailRegex)) {
+        } else if (!userName.matches(emailRegex)) {
             compoundError.add(SignUpError.USERNAME_MALFORMED)
         }
+        if (compoundError.isNotEmpty()) {
+            throw ValidationException(compoundError)
+        }
+        authService.requestSignUpWithPassword(userName)
+    }
+
+    @PostMapping("/signup/password/verify")
+    fun verifySignUpWithPassword(
+        @RequestParam userName: String,
+        @RequestParam code: String
+    ): String {
+        val compoundError = CompoundError<SignUpError>()
+        if (userName.isEmpty()) {
+            compoundError.add(SignUpError.USERNAME_EMPTY)
+        } else if (!userName.matches(emailRegex)) {
+            compoundError.add(SignUpError.USERNAME_MALFORMED)
+        }
+        if (compoundError.isNotEmpty()) {
+            throw ValidationException(compoundError)
+        }
+        return authService.verifySignUpWithPassword(userName, code)
+    }
+
+    @PostMapping("/signup/password/confirm")
+    fun confirmSignUpWithPassword(
+        request: HttpServletRequest,
+        @RequestBody signUpDto: SignUpDto
+    ) {
+        val compoundError = CompoundError<SignUpError>()
+        val token = request.getHeader(HttpHeaders.AUTHORIZATION).removePrefix("Bearer ")
         if (signUpDto.password.isEmpty()) {
             compoundError.add(SignUpError.PASSWORD_EMPTY)
         }
@@ -63,23 +93,23 @@ class AuthenticationController(
         if (compoundError.isNotEmpty()) {
             throw ValidationException(compoundError)
         }
-        return authenticationService.signUpWithPassword(
-            signUpDto.userName,
-            signUpDto.password,
-            signUpDto.userDto.toDomain()
+        authService.confirmSignUpWithPassword(
+            token = token,
+            password = signUpDto.password,
+            user = signUpDto.userDto.toDomain()
         )
     }
 
     @PostMapping("/reset/password/request")
-    fun requestPasswordReset(@RequestParam userName: String) = authenticationService.requestPasswordReset(userName)
+    fun requestPasswordReset(@RequestParam userName: String) = authService.requestPasswordReset(userName)
 
     @PostMapping("/reset/password/verify")
     fun verifyPasswordReset(
-        @RequestParam userId: Long,
-        @RequestParam resetCode: String
-    ) = authenticationService.verifyPasswordReset(
-        userId = userId,
-        resetCode = resetCode
+        @RequestParam userName: String,
+        @RequestParam code: String
+    ) = authService.verifyPasswordReset(
+        userName = userName,
+        code = code
     )
 
     @PostMapping("/reset/password/confirm")
@@ -87,18 +117,18 @@ class AuthenticationController(
         request: HttpServletRequest,
         @RequestParam password: String
     ) {
-        val resetToken = request.getHeader("Authorization")?.substring("Bearer ".length)?: throw IllegalAccessException()
+        val resetToken = request.getHeader("Authorization")?.removePrefix("Bearer ")?: throw IllegalAccessException()
         if (password.isEmpty()) {
             throw IllegalArgumentException()
         }
-        return authenticationService.resetPassword(resetToken, password)
+        return authService.resetPassword(resetToken, password)
     }
 
     @PostMapping("/signout")
     fun signOut(request: HttpServletRequest): ResponseEntity<Unit> {
         val token = request.getHeader("Authorization")?.substring("Bearer ".length)
             ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        authenticationService.signOut(token)
+        authService.signOut(token)
         return ResponseEntity.ok().build()
     }
 }

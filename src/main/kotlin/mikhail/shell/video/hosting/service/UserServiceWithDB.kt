@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service
 class UserServiceWithDB @Autowired constructor(
     private val userRepository: UserRepository,
     private val channelService: ChannelService,
-    private val authRepository: AuthRepository,
+    private val authDetailRepository: AuthDetailRepository,
     private val commentService: CommentService
 ) : UserService {
     override fun get(userId: Long): User {
@@ -76,9 +76,9 @@ class UserServiceWithDB @Autowired constructor(
             channelService.removeChannel(it.channelId!!)
         }
         commentService.removeAllByUserId(userId)
-        val credentialIds = authRepository.findById_UserId(userId).map { it.id }
+        val credentialIds = authDetailRepository.findById_UserId(userId).map { it.id }
         findFileByName(java.io.File(ApplicationPaths.USER_AVATARS_BASE_PATH), userId.toString())?.delete()
-        authRepository.deleteAllById(credentialIds)
+        authDetailRepository.deleteAllById(credentialIds)
         userRepository.deleteById(userId)
     }
 

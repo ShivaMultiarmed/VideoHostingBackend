@@ -3,26 +3,28 @@ package mikhail.shell.video.hosting.service
 import mikhail.shell.video.hosting.domain.AuthModel
 import mikhail.shell.video.hosting.domain.User
 
-interface AuthenticationService {
+interface AuthService {
     fun signInWithPassword(
         userName: String,
         password: String
     ): AuthModel
-    fun signUpWithPassword(
+    fun requestSignUpWithPassword(userName: String)
+    fun verifySignUpWithPassword(
         userName: String,
+        code: String
+    ): String
+    fun confirmSignUpWithPassword(
+        token: String,
         password: String,
-        user: User?
+        user: User,
     ): AuthModel
     fun requestPasswordReset(
         userName: String
     )
     fun resetPassword(
-        resetToken: String,
+        token: String,
         password: String
     )
-    fun verifyPasswordReset(
-        userId: Long,
-        resetCode: String
-    ): String
     fun signOut(token: String)
+    fun verifyPasswordReset(userName: String, code: String): String
 }
