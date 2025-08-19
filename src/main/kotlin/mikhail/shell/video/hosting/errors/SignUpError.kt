@@ -13,7 +13,7 @@ enum class SignUpError: Error {
     NICK_TOO_LARGE,
     NICK_EXISTS,
 
-    CODE_EMPTY,
+    CODE_LENGTH_NOT_CORRECT,
     CODE_NOT_CORRECT,
     CODE_NOT_VALID
 }

@@ -103,7 +103,9 @@ class AuthServiceWithDB(
             ).orElseThrow {
                 IllegalArgumentException()
             }
-        if (!passwordEncoder.matches(code, verificationEntity.code)) {
+        if (code.length != ValidationRules.CODE_LENGTH) {
+            compoundError.add(SignUpError.CODE_LENGTH_NOT_CORRECT)
+        } else if (!passwordEncoder.matches(code, verificationEntity.code)) {
             compoundError.add(CODE_NOT_CORRECT)
         } else if (verificationEntity.issuedAt.toKotlinInstant() + 10.minutes < Clock.System.now()) {
             compoundError.add(CODE_NOT_VALID)
