@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice
 @RestControllerAdvice
 class HostingControllerAdvice {
     @ExceptionHandler(ValidationException::class)
-    fun handleDataException(e: ValidationException): ResponseEntity<Error> {
+    fun handleValidationException(e: ValidationException): ResponseEntity<Error> {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.error)
     }
     @ExceptionHandler(NoSuchElementException::class)

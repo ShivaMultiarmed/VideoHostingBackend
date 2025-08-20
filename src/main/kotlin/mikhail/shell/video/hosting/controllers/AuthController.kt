@@ -6,10 +6,7 @@ import mikhail.shell.video.hosting.domain.ValidationRules
 import mikhail.shell.video.hosting.domain.ValidationRules.EMAIL_REGEX
 import mikhail.shell.video.hosting.dto.SignUpDto
 import mikhail.shell.video.hosting.dto.toDomain
-import mikhail.shell.video.hosting.errors.CompoundError
-import mikhail.shell.video.hosting.errors.ValidationException
-import mikhail.shell.video.hosting.errors.SignInError
-import mikhail.shell.video.hosting.errors.SignUpError
+import mikhail.shell.video.hosting.errors.*
 import mikhail.shell.video.hosting.service.AuthService
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
@@ -101,7 +98,13 @@ class AuthController(
     }
 
     @PostMapping("/reset/password/request")
-    fun requestPasswordReset(@RequestParam userName: String) = authService.requestPasswordReset(userName)
+    fun requestPasswordReset(@RequestParam userName: String) {
+        if (userName.isEmpty()) {
+            throw ValidationException(ResetError.USERNAME_EMPTY)
+        } else {
+            authService.requestPasswordReset(userName)
+        }
+    }
 
     @PostMapping("/reset/password/verify")
     fun verifyPasswordReset(
@@ -116,12 +119,14 @@ class AuthController(
     fun confirmPasswordReset(
         request: HttpServletRequest,
         @RequestParam password: String
-    ) {
-        val resetToken = request.getHeader("Authorization")?.removePrefix("Bearer ")?: throw IllegalAccessException()
+    ): ResponseEntity<Unit> {
+        val resetToken = request.getHeader("Authorization")?.removePrefix("Bearer ")
+            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         if (password.isEmpty()) {
-            throw IllegalArgumentException()
+            throw ValidationException(ResetError.PASSWORD_EMPTY)
         }
         authService.resetPassword(resetToken, password)
+        return ResponseEntity.status(HttpStatus.OK).build()
     }
 
     @PostMapping("/signout")

@@ -6,10 +6,7 @@ import kotlinx.datetime.toKotlinInstant
 import mikhail.shell.video.hosting.domain.AuthModel
 import mikhail.shell.video.hosting.domain.User
 import mikhail.shell.video.hosting.domain.ValidationRules
-import mikhail.shell.video.hosting.errors.CompoundError
-import mikhail.shell.video.hosting.errors.ValidationException
-import mikhail.shell.video.hosting.errors.SignInError
-import mikhail.shell.video.hosting.errors.SignUpError
+import mikhail.shell.video.hosting.errors.*
 import mikhail.shell.video.hosting.errors.SignUpError.*
 import mikhail.shell.video.hosting.repository.*
 import mikhail.shell.video.hosting.repository.entities.InvalidTokenEntity
@@ -90,9 +87,9 @@ class AuthServiceWithDB(
     override fun verifySignUpWithPassword(userName: String, code: String): String {
         val compoundError = CompoundError<SignUpError>()
         if (userName.length > ValidationRules.MAX_USERNAME_LENGTH) {
-            compoundError.add(SignUpError.USERNAME_TOO_LARGE)
+            compoundError.add(USERNAME_TOO_LARGE)
         } else if (authDetailRepository.existsByUserNameAndId_Method(userName, AuthenticationMethod.EMAIL)) {
-            compoundError.add(SignUpError.USERNAME_EXISTS)
+            compoundError.add(USERNAME_EXISTS)
         }
         if (compoundError.isNotEmpty()) {
             throw ValidationException(compoundError)
@@ -105,7 +102,7 @@ class AuthServiceWithDB(
                 IllegalArgumentException()
             }
         if (code.length != ValidationRules.CODE_LENGTH) {
-            compoundError.add(SignUpError.CODE_LENGTH_NOT_CORRECT)
+            compoundError.add(CODE_LENGTH_NOT_CORRECT)
         } else if (!passwordEncoder.matches(code, verificationEntity.code)) {
             compoundError.add(CODE_NOT_CORRECT)
         } else if (verificationEntity.issuedAt.toKotlinInstant() + 10.minutes < Clock.System.now()) {
@@ -115,7 +112,7 @@ class AuthServiceWithDB(
             throw ValidationException(compoundError)
         }
         verificationRepository.delete(verificationEntity)
-        return jwtTokenUtil.generateToken(userName, JwtTokenUtil.SHORT_LIVED_TOKEN_EXPIRATION_DURATION)
+        return jwtTokenUtil.generateToken(userName, SHORT_LIVED_TOKEN_EXPIRATION_DURATION)
     }
 
     override fun confirmSignUpWithPassword(
@@ -126,7 +123,7 @@ class AuthServiceWithDB(
         val compoundError = CompoundError<SignUpError>()
         val userName = jwtTokenUtil.extractSubject(token)
         if (userName == null) {
-            compoundError.add(SignUpError.USERNAME_EMPTY)
+            compoundError.add(USERNAME_EMPTY)
         } else if (authDetailRepository.existsByUserNameAndId_Method(userName, AuthenticationMethod.EMAIL)) {
             compoundError.add(USERNAME_EXISTS)
         }
@@ -155,10 +152,10 @@ class AuthServiceWithDB(
     override fun requestPasswordReset(userName: String) {
         val method = when {
             userName.matches(ValidationRules.EMAIL_REGEX) -> AuthenticationMethod.EMAIL
-            else -> throw IllegalArgumentException()
+            else -> throw ValidationException(ResetError.USERNAME_MALFORMED)
         }
         if (!authDetailRepository.existsByUserNameAndId_Method(userName, method)) {
-            throw NoSuchElementException()
+            throw ValidationException(ResetError.USERNAME_NOT_FOUND)
         }
         val resetCode = cryptoUtils.generateString(4)
         SimpleMailMessage().apply {
@@ -182,11 +179,11 @@ class AuthServiceWithDB(
         val verificationEntity = verificationRepository.findByUserNameAndPurpose(
             userName = userName,
             purpose = VerificationCodePurpose.RESET
-        ).orElseThrow { IllegalAccessException() }
+        ).orElseThrow { ValidationException(ResetError.CODE_NOT_VALID) }
         if (!passwordEncoder.matches(code, verificationEntity.code)) {
-            throw IllegalArgumentException()
+            throw ValidationException(ResetError.CODE_NOT_CORRECT)
         } else if (verificationEntity.issuedAt.toKotlinInstant() + SHORT_LIVED_TOKEN_EXPIRATION_DURATION < Clock.System.now()) {
-            throw IllegalAccessException()
+            throw ValidationException(ResetError.CODE_NOT_VALID)
         } else {
             verificationRepository.delete(verificationEntity)
             return jwtTokenUtil.generateToken(userName, SHORT_LIVED_TOKEN_EXPIRATION_DURATION)
@@ -194,14 +191,17 @@ class AuthServiceWithDB(
     }
 
     override fun resetPassword(token: String, password: String) {
-        if (!jwtTokenUtil.validateToken(token)) {
-            throw IllegalAccessException()
+        if (!jwtTokenUtil.validateToken(token) || invalidTokenRepository.existsById(token)) {
+            throw ValidationException(ResetError.TOKEN_NOT_VALID)
         }
         if (!password.matches(ValidationRules.PASSWORD_REGEX)) {
-            throw IllegalArgumentException()
+            throw ValidationException(ResetError.PASSWORD_NOT_VALID)
         }
         val userName = jwtTokenUtil.extractSubject(token)!!
-        val userId = authDetailRepository.findByUserName(userName).orElseThrow().id.userId
+        val userId = authDetailRepository
+            .findByUserName(userName)
+            .orElseThrow { ValidationException(ResetError.USERNAME_NOT_FOUND) }
+            .id.userId
         passwordRepository
             .findById(userId)
             .get()

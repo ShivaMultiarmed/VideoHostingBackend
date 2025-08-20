@@ -18,9 +18,7 @@ interface AuthService {
         password: String,
         user: User,
     ): AuthModel
-    fun requestPasswordReset(
-        userName: String
-    )
+    fun requestPasswordReset(userName: String)
     fun resetPassword(
         token: String,
         password: String
