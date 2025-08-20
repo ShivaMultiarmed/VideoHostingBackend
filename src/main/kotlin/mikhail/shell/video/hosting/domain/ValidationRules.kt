@@ -9,4 +9,5 @@ object ValidationRules {
     const val MAX_IMAGE_SIZE = 10 * 1024 * 1024
     const val MAX_VIDEO_SIZE = 512 * 1024 * 1024
     val PASSWORD_REGEX = Regex("^(?=.*[0-9])(?=.*[^a-zA-Z0-9])\\S{8,20}$")
+    val EMAIL_REGEX = Regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}\$")
 }

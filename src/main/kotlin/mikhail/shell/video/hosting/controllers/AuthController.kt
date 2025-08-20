@@ -2,6 +2,8 @@ package mikhail.shell.video.hosting.controllers
 
 import jakarta.servlet.http.HttpServletRequest
 import mikhail.shell.video.hosting.domain.AuthModel
+import mikhail.shell.video.hosting.domain.ValidationRules
+import mikhail.shell.video.hosting.domain.ValidationRules.EMAIL_REGEX
 import mikhail.shell.video.hosting.dto.SignUpDto
 import mikhail.shell.video.hosting.dto.toDomain
 import mikhail.shell.video.hosting.errors.CompoundError
@@ -23,8 +25,6 @@ import org.springframework.web.bind.annotation.RestController
 class AuthController(
     private val authService: AuthService
 ) {
-    val emailRegex = Regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}\$")
-    val telRegex = Regex("^\\d{8,15}\$")
 
     @PostMapping("/signin/password")
     fun signInWithPassword(
@@ -34,7 +34,7 @@ class AuthController(
         val compoundError = CompoundError<SignInError>()
         if (username.isEmpty()) {
             compoundError.add(SignInError.USERNAME_EMPTY)
-        } else if (!username.matches(emailRegex) && !username.matches(telRegex)) {
+        } else if (!username.matches(EMAIL_REGEX)) {
             compoundError.add(SignInError.USERNAME_MALFORMED)
         }
         if (password.isEmpty()) {
@@ -51,7 +51,7 @@ class AuthController(
         val compoundError = CompoundError<SignUpError>()
         if (userName.isEmpty()) {
             compoundError.add(SignUpError.USERNAME_EMPTY)
-        } else if (!userName.matches(emailRegex)) {
+        } else if (!userName.matches(EMAIL_REGEX)) {
             compoundError.add(SignUpError.USERNAME_MALFORMED)
         }
         if (compoundError.isNotEmpty()) {
@@ -68,7 +68,7 @@ class AuthController(
         val compoundError = CompoundError<SignUpError>()
         if (userName.isEmpty()) {
             compoundError.add(SignUpError.USERNAME_EMPTY)
-        } else if (!userName.matches(emailRegex)) {
+        } else if (!userName.matches(EMAIL_REGEX)) {
             compoundError.add(SignUpError.USERNAME_MALFORMED)
         }
         if (compoundError.isNotEmpty()) {
@@ -121,7 +121,7 @@ class AuthController(
         if (password.isEmpty()) {
             throw IllegalArgumentException()
         }
-        return authService.resetPassword(resetToken, password)
+        authService.resetPassword(resetToken, password)
     }
 
     @PostMapping("/signout")

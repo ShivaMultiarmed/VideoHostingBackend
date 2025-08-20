@@ -3,9 +3,15 @@ package mikhail.shell.video.hosting.security
 import io.jsonwebtoken.Claims
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.SignatureAlgorithm
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
+import kotlinx.datetime.toJavaInstant
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.util.*
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.minutes
 
 @Component
 class JwtTokenUtil(
@@ -18,17 +24,19 @@ class JwtTokenUtil(
 
     fun generateToken(
         username: String,
-        expirationPeriod: Long = AUTH_TOKEN_EXPIRATION_DURATION
+        expirationPeriod: Duration = AUTH_TOKEN_EXPIRATION_DURATION
     ): String {
-        val now = Date()
-        val expiration = Date(now.toInstant().toEpochMilli() + expirationPeriod)
+        val now = Clock.System.now()
+        val expiration = now + expirationPeriod
         return Jwts.builder()
             .setSubject(username)
-            .setIssuedAt(now)
-            .setExpiration(expiration)
+            .setIssuedAt(now.toDate())
+            .setExpiration(expiration.toDate())
             .signWith(SignatureAlgorithm.HS256, CRYPTO_KEY)
             .compact()
     }
+
+    private fun Instant.toDate(): Date = Date(toJavaInstant().toEpochMilli())
 
     fun parseClaims(token: String): Claims? {
         return try {
@@ -56,7 +64,7 @@ class JwtTokenUtil(
     }
 
     companion object {
-        const val AUTH_TOKEN_EXPIRATION_DURATION = 1000L * 60 * 60 * 24 * 30
-        const val SHORT_LIVED_TOKEN_EXPIRATION_DURATION = 1000L * 60 * 5
+        val AUTH_TOKEN_EXPIRATION_DURATION = 30.days
+        val SHORT_LIVED_TOKEN_EXPIRATION_DURATION = 10.minutes
     }
 }

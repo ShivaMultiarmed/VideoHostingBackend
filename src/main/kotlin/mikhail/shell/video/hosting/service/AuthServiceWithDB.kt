@@ -17,6 +17,7 @@ import mikhail.shell.video.hosting.repository.entities.VerificationCodePurpose
 import mikhail.shell.video.hosting.repository.entities.VerificationEntity
 import mikhail.shell.video.hosting.security.CryptoUtils
 import mikhail.shell.video.hosting.security.JwtTokenUtil
+import mikhail.shell.video.hosting.security.JwtTokenUtil.Companion.SHORT_LIVED_TOKEN_EXPIRATION_DURATION
 import org.springframework.mail.MailSender
 import org.springframework.mail.SimpleMailMessage
 import org.springframework.security.crypto.password.PasswordEncoder
@@ -40,7 +41,7 @@ class AuthServiceWithDB(
 
     override fun signInWithPassword(userName: String, password: String): AuthModel {
         val compoundError = CompoundError<SignInError>()
-        val method = if (userName.matches(emailRegex)) AuthenticationMethod.EMAIL else AuthenticationMethod.TEL
+        val method = if (userName.matches(ValidationRules.EMAIL_REGEX)) AuthenticationMethod.EMAIL else AuthenticationMethod.TEL
         val authDetailEntity = authDetailRepository.findByUserNameAndId_Method(userName, method).orElseThrow()
         val userId = authDetailEntity.id.userId
         val expectedPassword = passwordRepository.findById(userId).orElseThrow().password
@@ -153,9 +154,8 @@ class AuthServiceWithDB(
 
     override fun requestPasswordReset(userName: String) {
         val method = when {
-            userName.matches(emailRegex) -> AuthenticationMethod.EMAIL
-            userName.matches(telRegex) -> AuthenticationMethod.TEL
-            else -> throw IllegalAccessException()
+            userName.matches(ValidationRules.EMAIL_REGEX) -> AuthenticationMethod.EMAIL
+            else -> throw IllegalArgumentException()
         }
         if (!authDetailRepository.existsByUserNameAndId_Method(userName, method)) {
             throw NoSuchElementException()
@@ -182,14 +182,14 @@ class AuthServiceWithDB(
         val verificationEntity = verificationRepository.findByUserNameAndPurpose(
             userName = userName,
             purpose = VerificationCodePurpose.RESET
-        ).orElseThrow()
+        ).orElseThrow { IllegalAccessException() }
         if (!passwordEncoder.matches(code, verificationEntity.code)) {
             throw IllegalArgumentException()
-        } else if (verificationEntity.issuedAt.toKotlinInstant() + EXPIRATION_DURATION.milliseconds < Clock.System.now()) {
+        } else if (verificationEntity.issuedAt.toKotlinInstant() + SHORT_LIVED_TOKEN_EXPIRATION_DURATION < Clock.System.now()) {
             throw IllegalAccessException()
         } else {
             verificationRepository.delete(verificationEntity)
-            return jwtTokenUtil.generateToken(userName, EXPIRATION_DURATION)
+            return jwtTokenUtil.generateToken(userName, SHORT_LIVED_TOKEN_EXPIRATION_DURATION)
         }
     }
 
@@ -197,25 +197,19 @@ class AuthServiceWithDB(
         if (!jwtTokenUtil.validateToken(token)) {
             throw IllegalAccessException()
         }
-        if (password.matches(ValidationRules.PASSWORD_REGEX)) {
+        if (!password.matches(ValidationRules.PASSWORD_REGEX)) {
             throw IllegalArgumentException()
         }
-        val userName = jwtTokenUtil.extractSubject(token) ?: throw IllegalAccessException()
+        val userName = jwtTokenUtil.extractSubject(token)!!
         val userId = authDetailRepository.findByUserName(userName).orElseThrow().id.userId
         passwordRepository
             .findById(userId)
-            .orElseThrow()
+            .get()
             .copy(
                 password = passwordEncoder.encode(password)
             ).let {
                 passwordRepository.save(it)
             }
         invalidTokenRepository.save(InvalidTokenEntity(token))
-    }
-
-    private companion object {
-        const val EXPIRATION_DURATION = 10 * 60 * 1000L
-        val emailRegex = Regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}\$")
-        val telRegex = Regex("^\\d{8,15}\$")
     }
 }
