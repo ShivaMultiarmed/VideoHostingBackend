@@ -9,9 +9,9 @@ import mikhail.shell.video.hosting.domain.ValidationRules
 import mikhail.shell.video.hosting.errors.*
 import mikhail.shell.video.hosting.errors.SignUpError.*
 import mikhail.shell.video.hosting.repository.*
-import mikhail.shell.video.hosting.repository.entities.InvalidTokenEntity
-import mikhail.shell.video.hosting.repository.entities.VerificationCodePurpose
-import mikhail.shell.video.hosting.repository.entities.VerificationEntity
+import mikhail.shell.video.hosting.entities.InvalidTokenEntity
+import mikhail.shell.video.hosting.entities.VerificationCodePurpose
+import mikhail.shell.video.hosting.entities.VerificationEntity
 import mikhail.shell.video.hosting.security.CryptoUtils
 import mikhail.shell.video.hosting.security.JwtTokenUtil
 import mikhail.shell.video.hosting.security.JwtTokenUtil.Companion.SHORT_LIVED_TOKEN_EXPIRATION_DURATION

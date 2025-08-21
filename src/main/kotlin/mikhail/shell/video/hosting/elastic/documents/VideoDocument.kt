@@ -1,7 +1,7 @@
 package mikhail.shell.video.hosting.elastic.documents
 
-import mikhail.shell.video.hosting.repository.entities.VideoEntity
-import mikhail.shell.video.hosting.repository.entities.VideoState
+import mikhail.shell.video.hosting.entities.VideoEntity
+import mikhail.shell.video.hosting.entities.VideoState
 import org.springframework.data.annotation.Id
 import org.springframework.data.elasticsearch.annotations.Document
 import java.time.Instant

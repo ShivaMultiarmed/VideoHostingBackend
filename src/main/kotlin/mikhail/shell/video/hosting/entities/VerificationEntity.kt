@@ -1,4 +1,4 @@
-package mikhail.shell.video.hosting.repository.entities
+package mikhail.shell.video.hosting.entities
 
 import jakarta.persistence.Entity
 import jakarta.persistence.GeneratedValue

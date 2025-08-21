@@ -1,7 +1,7 @@
 package mikhail.shell.video.hosting.repository
 
-import mikhail.shell.video.hosting.repository.entities.Subscriber
-import mikhail.shell.video.hosting.repository.entities.SubscriberId
+import mikhail.shell.video.hosting.entities.Subscriber
+import mikhail.shell.video.hosting.entities.SubscriberId
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository
 

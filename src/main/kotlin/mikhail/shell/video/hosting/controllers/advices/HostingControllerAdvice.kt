@@ -1,6 +1,8 @@
 package mikhail.shell.video.hosting.controllers.advices
 
 import mikhail.shell.video.hosting.errors.Error
+import mikhail.shell.video.hosting.errors.UnauthenticatedException
+import mikhail.shell.video.hosting.errors.UniquenessViolationException
 import mikhail.shell.video.hosting.errors.ValidationException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -24,5 +26,13 @@ class HostingControllerAdvice {
     @ExceptionHandler(IllegalAccessException::class)
     fun handleIllegalAccess(e: IllegalAccessException): ResponseEntity<Unit> {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+    }
+    @ExceptionHandler(UnauthenticatedException::class)
+    fun handleIllegalAccess(e: UnauthenticatedException): ResponseEntity<Unit> {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+    }
+    @ExceptionHandler(UniquenessViolationException::class)
+    fun handleIllegalAccess(e: UniquenessViolationException): ResponseEntity<Unit> {
+        return ResponseEntity.status(HttpStatus.CONFLICT).build()
     }
 }

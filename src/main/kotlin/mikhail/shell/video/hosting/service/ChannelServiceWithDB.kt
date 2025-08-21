@@ -2,28 +2,25 @@ package mikhail.shell.video.hosting.service
 
 import com.google.firebase.messaging.FirebaseMessaging
 import jakarta.transaction.Transactional
+import jakarta.validation.ConstraintViolationException
+import mikhail.shell.video.hosting.controllers.ChannelEditingRequest
+import mikhail.shell.video.hosting.controllers.toUploadedFile
 import mikhail.shell.video.hosting.domain.*
-import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_COVERS_BASE_PATH
-import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_AVATARS_BASE_PATH
+import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_HEADERS_BASE_PATH
+import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_LOGOS_BASE_PATH
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_COVERS_BASE_PATH
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH
 import mikhail.shell.video.hosting.domain.Subscription.NOT_SUBSCRIBED
 import mikhail.shell.video.hosting.domain.Subscription.SUBSCRIBED
 import mikhail.shell.video.hosting.elastic.repository.VideoSearchRepository
-import mikhail.shell.video.hosting.errors.ChannelCreationError
-import mikhail.shell.video.hosting.errors.ChannelCreationError.*
-import mikhail.shell.video.hosting.errors.CompoundError
-import mikhail.shell.video.hosting.errors.EditChannelError
-import mikhail.shell.video.hosting.errors.ValidationException
-import mikhail.shell.video.hosting.repository.entities.SubscriberId
+import mikhail.shell.video.hosting.entities.*
 import mikhail.shell.video.hosting.repository.ChannelRepository
 import mikhail.shell.video.hosting.repository.SubscriberRepository
 import mikhail.shell.video.hosting.repository.UserRepository
 import mikhail.shell.video.hosting.repository.VideoRepository
-import mikhail.shell.video.hosting.repository.entities.Subscriber
-import mikhail.shell.video.hosting.repository.entities.toDomain
-import mikhail.shell.video.hosting.repository.entities.toEntity
+import mikhail.shell.video.hosting.errors.*
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service
 import java.io.File
 
@@ -37,19 +34,18 @@ class ChannelServiceWithDB @Autowired constructor(
     private val fcm: FirebaseMessaging
 ) : ChannelService {
 
-    override fun provideChannelInfo(
-        channelId: Long
-    ): Channel {
+    override fun get(channelId: Long): Channel {
         return channelRepository.findById(channelId).orElseThrow().toDomain()
     }
 
-    override fun provideChannelForUser(channelId: Long, userId: Long): ChannelWithUser {
-        val channel = channelRepository.findById(channelId).orElseThrow()
+    override fun getForUser(channelId: Long, userId: Long): ChannelWithUser {
+        val channel = channelRepository.findById(channelId).orElseThrow().toDomain()
         if (!userRepository.existsById(userId)) {
             throw IllegalArgumentException()
         }
-        val subscription = if (subscriberRepository.existsById(SubscriberId(channelId, userId))) SUBSCRIBED else NOT_SUBSCRIBED
-        return channel.toDomain() with subscription
+        val subscription =
+            if (subscriberRepository.existsById(SubscriberId(channelId, userId))) SUBSCRIBED else NOT_SUBSCRIBED
+        return channel with subscription
     }
 
     override fun getChannel(channelId: Long): Channel {
@@ -61,49 +57,41 @@ class ChannelServiceWithDB @Autowired constructor(
     }
 
     @Transactional
-    override fun createChannel(channel: Channel, avatar: UploadedFile?, cover: UploadedFile?): Channel {
-        val compoundError = CompoundError<ChannelCreationError>()
-        if (channelRepository.existsByTitle(channel.title)) {
-            compoundError.add(TITLE_EXISTS)
+    override fun createChannel(channel: Channel, logo: UploadedFile?, header: UploadedFile?): Channel {
+        val createdChannel = try {
+            channelRepository.save(channel.toEntity()).toDomain()
+        } catch (e: ConstraintViolationException) {
+            throw UniquenessViolationException()
         }
-        if (channel.title.length > ValidationRules.MAX_TITLE_LENGTH) {
-            compoundError.add(TITLE_TOO_LARGE)
-        }
-        if ((channel.alias?.length ?: 0) > ValidationRules.MAX_TITLE_LENGTH) {
-            compoundError.add(ALIAS_TOO_LARGE)
-        } else if (channel.alias != null && channelRepository.existsByAlias(channel.alias)) {
-            compoundError.add(ALIAS_EXISTS)
-        }
-        if ((channel.description?.length ?: 0) > ValidationRules.MAX_TEXT_LENGTH) {
-            compoundError.add(DESCRIPTION_TOO_LARGE)
-        }
-        if (compoundError.isNotEmpty()) {
-            throw ValidationException(compoundError)
-        }
-        val channelEntityToCreate = channel
-            .toEntity()
-            .copy(
-                channelId = null,
-                subscribers = 0
-            )
-        val createdChannel = channelRepository.save(channelEntityToCreate).toDomain()
-        cover?.let {
+        header?.let {
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$CHANNEL_COVERS_BASE_PATH/${createdChannel.channelId}.jpg",
+                targetFile = "$CHANNEL_HEADERS_BASE_PATH/${createdChannel.channelId}.jpg",
                 width = 512,
                 height = 128
             )
         }
-        avatar?.let {
+        logo?.let {
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$CHANNEL_AVATARS_BASE_PATH/${createdChannel.channelId}.jpg",
+                targetFile = "$CHANNEL_LOGOS_BASE_PATH/${createdChannel.channelId}.jpg",
                 width = 128,
                 height = 128
             )
         }
         return createdChannel
+    }
+
+    override fun getLogo(channelId: Long): File {
+        return findFileByName(CHANNEL_LOGOS_BASE_PATH, channelId.toString())
+            .takeIf { !channelRepository.existsById(channelId) || it?.exists() != true }
+            ?: throw NoSuchElementException()
+    }
+
+    override fun getHeader(channelId: Long): File {
+        return findFileByName(CHANNEL_HEADERS_BASE_PATH, channelId.toString())
+            .takeIf { !channelRepository.existsById(channelId) || it?.exists() != true }
+            ?: throw NoSuchElementException()
     }
 
     override fun getChannelsByOwnerId(userId: Long): List<Channel> {
@@ -117,8 +105,7 @@ class ChannelServiceWithDB @Autowired constructor(
         if (!userRepository.existsById(userId)) {
             throw NoSuchElementException()
         }
-        val subscriptions = subscriberRepository.findById_UserId(userId)
-        val channelIds = subscriptions.map { it.id.channelId }
+        val channelIds = subscriberRepository.findById_UserId(userId).map { it.id.channelId }
         return channelRepository.findAllById(channelIds).map { it.toDomain() }
     }
 
@@ -151,100 +138,76 @@ class ChannelServiceWithDB @Autowired constructor(
 
     override fun editChannel(
         channel: Channel,
-        editCoverAction: EditAction,
-        coverFile: UploadedFile?,
-        editAvatarAction: EditAction,
-        avatarFile: UploadedFile?
+        header: UploadedFile?,
+        headerAction: EditAction,
+        logo: UploadedFile?,
+        logoAction: EditAction
     ): Channel {
         val currentChannelEntity = channelRepository
             .findById(channel.channelId!!)
-            .get()
-        val compoundError = CompoundError<EditChannelError>()
-        if (channel.title.length > ValidationRules.MAX_TITLE_LENGTH) {
-            compoundError.add(EditChannelError.TITLE_TOO_LARGE)
-        } else if (
-            channelRepository.existsByTitle(channel.title)
-            && currentChannelEntity.title != channel.title
-        ) {
-            compoundError.add(EditChannelError.TITLE_EXISTS)
+            .orElseThrow()
+        if (!channelRepository.existsByOwnerIdAndChannelId(channel.ownerId, channel.channelId)) {
+            throw IllegalAccessException()
         }
-        if ((channel.alias?.length ?: 0) > ValidationRules.MAX_TITLE_LENGTH) {
-            compoundError.add(EditChannelError.ALIAS_TOO_LARGE)
-        } else if (
+        if (channelRepository.existsByTitle(channel.title)
+            && currentChannelEntity.title != channel.title ||
             channel.alias != null
             && channelRepository.existsByAlias(channel.alias)
             && currentChannelEntity.alias != channel.alias
         ) {
-            compoundError.add(EditChannelError.ALIAS_EXISTS)
+            throw UniquenessViolationException()
         }
-        if ((channel.description?.length ?: 0) > ValidationRules.MAX_TEXT_LENGTH) {
-            compoundError.add(EditChannelError.DESCRIPTION_TOO_LARGE)
+        val editedChannel = channelRepository.save(
+            currentChannelEntity.copy(
+                title = channel.title,
+                alias = channel.alias,
+                description = channel.description
+            )
+        ).toDomain()
+        if (headerAction != EditAction.KEEP) {
+            findFileByName(CHANNEL_HEADERS_BASE_PATH, channel.channelId.toString())?.delete()
         }
-        if (compoundError.isNotEmpty()) {
-            throw ValidationException(compoundError)
-        }
-        val editedChannel = channelRepository.save(channel.toEntity()).toDomain()
-        when (editCoverAction) {
-            EditAction.KEEP -> Unit
-            EditAction.REMOVE -> {
-                File(CHANNEL_COVERS_BASE_PATH, channel.channelId.toString()).delete()
-            }
-            EditAction.UPDATE -> {
-                coverFile?.let { uploadedFile ->
-                    File(CHANNEL_COVERS_BASE_PATH, channel.channelId.toString()).delete()
-                    uploadImage(
-                        uploadedFile = uploadedFile,
-                        targetFile = "$CHANNEL_COVERS_BASE_PATH/${editedChannel.channelId}.jpg",
-                        width = 512,
-                        height = 128
-                    )
-                }
+        if (headerAction == EditAction.UPDATE) {
+            header?.let { uploadedFile ->
+                uploadImage(
+                    uploadedFile = uploadedFile,
+                    targetFile = "$CHANNEL_HEADERS_BASE_PATH/${editedChannel.channelId}.jpg",
+                    width = 512,
+                    height = 128
+                )
             }
         }
-        when (editAvatarAction) {
-            EditAction.KEEP -> Unit
-            EditAction.REMOVE -> {
-                File(CHANNEL_AVATARS_BASE_PATH, channel.channelId.toString()).delete()
-            }
-
-            EditAction.UPDATE -> {
-                avatarFile?.let { uploadedFile ->
-                    File(CHANNEL_AVATARS_BASE_PATH, channel.channelId.toString()).delete()
-                    uploadImage(
-                        uploadedFile = uploadedFile,
-                        targetFile = "$CHANNEL_AVATARS_BASE_PATH/${editedChannel.channelId}.jpg",
-                        width = 128,
-                        height = 128
-                    )
-                }
+        if (logoAction != EditAction.KEEP) {
+            findFileByName(CHANNEL_LOGOS_BASE_PATH, channel.channelId.toString())?.delete()
+        }
+        if (logoAction == EditAction.UPDATE) {
+            logo?.let { uploadedFile ->
+                uploadImage(
+                    uploadedFile = uploadedFile,
+                    targetFile = "$CHANNEL_LOGOS_BASE_PATH/${editedChannel.channelId}.jpg",
+                    width = 512,
+                    height = 128
+                )
             }
         }
         return editedChannel
     }
 
     override fun removeChannel(channelId: Long) {
+        val userId = SecurityContextHolder.getContext().authentication.principal as? Long
+            ?: throw UnauthenticatedException()
         if (!channelRepository.existsById(channelId)) {
             throw NoSuchElementException()
+        } else if (channelRepository.existsByOwnerIdAndChannelId(userId, channelId)) {
+            throw IllegalAccessException()
         } else {
-            findFileByName(
-                java.io.File(CHANNEL_AVATARS_BASE_PATH),
-                channelId.toString()
-            )?.delete()
-            findFileByName(
-                java.io.File(CHANNEL_COVERS_BASE_PATH),
-                channelId.toString()
-            )?.delete()
+            findFileByName(File(CHANNEL_LOGOS_BASE_PATH), channelId.toString())?.delete()
+            findFileByName(File(CHANNEL_HEADERS_BASE_PATH), channelId.toString())?.delete()
             val videoIds = videoRepository.findByChannelId(channelId).map { it.videoId }
             videoSearchRepository.deleteAllById(videoIds)
             videoIds.filterNotNull().forEach {
-                findFileByName(
-                    java.io.File(VIDEOS_COVERS_BASE_PATH),
-                    it.toString()
-                )?.delete()
-                findFileByName(
-                    java.io.File(VIDEOS_PLAYABLES_BASE_PATH),
-                    it.toString()
-                )?.delete()
+                findFileByName(File(VIDEOS_COVERS_BASE_PATH), it.toString())?.delete()
+                findFileByName(File(VIDEOS_PLAYABLES_BASE_PATH), it.toString())?.delete()
             }
             channelRepository.deleteById(channelId)
         }

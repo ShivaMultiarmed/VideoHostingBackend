@@ -62,7 +62,7 @@ class VideoController @Autowired constructor(
             sourceUrl = "$BASE_URL/videos/${videoId}/play",
             coverUrl = "$BASE_URL/videos/${videoId}/cover"
         )
-        val channelDto = channelService.provideChannelForUser(videoDto.channelId, userId).toDto(
+        val channelDto = channelService.getForUser(videoDto.channelId, userId).toDto(
             avatarUrl = "$BASE_URL/channels/${videoDto.channelId}/avatar",
             coverUrl = "$BASE_URL/channels/${videoDto.channelId}/cover"
         )

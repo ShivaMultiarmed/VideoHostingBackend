@@ -1,6 +1,6 @@
 package mikhail.shell.video.hosting.repository
 
-import mikhail.shell.video.hosting.repository.entities.VideoWithChannelEntity
+import mikhail.shell.video.hosting.entities.VideoWithChannelEntity
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository

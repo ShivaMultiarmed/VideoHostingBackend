@@ -8,6 +8,10 @@ interface Error
 
 data object UnexpectedError: Error
 
+class UnauthenticatedException: RuntimeException()
+
+class UniquenessViolationException: RuntimeException()
+
 class ValidationException(val error: Error): RuntimeException()
 
 class CompoundError<T: Error>(): Error {

@@ -4,8 +4,13 @@ import net.coobird.thumbnailator.Thumbnails
 import net.coobird.thumbnailator.geometry.Positions
 import java.awt.image.BufferedImage
 import java.io.File
+import java.nio.file.Paths
 import javax.imageio.ImageIO
 import kotlin.math.min
+
+fun findFileByName(directory: String, fileName: String): File? {
+    return findFileByName(Paths.get(directory).toFile(), fileName)
+}
 
 fun findFileByName(directory: File, fileName: String): File? {
     return directory.listFiles { _, name -> name.parseFileName() == fileName }?.firstOrNull()

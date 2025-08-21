@@ -14,6 +14,7 @@ import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_COVERS_BASE_PATH
 import mikhail.shell.video.hosting.elastic.documents.toDocument
 import mikhail.shell.video.hosting.elastic.repository.VideoSearchRepository
+import mikhail.shell.video.hosting.entities.*
 import mikhail.shell.video.hosting.errors.*
 import mikhail.shell.video.hosting.repository.*
 import mikhail.shell.video.hosting.repository.entities.*

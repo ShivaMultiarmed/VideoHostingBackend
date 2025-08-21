@@ -1,17 +1,15 @@
 package mikhail.shell.video.hosting.controllers
 
+import jakarta.validation.constraints.Max
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Positive
 import mikhail.shell.video.hosting.domain.*
-import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_AVATARS_BASE_PATH
-import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_COVERS_BASE_PATH
+import mikhail.shell.video.hosting.domain.ValidationRules.MAX_TEXT_LENGTH
+import mikhail.shell.video.hosting.domain.ValidationRules.MAX_TITLE_LENGTH
 import mikhail.shell.video.hosting.dto.ChannelDto
 import mikhail.shell.video.hosting.dto.ChannelWithUserDto
 import mikhail.shell.video.hosting.dto.toDomain
 import mikhail.shell.video.hosting.dto.toDto
-import mikhail.shell.video.hosting.errors.ChannelCreationError
-import mikhail.shell.video.hosting.errors.ChannelCreationError.*
-import mikhail.shell.video.hosting.errors.CompoundError
-import mikhail.shell.video.hosting.errors.EditChannelError
-import mikhail.shell.video.hosting.errors.ValidationException
 import mikhail.shell.video.hosting.service.ChannelService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
@@ -20,10 +18,10 @@ import org.springframework.core.io.Resource
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
-import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
-import java.nio.file.Paths
 
 @RestController
 @RequestMapping("/api/v1/channels")
@@ -34,220 +32,118 @@ class ChannelController @Autowired constructor(
     private lateinit var BASE_URL: String
 
     @GetMapping("/{channelId}")
-    fun provideChannel(
-        @PathVariable channelId: Long
-    ): ResponseEntity<ChannelDto> {
-        val channel = channelService.getChannel(channelId)
-        val channelDto = channel.toDto()
-        return ResponseEntity.status(HttpStatus.OK).body(channelDto)
+    fun get(@PathVariable @Positive channelId: Long): ChannelDto {
+        return channelService.getChannel(channelId).toDto()
     }
 
     @GetMapping("/{channelId}/details")
-    fun provideChannelDetails(
-        @PathVariable channelId: Long
-    ): ResponseEntity<ChannelWithUserDto> {
-        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
-            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        val channelForUser = channelService.provideChannelForUser(channelId, userId)
-        val channelForUserDto = channelForUser.toDto()
-        return ResponseEntity.status(HttpStatus.OK).body(channelForUserDto)
+    fun getDetails(
+        @PathVariable @Positive channelId: Long,
+        @AuthenticationPrincipal userId: Long
+    ): ChannelWithUserDto {
+        return channelService.getForUser(channelId = channelId, userId = userId).toDto()
     }
 
-    @GetMapping("/{channelId}/cover")
-    fun provideChannelCover(@PathVariable channelId: Long): ResponseEntity<Resource> {
-        val coverFolder = Paths.get(CHANNEL_COVERS_BASE_PATH).toFile()
-        val image = findFileByName(coverFolder, channelId.toString())
-        return if (image?.exists() != true || !channelService.checkExistence(channelId)) {
-            ResponseEntity.status(HttpStatus.NOT_FOUND).build()
-        } else {
-            val coverResource = FileSystemResource(image)
-            ResponseEntity.status(HttpStatus.OK)
+    @GetMapping("/{channelId}/header")
+    fun getHeader(@PathVariable @Positive channelId: Long): ResponseEntity<Resource> {
+        val image = channelService.getHeader(channelId)
+        return ResponseEntity.status(HttpStatus.OK)
+            .contentType(MediaType.parseMediaType("image/${image.name.parseExtension()}"))
+            .body(FileSystemResource(image))
+    }
+
+    @GetMapping("/{channelId}/logo")
+    fun getLogo(@PathVariable @Positive channelId: Long): ResponseEntity<Resource> {
+        val image = channelService.getLogo(channelId)
+        return ResponseEntity.status(HttpStatus.OK)
                 .contentType(MediaType.parseMediaType("image/${image.name.parseExtension()}"))
-                .body(coverResource)
-        }
+                .body(FileSystemResource(image))
     }
 
-    @GetMapping("/{channelId}/avatar")
-    fun provideChannelAvatar(@PathVariable channelId: Long): ResponseEntity<Resource> {
-        val avatarFolder = Paths.get(CHANNEL_AVATARS_BASE_PATH).toFile()
-        val image = findFileByName(avatarFolder, channelId.toString())
-        return if (image?.exists() != true || !channelService.checkExistence(channelId)) {
-            ResponseEntity.status(HttpStatus.NOT_FOUND).build()
-        } else {
-            val avatarResource = FileSystemResource(image)
-            ResponseEntity.status(HttpStatus.OK)
-                .contentType(MediaType.parseMediaType("image/${image.name.parseExtension()}"))
-                .body(avatarResource)
-        }
-    }
-
-    @PostMapping(
-        path = ["/create"],
-        consumes = ["multipart/form-data"]
-    )
+    @PostMapping(path = ["/create"], consumes = ["multipart/form-data"])
     fun createChannel(
-        @RequestPart("channel") channel: ChannelDto,
-        @RequestPart("cover") coverFile: MultipartFile?,
-        @RequestPart("avatar") avatarFile: MultipartFile?
-    ): ResponseEntity<ChannelDto> {
-        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
-            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        if (userId != channel.ownerId) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
-        }
-        val compoundError = CompoundError<ChannelCreationError>()
-        if (channel.title.isEmpty()) {
-            compoundError.add(TITLE_EMPTY)
-        }
-        coverFile?.let {
-            if (!it.contentType!!.contains("image")) {
-                compoundError.add(COVER_TYPE_NOT_VALID)
-            }
-            if (it.size > ValidationRules.MAX_IMAGE_SIZE) {
-                compoundError.add(COVER_TOO_LARGE)
-            }
-        }
-        avatarFile?.let {
-            if (!it.contentType!!.contains("image")) {
-                compoundError.add(AVATAR_TYPE_NOT_VALID)
-            }
-            if (it.size > ValidationRules.MAX_IMAGE_SIZE) {
-                compoundError.add(AVATAR_TOO_LARGE)
-            }
-        }
-
-        if (compoundError.isNotEmpty()) {
-            throw ValidationException(compoundError)
-        }
-
-        val cover = coverFile?.toUploadedFile()
-        val avatar = avatarFile?.toUploadedFile()
-        val createdChannel = channelService.createChannel(
-            channel = channel.toDomain(),
-            cover = cover,
-            avatar = avatar
-        )
-        return ResponseEntity
-            .status(HttpStatus.CREATED)
-            .body(createdChannel.toDto())
+        @Validated @ModelAttribute channel: ChannelCreationRequest,
+        @AuthenticationPrincipal userId: Long,
+    ): ChannelDto {
+        return channelService.createChannel(
+            channel = Channel(
+                ownerId = userId,
+                title = channel.title,
+                alias = channel.alias,
+                description = channel.description
+            ),
+            logo = channel.logo?.toUploadedFile(),
+            header = channel.header?.toUploadedFile()
+        ).toDto()
     }
 
-    @PatchMapping(
-        path = ["/edit"],
-        consumes = ["multipart/form-data"]
-    )
+    @PatchMapping(path = ["/edit"], consumes = ["multipart/form-data"])
     fun editChannel(
-        @RequestPart("channel") channel: ChannelDto,
-        @RequestPart("editCoverAction") editCoverAction: EditAction,
-        @RequestPart("cover") coverFile: MultipartFile?,
-        @RequestPart("editAvatarAction") editAvatarAction: EditAction,
-        @RequestPart("avatar") avatarFile: MultipartFile?
-    ): ResponseEntity<ChannelDto> {
-        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
-            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        if (channel.channelId == null || !channelService.checkExistence(channel.channelId)) {
-            throw NoSuchElementException()
-        }
-        if (!channelService.checkOwner(userId, channel.channelId)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
-        }
-        val compoundError = CompoundError<EditChannelError>()
-        if (channel.title.isEmpty()) {
-            compoundError.add(EditChannelError.TITLE_EMPTY)
-        }
-        coverFile?.let {
-            if (!it.contentType!!.contains("image")) {
-                compoundError.add(EditChannelError.COVER_TYPE_NOT_VALID)
-            }
-            if (it.size > ValidationRules.MAX_IMAGE_SIZE) {
-                compoundError.add(EditChannelError.COVER_TOO_LARGE)
-            }
-        }
-        avatarFile?.let {
-            if (!it.contentType!!.contains("image")) {
-                compoundError.add(EditChannelError.AVATAR_TYPE_NOT_VALID)
-            }
-            if (it.size > ValidationRules.MAX_IMAGE_SIZE) {
-                compoundError.add(EditChannelError.AVATAR_TOO_LARGE)
-            }
-        }
-        if (compoundError.isNotEmpty()) {
-            throw ValidationException(compoundError)
-        }
-        val editedChannel = channelService.editChannel(
-            channel = channel.toDomain(),
-            editCoverAction = editCoverAction,
-            coverFile = coverFile?.toUploadedFile(),
-            editAvatarAction = editAvatarAction,
-            avatarFile = avatarFile?.toUploadedFile()
-        )
-        val editedChannelDto = editedChannel.toDto()
-        return ResponseEntity.status(HttpStatus.OK).body(editedChannelDto)
+        @Validated @ModelAttribute channel: ChannelEditingRequest,
+        @AuthenticationPrincipal userId: Long
+    ): ChannelDto {
+        return channelService.editChannel(
+            channel = Channel(
+                channelId = channel.channelId,
+                ownerId = userId,
+                title = channel.title,
+                alias = channel.alias,
+                description = channel.description
+            ),
+            header = channel.header?.toUploadedFile(),
+            headerAction = channel.editHeaderAction,
+            logo = channel.logo?.toUploadedFile(),
+            logoAction = channel.editHeaderAction,
+        ).toDto()
     }
 
     @GetMapping("/owner/{userId}")
-    fun getAllChannelsByOwnerId(@PathVariable userId: Long): ResponseEntity<List<ChannelDto>> {
-        val channels = channelService.getChannelsByOwnerId(userId)
-        val channelDtos = channels.map { it.toDto() }
-        return ResponseEntity.status(HttpStatus.OK).body(channelDtos)
+    fun getAllChannelsByOwnerId(@PathVariable @Positive userId: Long): List<ChannelDto> {
+        return channelService.getChannelsByOwnerId(userId).map { it.toDto() }
     }
 
     @GetMapping("/subscriptions")
-    fun getAllChannelsBySubscriberId(): ResponseEntity<List<ChannelDto>> {
-        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
-            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        val channels = channelService.getChannelsBySubscriberId(userId)
-        val channelDtos = channels.map { it.toDto() }
-        return ResponseEntity.status(HttpStatus.OK).body(channelDtos)
+    fun getAllChannelsBySubscriberId(@AuthenticationPrincipal userId: Long): List<ChannelDto> {
+        return channelService.getChannelsBySubscriberId(userId).map { it.toDto() }
     }
 
     @PatchMapping("/{channelId}/subscribe")
     fun subscribe(
-        @PathVariable channelId: Long,
+        @PathVariable @Positive channelId: Long,
         @RequestParam subscription: Subscription,
-        @RequestParam fcmToken: String
-    ): ResponseEntity<ChannelWithUserDto> {
-        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
-            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        val updatedChannel = channelService.changeSubscriptionState(userId, channelId, subscription, fcmToken)
-        return ResponseEntity.status(HttpStatus.OK).body(updatedChannel.toDto())
+        @RequestParam @NotBlank fcmToken: String,
+        @AuthenticationPrincipal userId: Long,
+    ): ChannelWithUserDto {
+        return channelService.changeSubscriptionState(
+            subscriberId = userId,
+            channelId = channelId,
+            subscription = subscription,
+            token = fcmToken
+        ).toDto()
     }
 
     @PatchMapping("/notifications/subscribe")
     fun resubscribeToFCM(
-        @RequestParam token: String
-    ): ResponseEntity<Unit> {
-        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
-            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+        @RequestParam token: String,
+        @AuthenticationPrincipal userId: Long
+    ) {
         channelService.subscribeToNotifications(userId, token)
-        return ResponseEntity.status(HttpStatus.OK).build()
     }
 
     @PatchMapping("/notifications/unsubscribe")
     fun unsubscribeFromFCM(
-        @RequestParam token: String
-    ): ResponseEntity<Unit> {
-        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
-            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        channelService.unsubscribeFromNotifications(userId, token)
-        return ResponseEntity.status(HttpStatus.OK).build()
+        @RequestParam token: String,
+        @AuthenticationPrincipal userId: Long
+    ) {
+        channelService.unsubscribeFromNotifications(userId = userId, token = token)
     }
 
     @DeleteMapping("/{channelId}")
-    fun removeChannel(
-        @PathVariable channelId: Long
-    ): ResponseEntity<Unit> {
-        if (!channelService.checkExistence(channelId)) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build()
-        }
-        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
-            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        if (channelService.checkOwner(userId, channelId)) {
-            channelService.removeChannel(channelId)
-            return ResponseEntity.status(HttpStatus.OK).build()
-        } else {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
-        }
+    fun remove(
+        @PathVariable channelId: Long,
+        @AuthenticationPrincipal userId: Long
+    ) {
+        channelService.removeChannel(channelId)
     }
 
     private fun Channel.toDto(): ChannelDto = toDto(
@@ -260,3 +156,49 @@ class ChannelController @Autowired constructor(
         coverUrl = "$BASE_URL/channels/$channelId/cover"
     )
 }
+
+data class ChannelCreationRequest(
+    @field:NotBlank
+    @field:Max(MAX_TITLE_LENGTH.toLong())
+    val title: String,
+    @field:NotBlank
+    @field:Max(MAX_TITLE_LENGTH.toLong())
+    val alias: String?,
+    @field:FileSize(
+        max = ValidationRules.MAX_IMAGE_SIZE.toLong(),
+        mime = "image"
+    )
+    val logo: MultipartFile?,
+    @field:FileSize(
+        max = ValidationRules.MAX_IMAGE_SIZE.toLong(),
+        mime = "image"
+    )
+    val header: MultipartFile?,
+    @field:Max(MAX_TEXT_LENGTH.toLong())
+    val description: String?
+)
+
+data class ChannelEditingRequest(
+    @field:Positive
+    val channelId: Long,
+    @field:NotBlank
+    @field:Max(MAX_TITLE_LENGTH.toLong())
+    val title: String,
+    @field:NotBlank
+    @field:Max(MAX_TITLE_LENGTH.toLong())
+    val alias: String?,
+    val editLogoAction: EditAction,
+    @field:FileSize(
+        max = ValidationRules.MAX_IMAGE_SIZE.toLong(),
+        mime = "image"
+    )
+    val logo: MultipartFile?,
+    val editHeaderAction: EditAction,
+    @field:FileSize(
+        max = ValidationRules.MAX_IMAGE_SIZE.toLong(),
+        mime = "image"
+    )
+    val header: MultipartFile?,
+    @field:Max(MAX_TEXT_LENGTH.toLong())
+    val description: String?
+)

@@ -1,15 +1,17 @@
 package mikhail.shell.video.hosting.service
 
+import mikhail.shell.video.hosting.controllers.ChannelEditingRequest
 import mikhail.shell.video.hosting.domain.*
+import java.io.File
 
 interface ChannelService {
-    fun provideChannelInfo(channelId: Long): Channel
-    fun provideChannelForUser(channelId: Long, userId: Long): ChannelWithUser
+    fun get(channelId: Long): Channel
+    fun getForUser(channelId: Long, userId: Long): ChannelWithUser
     fun checkIfSubscribed(channelId: Long, userId: Long): Boolean
     fun createChannel(
         channel: Channel,
-        avatar: UploadedFile?,
-        cover: UploadedFile?
+        logo: UploadedFile?,
+        header: UploadedFile?
     ): Channel
     fun getChannelsByOwnerId(userId: Long): List<Channel>
     fun getChannelsBySubscriberId(userId: Long): List<Channel>
@@ -22,15 +24,17 @@ interface ChannelService {
 
     fun subscribeToNotifications(userId: Long, token: String)
     fun unsubscribeFromNotifications(userId: Long, token: String)
-    fun editChannel(
-        channel: Channel,
-        editCoverAction: EditAction,
-        coverFile: UploadedFile?,
-        editAvatarAction: EditAction,
-        avatarFile: UploadedFile?
-    ): Channel
     fun getChannel(channelId: Long): Channel
     fun removeChannel(channelId: Long)
     fun checkOwner(userId: Long, channelId: Long): Boolean
     fun checkExistence(channelId: Long): Boolean
+    fun getLogo(channelId: Long): File
+    fun getHeader(channelId: Long): File
+    fun editChannel(
+        channel: Channel,
+        header: UploadedFile?,
+        headerAction: EditAction,
+        logo: UploadedFile?,
+        logoAction: EditAction
+    ): Channel
 }

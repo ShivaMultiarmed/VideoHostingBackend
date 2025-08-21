@@ -10,8 +10,8 @@ import mikhail.shell.video.hosting.errors.CommentError
 import mikhail.shell.video.hosting.errors.ValidationException
 import mikhail.shell.video.hosting.repository.CommentRepository
 import mikhail.shell.video.hosting.repository.CommentWithUserRepository
-import mikhail.shell.video.hosting.repository.entities.toDomain
-import mikhail.shell.video.hosting.repository.entities.toEntity
+import mikhail.shell.video.hosting.entities.toDomain
+import mikhail.shell.video.hosting.entities.toEntity
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service

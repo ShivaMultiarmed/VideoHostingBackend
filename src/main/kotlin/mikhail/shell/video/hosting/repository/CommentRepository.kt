@@ -1,7 +1,7 @@
 package mikhail.shell.video.hosting.repository
 
-import mikhail.shell.video.hosting.repository.entities.CommentEntity
-import mikhail.shell.video.hosting.repository.entities.CommentWithUserEntity
+import mikhail.shell.video.hosting.entities.CommentEntity
+import mikhail.shell.video.hosting.entities.CommentWithUserEntity
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
