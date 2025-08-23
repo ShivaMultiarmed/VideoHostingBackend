@@ -1,8 +1,7 @@
 package mikhail.shell.video.hosting.service
 
-import mikhail.shell.video.hosting.controllers.ChannelEditingRequest
 import mikhail.shell.video.hosting.domain.*
-import java.io.File
+import org.springframework.core.io.Resource
 
 interface ChannelService {
     fun get(channelId: Long): Channel
@@ -28,8 +27,8 @@ interface ChannelService {
     fun removeChannel(channelId: Long)
     fun checkOwner(userId: Long, channelId: Long): Boolean
     fun checkExistence(channelId: Long): Boolean
-    fun getLogo(channelId: Long): File
-    fun getHeader(channelId: Long): File
+    fun getLogo(channelId: Long): Resource
+    fun getHeader(channelId: Long): Resource
     fun editChannel(
         channel: Channel,
         header: UploadedFile?,

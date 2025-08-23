@@ -10,6 +10,7 @@ import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.Message
 import jakarta.transaction.Transactional
 import mikhail.shell.video.hosting.domain.*
+import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_LOGOS_BASE_PATH
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_COVERS_BASE_PATH
 import mikhail.shell.video.hosting.elastic.documents.toDocument
@@ -17,19 +18,19 @@ import mikhail.shell.video.hosting.elastic.repository.VideoSearchRepository
 import mikhail.shell.video.hosting.entities.*
 import mikhail.shell.video.hosting.errors.*
 import mikhail.shell.video.hosting.repository.*
-import mikhail.shell.video.hosting.repository.entities.*
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.core.io.FileSystemResource
+import org.springframework.core.io.Resource
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.elasticsearch.client.elc.NativeQuery
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations
 import org.springframework.data.elasticsearch.core.search
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.nio.file.Paths
-import java.time.Instant
 
 @Service
 class VideoServiceWithDB @Autowired constructor(
@@ -44,13 +45,16 @@ class VideoServiceWithDB @Autowired constructor(
     private val fcm: FirebaseMessaging
 ) : VideoService {
 
-    override fun getVideoInfo(videoId: Long): Video {
+    override fun get(videoId: Long): Video {
         return videoRepository.findById(videoId).orElseThrow().toDomain()
     }
 
-    override fun getVideoForUser(videoId: Long, userId: Long): VideoWithUser {
+    override fun get(videoId: Long, userId: Long): VideoWithUser {
         if (!videoRepository.existsById(videoId)) {
             throw NoSuchElementException()
+        }
+        if (!userRepository.existsById(userId)) {
+            throw UnauthenticatedException()
         }
         val likingId = VideoLikingId(userId, videoId)
 
@@ -64,7 +68,7 @@ class VideoServiceWithDB @Autowired constructor(
         return videoRepository.existsById(videoId)
     }
 
-    override fun checkVideoLikeState(videoId: Long, userId: Long): Liking {
+    override fun checkLiking(videoId: Long, userId: Long): Liking {
         val id = VideoLikingId(userId, videoId)
         return userLikeVideoRepository.findById(id).orElse(null)?.liking ?: Liking.NONE
     }
@@ -72,7 +76,7 @@ class VideoServiceWithDB @Autowired constructor(
     @Transactional
     override fun rate(videoId: Long, userId: Long, liking: Liking): VideoWithUser {
         val id = VideoLikingId(userId, videoId)
-        val previousLiking = checkVideoLikeState(videoId, userId)
+        val previousLiking = checkLiking(videoId, userId)
         val videoEntity = videoRepository.findById(videoId).orElseThrow()
         if (liking != Liking.NONE) {
             userLikeVideoRepository.save(VideoLiking(id, liking))
@@ -105,10 +109,10 @@ class VideoServiceWithDB @Autowired constructor(
         )
         videoRepository.save(videoEntityToSave)
         videoSearchRepository.save(videoEntityToSave.toDocument())
-        return getVideoForUser(videoId, userId)
+        return get(videoId, userId)
     }
 
-    override fun getVideosByChannelId(
+    override fun getByChannelId(
         channelId: Long,
         partSize: Int,
         partNumber: Long
@@ -125,7 +129,7 @@ class VideoServiceWithDB @Autowired constructor(
         ).map { it.toDomain() }
     }
 
-    override fun getVideosByQuery(
+    override fun getByQuery(
         query: String,
         partSize: Int,
         partNumber: Long
@@ -171,33 +175,24 @@ class VideoServiceWithDB @Autowired constructor(
         return videoWithChannelsRepository.findAllById(ids).map { it.toDomain() }
     }
 
-    override fun saveVideoDetails(video: Video): Video {
-        val compoundError = CompoundError<UploadVideoError>()
-        if (!channelRepository.existsById(video.channelId)) {
-            compoundError.add(UploadVideoError.CHANNEL_NOT_VALID)
+    override fun save(userId: Long, video: Video, cover: UploadedFile?): Video {
+        if (!channelRepository.existsByOwnerIdAndChannelId(userId = userId, channelId = video.channelId)) {
+            throw IllegalAccessException()
         }
-        if (video.title.length > ValidationRules.MAX_TITLE_LENGTH) {
-            compoundError.add(UploadVideoError.TITLE_TOO_LARGE)
-        }
-        if (compoundError.isNotEmpty()) {
-            throw ValidationException(compoundError)
-        }
-        val videoEntityToAdd = video
-            .toEntity()
-            .copy(
-                videoId = null,
-                views = 0,
-                likes = 0,
-                dislikes = 0,
-                dateTime = Instant.now(),
-                state = VideoState.CREATED
+        val savedVideoEntity = videoRepository.save(video.toEntity())
+        videoSearchRepository.save(savedVideoEntity.toDocument())
+        cover?.let {
+            uploadImage(
+                uploadedFile = it,
+                targetFile = "$VIDEOS_COVERS_BASE_PATH/${savedVideoEntity.videoId}.jpg",
+                width = 500,
+                height = 280
             )
-        val addedVideoEntity = videoRepository.save(videoEntityToAdd)
-        videoSearchRepository.save(addedVideoEntity.toDocument())
-        return addedVideoEntity.toDomain()
+        }
+        return savedVideoEntity.toDomain()
     }
 
-    override fun saveVideoSource(videoId: Long, source: mikhail.shell.video.hosting.domain.File): Boolean {
+    override fun saveVideoSource(videoId: Long, source: UploadedFile): Boolean {
         if (!videoRepository.existsById(videoId)) {
             throw NoSuchElementException()
         }
@@ -213,52 +208,29 @@ class VideoServiceWithDB @Autowired constructor(
             throw ValidationException(compoundError)
         }
         return saveFile(
-            input = source.content!!.inputStream(),
-            path = "$VIDEOS_PLAYABLES_BASE_PATH/$videoId.${source.name!!.parseExtension()}"
+            input = source.inputStream,
+            path = "$VIDEOS_PLAYABLES_BASE_PATH/$videoId.${source.name.parseExtension()}"
         )
     }
 
-    override fun saveVideoCover(videoId: Long, cover: UploadedFile): Boolean {
-        if (!videoRepository.existsById(videoId)) {
-            throw NoSuchElementException()
-        }
-        val compoundError = CompoundError<UploadVideoError>()
-        if (!cover.mimeType.contains("image")) {
-            compoundError.add(UploadVideoError.COVER_TYPE_NOT_VALID)
-        }
-        val imageBytes = cover.inputStream.use { it.readBytes() }
-        if (imageBytes.size > ValidationRules.MAX_IMAGE_SIZE) {
-            compoundError.add(UploadVideoError.COVER_TOO_LARGE)
-        }
-        if (compoundError.isNotEmpty()) {
-            throw ValidationException(compoundError)
-        }
-        return uploadImage(
-            uploadedFile = cover.copy(
-                inputStream = imageBytes.inputStream()
-            ),
-            targetFile = "$VIDEOS_COVERS_BASE_PATH/$videoId.jpg",
-            width = 500,
-            height = 280
-        )
-    }
-
-    override fun confirmVideoUpload(videoId: Long): Boolean {
-        if (!videoRepository.existsById(videoId)) {
-            throw NoSuchElementException()
-        }
-        val videoEntityToConfirm = videoRepository
+    override fun confirm(userId: Long, videoId: Long) {
+        val videoEntity = videoRepository
             .findById(videoId)
-            .get()
-            .copy(
-                state = VideoState.UPLOADED,
-                dateTime = Instant.now()
+            .orElseThrow()
+            .copy(state = VideoState.UPLOADED)
+        if (
+            !channelRepository.existsByOwnerIdAndChannelId(
+                userId = userId,
+                channelId = videoEntity.channelId
             )
-        videoRepository.save(videoEntityToConfirm)
-        videoSearchRepository.save(videoEntityToConfirm.toDocument())
+        ) {
+            throw IllegalAccessException()
+        }
+        videoRepository.save(videoEntity)
+        videoSearchRepository.save(videoEntity.toDocument())
         val videoWithChannel = videoWithChannelsRepository.findById(videoId).get()
         val message = Message.builder()
-            .setTopic("${Companion.CHANNELS_TOPICS_PREFIX}.${videoWithChannel.channelId}")
+            .setTopic("$CHANNELS_TOPICS_PREFIX.${videoWithChannel.channelId}")
             .putAllData(
                 mapOf(
                     "channelTitle" to videoWithChannel.channel.title,
@@ -267,14 +239,13 @@ class VideoServiceWithDB @Autowired constructor(
                 )
             ).build()
         fcm.send(message)
-        return true
     }
 
     override fun checkOwner(userId: Long, videoId: Long): Boolean {
         return videoWithChannelsRepository.existsByChannel_OwnerIdAndVideoId(userId, videoId)
     }
 
-    override fun getRecommendedVideos(userId: Long, partIndex: Long, partSize: Int): List<VideoWithChannel> {
+    override fun getRecommendations(userId: Long, partIndex: Long, partSize: Int): List<VideoWithChannel> {
         if (!userRepository.existsById(userId)) {
             throw NoSuchElementException()
         }
@@ -326,7 +297,10 @@ class VideoServiceWithDB @Autowired constructor(
         return videoRepository.findById(videoId).get().toDomain()
     }
 
-    override fun deleteVideo(videoId: Long): Boolean {
+    override fun delete(userId: Long, videoId: Long) {
+        if (!videoWithChannelsRepository.existsByChannel_OwnerIdAndVideoId(userId = userId, videoId = videoId)) {
+            throw IllegalAccessException()
+        }
         if (!videoRepository.existsById(videoId)) {
             throw NoSuchElementException()
         }
@@ -334,28 +308,30 @@ class VideoServiceWithDB @Autowired constructor(
         videoSearchRepository.deleteById(videoId)
         findFileByName(File(VIDEOS_PLAYABLES_BASE_PATH), videoId.toString())?.delete()
         findFileByName(File(VIDEOS_COVERS_BASE_PATH), videoId.toString())?.delete()
-        return !videoRepository.existsById(videoId)
     }
 
-    override fun editVideo(
+    override fun getCover(videoId: Long): Resource {
+        return FileSystemResource(
+            findFileByName(VIDEOS_COVERS_BASE_PATH, videoId.toString())
+            .takeUnless { !videoRepository.existsById(videoId) || it?.exists() != true }
+            ?: throw NoSuchElementException()
+        )
+    }
+
+    override fun edit(
+        userId: Long,
         video: Video,
         coverAction: EditAction,
         cover: UploadedFile?
     ): Video {
-        val compoundError = CompoundError<EditVideoError>()
-        if (video.title.length > ValidationRules.MAX_TITLE_LENGTH) {
-            compoundError.add(EditVideoError.TITLE_TOO_LARGE)
-        }
-        if (compoundError.isNotEmpty()) {
-            throw ValidationException(compoundError)
-        }
-        val videoEntityToEdit = videoRepository
+        val videoEntity = videoRepository
             .findById(video.videoId!!)
-            .get()
-            .copy(
-                title = video.title
-            )
-        val updatedVideoEntity = videoRepository.save(videoEntityToEdit)
+            .orElseThrow()
+            .copy(title = video.title)
+        if (!videoWithChannelsRepository.existsByChannel_OwnerIdAndVideoId(userId = userId, videoId = video.videoId)) {
+            throw IllegalAccessException()
+        }
+        val updatedVideoEntity = videoRepository.save(videoEntity)
         videoSearchRepository.save(updatedVideoEntity.toDocument())
         if (coverAction != EditAction.KEEP) {
             findFileByName(Paths.get(VIDEOS_COVERS_BASE_PATH).toFile(), video.videoId.toString())?.delete()

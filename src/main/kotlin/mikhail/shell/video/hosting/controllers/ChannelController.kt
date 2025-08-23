@@ -47,16 +47,16 @@ class ChannelController @Autowired constructor(
     fun getHeader(@PathVariable @Positive channelId: Long): ResponseEntity<Resource> {
         val image = channelService.getHeader(channelId)
         return ResponseEntity.status(HttpStatus.OK)
-            .contentType(MediaType.parseMediaType("image/${image.name.parseExtension()}"))
-            .body(FileSystemResource(image))
+            .contentType(MediaType.parseMediaType("image/${image.file.extension}"))
+            .body(image)
     }
 
     @GetMapping("/{channelId}/logo")
     fun getLogo(@PathVariable @Positive channelId: Long): ResponseEntity<Resource> {
         val image = channelService.getLogo(channelId)
         return ResponseEntity.status(HttpStatus.OK)
-                .contentType(MediaType.parseMediaType("image/${image.name.parseExtension()}"))
-                .body(FileSystemResource(image))
+                .contentType(MediaType.parseMediaType("image/${image.file.extension}"))
+                .body(image)
     }
 
     @PostMapping(path = ["/create"], consumes = ["multipart/form-data"])

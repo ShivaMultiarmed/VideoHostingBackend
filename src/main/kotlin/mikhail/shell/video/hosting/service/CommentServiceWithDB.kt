@@ -6,12 +6,11 @@ import com.google.firebase.messaging.Message
 import jakarta.transaction.Transactional
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.dto.toDto
-import mikhail.shell.video.hosting.errors.CommentError
-import mikhail.shell.video.hosting.errors.ValidationException
 import mikhail.shell.video.hosting.repository.CommentRepository
 import mikhail.shell.video.hosting.repository.CommentWithUserRepository
 import mikhail.shell.video.hosting.entities.toDomain
 import mikhail.shell.video.hosting.entities.toEntity
+import mikhail.shell.video.hosting.repository.VideoRepository
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
@@ -21,6 +20,7 @@ import java.time.Instant
 class CommentServiceWithDB @Autowired constructor(
     private val commentRepository: CommentRepository,
     private val commentWithUserRepository: CommentWithUserRepository,
+    private val videoRepository: VideoRepository,
     private val fcm: FirebaseMessaging,
     private val objectMapper: ObjectMapper
 ): CommentService {
@@ -28,26 +28,12 @@ class CommentServiceWithDB @Autowired constructor(
     private lateinit var HOST: String
     @Value("\${server.port}")
     private lateinit var PORT: String
-    override fun save(comment: Comment) {
-        if (comment.text.length > ValidationRules.MAX_TEXT_LENGTH) {
-            throw ValidationException(CommentError.TEXT_TOO_LARGE)
+    override fun post(comment: Comment) {
+        if (!videoRepository.existsById(comment.videoId)) {
+            throw NoSuchElementException()
         }
-        val action = if (comment.commentId != null && commentRepository.existsById(comment.commentId)) Action.UPDATE else Action.ADD
-        val commentEntity = comment
-            .toEntity()
-            .let {
-                it.copy(
-                    commentId = if (it.commentId != null && !commentRepository.existsById(it.commentId!!)) null else it.commentId,
-                    dateTime = if (it.commentId == null) Instant.now() else commentRepository.findById(it.commentId!!).orElseThrow().dateTime
-                )
-            }
-
-        val savedCommentEntity = commentRepository.save(commentEntity)
-        sendMessage(savedCommentEntity.commentId!!, action)
-    }
-
-    override fun checkExistence(commentId: Long): Boolean {
-        return commentRepository.existsById(commentId)
+        val savedCommentEntity = commentRepository.save(comment.toEntity())
+        sendMessage(savedCommentEntity.commentId!!, Action.ADD)
     }
 
     @Transactional
@@ -56,24 +42,37 @@ class CommentServiceWithDB @Autowired constructor(
         return commentRepository.existsByUserId(userId)
     }
 
-    override fun remove(commentId: Long) {
-        if (!commentRepository.existsById(commentId)) {
-            throw NoSuchElementException()
+    override fun remove(userId: Long, commentId: Long) {
+        val commentEntity = commentRepository
+            .findById(commentId)
+            .orElseThrow()
+        if (userId != commentEntity.userId) {
+            throw IllegalAccessException()
         }
+        commentRepository.delete(commentEntity)
         sendMessage(commentId, Action.REMOVE)
-        commentRepository.deleteById(commentId)
-    }
-
-    override fun checkOwner(userId: Long, commentId: Long): Boolean {
-        return commentWithUserRepository.existsByUserIdAndCommentId(userId, commentId)
     }
 
     override fun get(videoId: Long, before: Instant): List<CommentWithUser> {
-        val commentEntities = commentWithUserRepository.findByVideoIdAndDateTimeBeforeOrderByDateTimeDesc(videoId, before)
-        return commentEntities.map { it.toDomain() }
+        return commentWithUserRepository
+            .findByVideoIdAndDateTimeBeforeOrderByDateTimeDesc(videoId = videoId, before = before)
+            .map { it.toDomain() }
     }
 
-    private fun sendMessage(commentId: Long, action: Action = Action.ADD) {
+    override fun edit(comment: Comment) {
+        val commentEntity = commentRepository.findById(comment.commentId!!).orElseThrow()
+        if (comment.userId != commentEntity.userId) {
+            throw IllegalAccessException()
+        }
+        commentRepository.save(
+            comment
+                .copy(videoId = commentEntity.videoId)
+                .toEntity()
+        )
+        sendMessage(comment.commentId, action = Action.UPDATE)
+    }
+
+    private fun sendMessage(commentId: Long, action: Action) {
         val commentWithUserEntity = commentWithUserRepository.findById(commentId).orElseThrow()
         val userId = commentWithUserEntity.userId
         val commentWithUser = commentWithUserEntity.toDomain().toDto(avatar = "https://$HOST:$PORT/api/v1/users/$userId/avatar")

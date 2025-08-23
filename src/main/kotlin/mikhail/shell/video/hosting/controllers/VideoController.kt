@@ -7,13 +7,12 @@ import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Positive
 import mikhail.shell.video.hosting.domain.*
+import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_COVERS_BASE_PATH
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH
 import mikhail.shell.video.hosting.dto.*
-import mikhail.shell.video.hosting.errors.*
 import mikhail.shell.video.hosting.service.ChannelService
 import mikhail.shell.video.hosting.service.UserService
 import mikhail.shell.video.hosting.service.VideoService
-import mikhail.shell.video.hosting.utils.getMimeType
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.core.io.FileSystemResource
@@ -24,12 +23,13 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
-import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 import java.io.File
 import java.io.InputStream
 import java.io.RandomAccessFile
+import java.time.Instant
 
 @RestController
 @RequestMapping("/api/v1/videos")
@@ -42,28 +42,16 @@ class VideoController @Autowired constructor(
     private lateinit var BASE_URL: String
 
     @GetMapping("/{videoId}")
-    fun getVideoDto(
-        request: HttpServletRequest,
-        @PathVariable videoId: Long
-    ): ResponseEntity<VideoDto> {
-        val videoInfo = videoService.getVideoInfo(videoId)
-        val videoDto = videoInfo.toDto()
-        return ResponseEntity.ok(videoDto)
+    fun get(@PathVariable @Positive videoId: Long): VideoDto {
+        return videoService.get(videoId).toDto()
     }
 
     @GetMapping("/{videoId}/details")
     fun getVideoDetails(
-        @PathVariable videoId: Long
-    ): ResponseEntity<VideoDetailsDto> {
-        if (!videoService.checkExistence(videoId)) {
-            throw NoSuchElementException()
-        }
-        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
-            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        if (!userService.checkExistence(userId)) {
-            throw IllegalAccessException()
-        }
-        val videoDto = videoService.getVideoForUser(videoId, userId).toDto(
+        @PathVariable @Positive videoId: Long,
+        @AuthenticationPrincipal userId: Long
+    ): VideoDetailsDto {
+        val videoDto = videoService.get(videoId = videoId, userId = userId).toDto(
             sourceUrl = "$BASE_URL/videos/${videoId}/play",
             coverUrl = "$BASE_URL/videos/${videoId}/cover"
         )
@@ -71,30 +59,25 @@ class VideoController @Autowired constructor(
             avatarUrl = "$BASE_URL/channels/${videoDto.channelId}/avatar",
             coverUrl = "$BASE_URL/channels/${videoDto.channelId}/cover"
         )
-        val videoDetailsDto = VideoDetailsDto(
+        return VideoDetailsDto(
             video = videoDto,
             channel = channelDto
         )
-        return ResponseEntity.ok(videoDetailsDto)
     }
 
     @PatchMapping("/{videoId}/rate")
     fun rateVideo(
         @PathVariable videoId: Long,
-        @RequestParam liking: Liking
-    ): ResponseEntity<VideoWithUserDto> {
-        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
-            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        if (!userService.checkExistence(userId)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
-        }
-        val videoWithUserDto = videoService.rate(videoId, userId, liking)
-        return ResponseEntity.status(HttpStatus.OK).body(videoWithUserDto.toDto())
+        @RequestParam liking: Liking,
+        @AuthenticationPrincipal userId: Long
+    ): VideoWithUserDto {
+        return videoService.rate(videoId = videoId, userId = userId, liking = liking).toDto(
+            sourceUrl = "$BASE_URL/videos/${videoId}/play",
+            coverUrl = "$BASE_URL/videos/${videoId}/cover"
+        )
     }
 
-    @GetMapping(
-        path = ["/{videoId}/play", "/{videoId}/download"]
-    )
+    @GetMapping(path = ["/{videoId}/play", "/{videoId}/download"])
     fun playVideo(
         @PathVariable videoId: Long,
         request: HttpServletRequest,
@@ -160,10 +143,10 @@ class VideoController @Autowired constructor(
     fun provideVideosFromChannel(
         @PathVariable @Positive channelId: Long,
         @Param("partSize") @Min(1) @Max(100) partSize: Int = 10,
-        @Param("partNumber") @Min(0) partNumber: Long = 0
+        @Param("partNumber") @Min(0) @Max(Long.MAX_VALUE) partNumber: Long = 0
     ): List<VideoDto> {
         return videoService
-            .getVideosByChannelId(
+            .getByChannelId(
                 channelId = channelId,
                 partSize = partSize,
                 partNumber = partNumber
@@ -176,30 +159,20 @@ class VideoController @Autowired constructor(
     }
 
     @GetMapping("/{videoId}/cover")
-    fun provideVideoCover(
-        request: HttpServletRequest,
-        @PathVariable videoId: Long
-    ): ResponseEntity<Resource> {
-        val coverDirectory = File(ApplicationPaths.VIDEOS_COVERS_BASE_PATH)
-        val image = findFileByName(coverDirectory, videoId.toString())
-        return if (image?.exists() != true || !videoService.checkExistence(videoId)) {
-            ResponseEntity.status(HttpStatus.NOT_FOUND).build()
-        } else {
-            val imageResource = FileSystemResource(image)
-            ResponseEntity.status(HttpStatus.OK)
-                .contentType(MediaType.parseMediaType("image/${image.name.parseExtension()}"))
-                .body(imageResource)
-        }
+    fun provideVideoCover(@PathVariable @Positive videoId: Long): ResponseEntity<Resource> {
+        val image = videoService.getCover(videoId)
+        return ResponseEntity.status(HttpStatus.OK)
+            .contentType(MediaType.parseMediaType("image/${image.file.extension}"))
+            .body(image)
     }
 
     @GetMapping("/search")
     fun searchForVideos(
-        request: HttpServletRequest,
         @RequestParam @NotBlank @Max(ValidationRules.MAX_TITLE_LENGTH.toLong()) query: String,
         @RequestParam @Min(1) @Max(100) partSize: Int = 10,
-        @RequestParam @Min(0) partNumber: Long = 0
+        @RequestParam @Min(0) @Max(Long.MAX_VALUE) partNumber: Long = 0
     ): List<VideoWithChannelDto> {
-        return videoService.getVideosByQuery(query, partSize, partNumber).map {
+        return videoService.getByQuery(query, partSize, partNumber).map {
             VideoWithChannelDto(
                 video = it.video.toDto(
                     sourceUrl = "$BASE_URL/videos/${it.video.videoId}/play",
@@ -213,39 +186,34 @@ class VideoController @Autowired constructor(
         }
     }
 
-    @PostMapping("/upload/details")
-    fun uploadVideoDetails(@RequestBody video: VideoDto): ResponseEntity<VideoDto> {
-        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
-            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        if (!channelService.checkOwner(userId, video.channelId)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
-        }
-        val compoundError = CompoundError<UploadVideoError>()
-        if (video.title.isEmpty()) {
-            compoundError.add(UploadVideoError.TITLE_EMPTY)
-        }
-        if (compoundError.isNotEmpty()) {
-            throw ValidationException(compoundError)
-        }
-        return ResponseEntity.status(HttpStatus.CREATED)
-            .body(
-                videoService.saveVideoDetails(
-                    video.toDomain()
-                ).toDto(
-                    sourceUrl = "$BASE_URL/videos/${video.videoId}/play",
-                    coverUrl = "$BASE_URL/videos/${video.videoId}/cover"
-                )
+    @PostMapping
+    fun uploadVideoDetails(
+        @Validated @ModelAttribute request: VideoCreationRequest,
+        @AuthenticationPrincipal userId: Long
+    ): VideoDto {
+        return videoService.save(
+            userId = userId,
+            video = Video(
+                channelId = request.channelId,
+                title = request.title,
+                dateTime = Instant.now()
+            ),
+            cover = request.cover?.toUploadedFile()
+        ).let {
+            it.toDto(
+                sourceUrl = "$BASE_URL/videos/${it.videoId}/play",
+                coverUrl = "$BASE_URL/videos/${it.videoId}/cover"
             )
+        }
     }
 
-    @PostMapping("/upload/{videoId}/source", consumes = ["application/octet-stream"])
+    @PostMapping("/{videoId}/source", consumes = ["application/octet-stream"])
     fun uploadVideoSource(
         @PathVariable videoId: Long,
         @RequestParam extension: String,
-        input: InputStream
+        input: InputStream,
+        @AuthenticationPrincipal userId: Long
     ): ResponseEntity<Unit> {
-        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
-            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         if (!videoService.checkOwner(userId, videoId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
         }
@@ -255,11 +223,7 @@ class VideoController @Autowired constructor(
         val fileName = "source.$extension"
         val result = videoService.saveVideoSource(
             videoId,
-            File(
-                name = fileName,
-                mimeType = getMimeType(fileName),
-                content = input.use { it.readAllBytes() }
-            )
+            input
         )
         return if (result) {
             ResponseEntity.status(HttpStatus.CREATED).build()
@@ -268,113 +232,53 @@ class VideoController @Autowired constructor(
         }
     }
 
-    @PostMapping("/upload/{videoId}/cover", consumes = ["application/octet-stream"])
-    fun uploadVideoCover(
-        @PathVariable videoId: Long,
-        @RequestParam extension: String,
-        inputStream: InputStream
-    ): ResponseEntity<Unit> {
-        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
-            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        if (!videoService.checkOwner(userId, videoId)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
-        }
-        if (!videoService.checkExistence(videoId)) {
-            throw NoSuchElementException()
-        }
-        val fileName = "cover.$extension"
-        val result = videoService.saveVideoCover(
-            videoId = videoId,
-            cover = UploadedFile(
-                name = fileName,
-                mimeType = getMimeType(fileName),
-                inputStream = inputStream
-            )
-        )
-        return if (result) {
-            ResponseEntity.status(HttpStatus.CREATED).build()
-        } else {
-            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
-        }
-    }
-
-    @PostMapping("/upload/{videoId}/confirm")
-    fun confirmVideoUpload(@PathVariable videoId: Long): ResponseEntity<Unit> {
-        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
-            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        if (!videoService.checkOwner(userId, videoId)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
-        }
-        videoService.confirmVideoUpload(videoId)
-        return ResponseEntity.status(HttpStatus.CREATED).build()
-    }
+    @PostMapping("/{videoId}/confirm")
+    fun confirmVideoUpload(
+        @PathVariable @Positive videoId: Long,
+        @AuthenticationPrincipal userId: Long
+    ) = videoService.confirm(userId = userId, videoId = videoId)
 
     @PatchMapping("/{videoId}/increment-views")
-    fun incrementViews(@PathVariable videoId: Long) = videoService.incrementViews(videoId).toDto()
+    fun incrementViews(@PathVariable @Positive videoId: Long) = videoService.incrementViews(videoId).toDto()
 
     @PatchMapping("/edit")
     fun editVideo(
-        @RequestPart video: VideoDto,
-        @RequestPart coverAction: EditAction,
-        @RequestPart cover: MultipartFile? = null
-    ): ResponseEntity<VideoDto> {
-        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
-            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        if (video.videoId == null || !videoService.checkExistence(video.videoId)) {
-            throw NoSuchElementException()
-        }
-        if (!videoService.checkOwner(userId, video.videoId)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
-        }
-        val coverFile = cover?.toUploadedFile()
-        val compoundError = CompoundError<EditVideoError>()
-        if (video.title.isEmpty()) {
-            compoundError.add(EditVideoError.TITLE_EMPTY)
-        }
-        if (cover?.isEmpty == true) {
-            compoundError.add(EditVideoError.COVER_EMPTY)
-        } else if ((cover?.size ?: 0) > ValidationRules.MAX_IMAGE_SIZE) {
-            compoundError.add(EditVideoError.COVER_TOO_LARGE)
-        } else if (cover?.contentType?.contains("image") == false) {
-            compoundError.add(EditVideoError.COVER_TYPE_NOT_VALID)
-        }
-        if (compoundError.isNotEmpty()) {
-            throw ValidationException(compoundError)
-        }
-        val updatedVideo = videoService.editVideo(video.toDomain(), coverAction, coverFile)
-        return ResponseEntity.status(HttpStatus.OK).body(
-            updatedVideo.toDto(
-                sourceUrl = "$BASE_URL/videos/${updatedVideo.videoId}/play",
-                coverUrl = "$BASE_URL/videos/${updatedVideo.videoId}/cover"
+        @Validated @ModelAttribute request: VideoEditingRequest,
+        @AuthenticationPrincipal userId: Long
+    ): VideoDto {
+        return videoService.edit(
+            userId = userId,
+            video = Video(
+                videoId = request.videoId,
+                title = request.title,
+                channelId = request.channelId,
+            ),
+            coverAction = request.coverAction,
+            cover = request.cover?.toUploadedFile()
+        ).let {
+            it.toDto(
+                sourceUrl = "$BASE_URL/videos/${it.videoId}/play",
+                coverUrl = "$BASE_URL/videos/${it.videoId}/cover"
             )
-        )
+        }
     }
 
     @DeleteMapping("/{videoId}")
     fun deleteVideo(
-        request: HttpServletRequest,
-        @PathVariable @Positive videoId: Long
-    ): ResponseEntity<Unit> {
-        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
-            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        if (!videoService.checkOwner(userId, videoId)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
-        }
-        return if (videoService.deleteVideo(videoId)) {
-            ResponseEntity.status(HttpStatus.OK).build()
-        } else {
-            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
-        }
+        @PathVariable @Positive videoId: Long,
+        @AuthenticationPrincipal userId: Long
+    ) {
+        videoService.delete(userId = userId, videoId = videoId)
     }
 
     @GetMapping("/recommendations")
     fun getRecommendations(
-        @RequestParam @Min(0) partIndex: Long = 0,
+        @RequestParam @Min(0) @Max(Long.MAX_VALUE) partIndex: Long = 0,
         @RequestParam @Min(1) @Max(100) partSize: Int = 10,
         @AuthenticationPrincipal userId: Long
     ): List<VideoWithChannelDto> {
         return videoService
-            .getRecommendedVideos(
+            .getRecommendations(
                 userId,
                 partIndex,
                 partSize
@@ -404,37 +308,32 @@ class VideoController @Autowired constructor(
 }
 
 data class VideoCreationRequest(
-    @NotBlank @Max(ValidationRules.MAX_TITLE_LENGTH.toLong())
+    @field:NotBlank @field:Max(ValidationRules.MAX_TITLE_LENGTH.toLong())
     val title: String,
-    @Positive
+    @field:Positive
     val channelId: Long,
-    @FileValidation(
-        max = ValidationRules.MAX_VIDEO_SIZE.toLong(),
-        mime = "video"
-    )
-    val source: MultipartFile,
-    @FileValidation(
+    @field:FileValidation(
         max = ValidationRules.MAX_IMAGE_SIZE.toLong(),
         mime = "image"
     )
     val cover: MultipartFile?,
-    @NotBlank @Max(ValidationRules.MAX_TEXT_LENGTH.toLong())
+    @field:NotBlank @field:Max(ValidationRules.MAX_TEXT_LENGTH.toLong())
     val description: String?
 )
 
 data class VideoEditingRequest(
-    @Positive
+    @field:Positive
     val videoId: Long,
-    @NotBlank @Max(ValidationRules.MAX_TITLE_LENGTH.toLong())
+    @field:NotBlank @field:Max(ValidationRules.MAX_TITLE_LENGTH.toLong())
     val title: String,
-    @Positive
+    @field:Positive
     val channelId: Long,
-    @FileValidation(
+    @field:FileValidation(
         max = ValidationRules.MAX_IMAGE_SIZE.toLong(),
         mime = "image"
     )
     val cover: MultipartFile?,
     val coverAction: EditAction,
-    @NotBlank @Max(ValidationRules.MAX_TEXT_LENGTH.toLong())
+    @field:NotBlank @field:Max(ValidationRules.MAX_TEXT_LENGTH.toLong())
     val description: String?
 )

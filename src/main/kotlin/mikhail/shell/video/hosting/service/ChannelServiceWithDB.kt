@@ -3,8 +3,6 @@ package mikhail.shell.video.hosting.service
 import com.google.firebase.messaging.FirebaseMessaging
 import jakarta.transaction.Transactional
 import jakarta.validation.ConstraintViolationException
-import mikhail.shell.video.hosting.controllers.ChannelEditingRequest
-import mikhail.shell.video.hosting.controllers.toUploadedFile
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_HEADERS_BASE_PATH
 import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_LOGOS_BASE_PATH
@@ -20,6 +18,8 @@ import mikhail.shell.video.hosting.repository.UserRepository
 import mikhail.shell.video.hosting.repository.VideoRepository
 import mikhail.shell.video.hosting.errors.*
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.core.io.FileSystemResource
+import org.springframework.core.io.Resource
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service
 import java.io.File
@@ -82,16 +82,20 @@ class ChannelServiceWithDB @Autowired constructor(
         return createdChannel
     }
 
-    override fun getLogo(channelId: Long): File {
-        return findFileByName(CHANNEL_LOGOS_BASE_PATH, channelId.toString())
-            .takeIf { !channelRepository.existsById(channelId) || it?.exists() != true }
+    override fun getLogo(channelId: Long): Resource {
+        return FileSystemResource(
+            findFileByName(CHANNEL_LOGOS_BASE_PATH, channelId.toString())
+            .takeUnless { !channelRepository.existsById(channelId) || it?.exists() != true }
             ?: throw NoSuchElementException()
+        )
     }
 
-    override fun getHeader(channelId: Long): File {
-        return findFileByName(CHANNEL_HEADERS_BASE_PATH, channelId.toString())
-            .takeIf { !channelRepository.existsById(channelId) || it?.exists() != true }
+    override fun getHeader(channelId: Long): Resource {
+        return FileSystemResource(
+            findFileByName(CHANNEL_HEADERS_BASE_PATH, channelId.toString())
+            .takeUnless { !channelRepository.existsById(channelId) || it?.exists() != true }
             ?: throw NoSuchElementException()
+        )
     }
 
     override fun getChannelsByOwnerId(userId: Long): List<Channel> {
