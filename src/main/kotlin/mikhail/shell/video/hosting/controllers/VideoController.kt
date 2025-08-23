@@ -2,6 +2,10 @@ package mikhail.shell.video.hosting.controllers
 
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import jakarta.validation.constraints.Max
+import jakarta.validation.constraints.Min
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Positive
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH
 import mikhail.shell.video.hosting.dto.*
@@ -19,6 +23,7 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
@@ -153,21 +158,21 @@ class VideoController @Autowired constructor(
 
     @GetMapping("/channel/{channelId}")
     fun provideVideosFromChannel(
-        @PathVariable channelId: Long,
-        @Param("partSize") partSize: Int = 10,
-        @Param("partNumber") partNumber: Long = 0
-    ): ResponseEntity<List<VideoDto>> {
-        if (partSize < 1 || partNumber < 0) {
-            throw IllegalArgumentException()
-        }
-        val videoList = videoService.getVideosByChannelId(channelId, partSize, partNumber)
-        val videoDtoList = videoList.map {
-            it.toDto(
-                sourceUrl = "$BASE_URL/videos/${it.videoId}/play",
-                coverUrl = "$BASE_URL/videos/${it.videoId}/cover"
-            )
-        }
-        return ResponseEntity.status(HttpStatus.OK).body(videoDtoList)
+        @PathVariable @Positive channelId: Long,
+        @Param("partSize") @Min(1) @Max(100) partSize: Int = 10,
+        @Param("partNumber") @Min(0) partNumber: Long = 0
+    ): List<VideoDto> {
+        return videoService
+            .getVideosByChannelId(
+                channelId = channelId,
+                partSize = partSize,
+                partNumber = partNumber
+            ).map {
+                it.toDto(
+                    sourceUrl = "$BASE_URL/videos/${it.videoId}/play",
+                    coverUrl = "$BASE_URL/videos/${it.videoId}/cover"
+                )
+            }
     }
 
     @GetMapping("/{videoId}/cover")
@@ -190,14 +195,11 @@ class VideoController @Autowired constructor(
     @GetMapping("/search")
     fun searchForVideos(
         request: HttpServletRequest,
-        @RequestParam query: String,
-        @RequestParam partSize: Int = 10,
-        @RequestParam partNumber: Long = 0
-    ): ResponseEntity<List<VideoWithChannelDto>> {
-        if (partSize < 1 || partNumber < 0) {
-            throw IllegalArgumentException()
-        }
-        val videoDtos = videoService.getVideosByQuery(query, partSize, partNumber).map {
+        @RequestParam @NotBlank @Max(ValidationRules.MAX_TITLE_LENGTH.toLong()) query: String,
+        @RequestParam @Min(1) @Max(100) partSize: Int = 10,
+        @RequestParam @Min(0) partNumber: Long = 0
+    ): List<VideoWithChannelDto> {
+        return videoService.getVideosByQuery(query, partSize, partNumber).map {
             VideoWithChannelDto(
                 video = it.video.toDto(
                     sourceUrl = "$BASE_URL/videos/${it.video.videoId}/play",
@@ -209,7 +211,6 @@ class VideoController @Autowired constructor(
                 )
             )
         }
-        return ResponseEntity.status(HttpStatus.OK).body(videoDtos)
     }
 
     @PostMapping("/upload/details")
@@ -352,7 +353,7 @@ class VideoController @Autowired constructor(
     @DeleteMapping("/{videoId}")
     fun deleteVideo(
         request: HttpServletRequest,
-        @PathVariable videoId: Long
+        @PathVariable @Positive videoId: Long
     ): ResponseEntity<Unit> {
         val userId = SecurityContextHolder.getContext().authentication.principal as Long?
             ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
@@ -368,18 +369,11 @@ class VideoController @Autowired constructor(
 
     @GetMapping("/recommendations")
     fun getRecommendations(
-        @RequestParam partIndex: Long = 0,
-        @RequestParam partSize: Int = 10
-    ): ResponseEntity<List<VideoWithChannelDto>> {
-        val userId = SecurityContextHolder.getContext().authentication.principal as Long?
-            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        if (!userService.checkExistence(userId)) {
-            throw NoSuchElementException()
-        }
-        if (partIndex < 0 || partSize < 1) {
-            throw IllegalArgumentException()
-        }
-        val videoList = videoService
+        @RequestParam @Min(0) partIndex: Long = 0,
+        @RequestParam @Min(1) @Max(100) partSize: Int = 10,
+        @AuthenticationPrincipal userId: Long
+    ): List<VideoWithChannelDto> {
+        return videoService
             .getRecommendedVideos(
                 userId,
                 partIndex,
@@ -396,12 +390,6 @@ class VideoController @Autowired constructor(
                     )
                 )
             }
-        return ResponseEntity.status(HttpStatus.OK).body(videoList)
-    }
-
-    @PostMapping("/search/sync")
-    fun sync() {
-        videoService
     }
 
     private fun Video.toDto() = toDto(
@@ -414,3 +402,39 @@ class VideoController @Autowired constructor(
         coverUrl = "$BASE_URL/videos/${videoId}/cover"
     )
 }
+
+data class VideoCreationRequest(
+    @NotBlank @Max(ValidationRules.MAX_TITLE_LENGTH.toLong())
+    val title: String,
+    @Positive
+    val channelId: Long,
+    @FileValidation(
+        max = ValidationRules.MAX_VIDEO_SIZE.toLong(),
+        mime = "video"
+    )
+    val source: MultipartFile,
+    @FileValidation(
+        max = ValidationRules.MAX_IMAGE_SIZE.toLong(),
+        mime = "image"
+    )
+    val cover: MultipartFile?,
+    @NotBlank @Max(ValidationRules.MAX_TEXT_LENGTH.toLong())
+    val description: String?
+)
+
+data class VideoEditingRequest(
+    @Positive
+    val videoId: Long,
+    @NotBlank @Max(ValidationRules.MAX_TITLE_LENGTH.toLong())
+    val title: String,
+    @Positive
+    val channelId: Long,
+    @FileValidation(
+        max = ValidationRules.MAX_IMAGE_SIZE.toLong(),
+        mime = "image"
+    )
+    val cover: MultipartFile?,
+    val coverAction: EditAction,
+    @NotBlank @Max(ValidationRules.MAX_TEXT_LENGTH.toLong())
+    val description: String?
+)

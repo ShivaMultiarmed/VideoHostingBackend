@@ -22,7 +22,7 @@ object ValidationRules {
 @Target(AnnotationTarget.FIELD)
 @Retention(AnnotationRetention.RUNTIME)
 @Constraint(validatedBy = [FileSizeValidator::class])
-annotation class FileSize(
+annotation class FileValidation(
     val max: Long,
     val mime: String,
     val message: String = "",
@@ -30,12 +30,12 @@ annotation class FileSize(
     val payload: Array<KClass<out Payload>> = []
 )
 
-class FileSizeValidator: ConstraintValidator<FileSize, MultipartFile?> {
+class FileSizeValidator: ConstraintValidator<FileValidation, MultipartFile?> {
 
     private var max: Long = 0
     private var mime: String = ""
 
-    override fun initialize(constraintAnnotation: FileSize?) {
+    override fun initialize(constraintAnnotation: FileValidation?) {
         max = constraintAnnotation?.max?: max
         mime = constraintAnnotation?.mime?: mime
     }

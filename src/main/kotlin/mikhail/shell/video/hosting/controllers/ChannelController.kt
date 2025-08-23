@@ -8,7 +8,6 @@ import mikhail.shell.video.hosting.domain.ValidationRules.MAX_TEXT_LENGTH
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_TITLE_LENGTH
 import mikhail.shell.video.hosting.dto.ChannelDto
 import mikhail.shell.video.hosting.dto.ChannelWithUserDto
-import mikhail.shell.video.hosting.dto.toDomain
 import mikhail.shell.video.hosting.dto.toDto
 import mikhail.shell.video.hosting.service.ChannelService
 import org.springframework.beans.factory.annotation.Autowired
@@ -164,12 +163,12 @@ data class ChannelCreationRequest(
     @field:NotBlank
     @field:Max(MAX_TITLE_LENGTH.toLong())
     val alias: String?,
-    @field:FileSize(
+    @field:FileValidation(
         max = ValidationRules.MAX_IMAGE_SIZE.toLong(),
         mime = "image"
     )
     val logo: MultipartFile?,
-    @field:FileSize(
+    @field:FileValidation(
         max = ValidationRules.MAX_IMAGE_SIZE.toLong(),
         mime = "image"
     )
@@ -188,13 +187,13 @@ data class ChannelEditingRequest(
     @field:Max(MAX_TITLE_LENGTH.toLong())
     val alias: String?,
     val editLogoAction: EditAction,
-    @field:FileSize(
+    @field:FileValidation(
         max = ValidationRules.MAX_IMAGE_SIZE.toLong(),
         mime = "image"
     )
     val logo: MultipartFile?,
     val editHeaderAction: EditAction,
-    @field:FileSize(
+    @field:FileValidation(
         max = ValidationRules.MAX_IMAGE_SIZE.toLong(),
         mime = "image"
     )
