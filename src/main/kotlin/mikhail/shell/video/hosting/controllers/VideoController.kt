@@ -167,12 +167,16 @@ class VideoController @Autowired constructor(
     }
 
     @GetMapping("/search")
-    fun searchForVideos(
+    fun search(
         @RequestParam @NotBlank @Max(ValidationRules.MAX_TITLE_LENGTH.toLong()) query: String,
         @RequestParam @Min(1) @Max(100) partSize: Int = 10,
         @RequestParam @Min(0) @Max(Long.MAX_VALUE) partNumber: Long = 0
     ): List<VideoWithChannelDto> {
-        return videoService.getByQuery(query, partSize, partNumber).map {
+        return videoService.getByQuery(
+            query = query,
+            partSize = partSize,
+            partNumber = partNumber
+        ).map {
             VideoWithChannelDto(
                 video = it.video.toDto(
                     sourceUrl = "$BASE_URL/videos/${it.video.videoId}/play",
@@ -187,7 +191,7 @@ class VideoController @Autowired constructor(
     }
 
     @PostMapping
-    fun uploadVideoDetails(
+    fun upload(
         @Validated @ModelAttribute request: VideoCreationRequest,
         @AuthenticationPrincipal userId: Long
     ): VideoDto {
@@ -208,7 +212,7 @@ class VideoController @Autowired constructor(
     }
 
     @PostMapping("/{videoId}/source", consumes = ["application/octet-stream"])
-    fun uploadVideoSource(
+    fun uploadSource(
         @PathVariable videoId: Long,
         @RequestParam extension: String,
         input: InputStream,

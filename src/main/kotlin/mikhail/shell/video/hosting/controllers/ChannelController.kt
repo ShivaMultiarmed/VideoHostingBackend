@@ -12,7 +12,6 @@ import mikhail.shell.video.hosting.dto.toDto
 import mikhail.shell.video.hosting.service.ChannelService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.core.io.FileSystemResource
 import org.springframework.core.io.Resource
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -59,7 +58,7 @@ class ChannelController @Autowired constructor(
                 .body(image)
     }
 
-    @PostMapping(path = ["/create"], consumes = ["multipart/form-data"])
+    @PostMapping(consumes = ["multipart/form-data"])
     fun createChannel(
         @Validated @ModelAttribute channel: ChannelCreationRequest,
         @AuthenticationPrincipal userId: Long,
@@ -76,7 +75,7 @@ class ChannelController @Autowired constructor(
         ).toDto()
     }
 
-    @PatchMapping(path = ["/edit"], consumes = ["multipart/form-data"])
+    @PatchMapping(consumes = ["multipart/form-data"])
     fun editChannel(
         @Validated @ModelAttribute channel: ChannelEditingRequest,
         @AuthenticationPrincipal userId: Long
@@ -102,11 +101,19 @@ class ChannelController @Autowired constructor(
     }
 
     @GetMapping("/subscriptions")
-    fun getAllChannelsBySubscriberId(@AuthenticationPrincipal userId: Long): List<ChannelDto> {
-        return channelService.getChannelsBySubscriberId(userId).map { it.toDto() }
+    fun getAllChannelsBySubscriberId(
+        @Positive @Max(Long.MAX_VALUE) partIndex: Long = 0,
+        @Positive @Max(Int.MAX_VALUE.toLong()) partSize: Int = 10,
+        @AuthenticationPrincipal userId: Long
+    ): List<ChannelDto> {
+        return channelService.getSubscriptions(
+            userId = userId,
+            partIndex = partIndex,
+            partSize = partSize
+        ).map { it.toDto() }
     }
 
-    @PatchMapping("/{channelId}/subscribe")
+    @PatchMapping("/{channelId}/subscription")
     fun subscribe(
         @PathVariable @Positive channelId: Long,
         @RequestParam subscription: Subscription,
@@ -121,7 +128,7 @@ class ChannelController @Autowired constructor(
         ).toDto()
     }
 
-    @PatchMapping("/notifications/subscribe")
+    @PostMapping("/notifications/subscribe")
     fun resubscribeToFCM(
         @RequestParam token: String,
         @AuthenticationPrincipal userId: Long
@@ -129,7 +136,7 @@ class ChannelController @Autowired constructor(
         channelService.subscribeToNotifications(userId, token)
     }
 
-    @PatchMapping("/notifications/unsubscribe")
+    @DeleteMapping("/notifications/subscription")
     fun unsubscribeFromFCM(
         @RequestParam token: String,
         @AuthenticationPrincipal userId: Long

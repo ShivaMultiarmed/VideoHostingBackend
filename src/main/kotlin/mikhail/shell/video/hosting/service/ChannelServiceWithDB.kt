@@ -20,6 +20,7 @@ import mikhail.shell.video.hosting.errors.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.io.FileSystemResource
 import org.springframework.core.io.Resource
+import org.springframework.data.domain.PageRequest
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service
 import java.io.File
@@ -105,11 +106,18 @@ class ChannelServiceWithDB @Autowired constructor(
         return channelRepository.findByOwnerId(userId).map { it.toDomain() }
     }
 
-    override fun getChannelsBySubscriberId(userId: Long): List<Channel> {
+    override fun getSubscriptions(
+        userId: Long,
+        partIndex: Long,
+        partSize: Int
+    ): List<Channel> {
         if (!userRepository.existsById(userId)) {
             throw NoSuchElementException()
         }
-        val channelIds = subscriberRepository.findById_UserId(userId).map { it.id.channelId }
+        val channelIds = subscriberRepository.findById_UserId(
+            userId = userId,
+            pageable = PageRequest.of(partIndex.toInt(), partSize)
+        ).map { it.id.channelId }
         return channelRepository.findAllById(channelIds).map { it.toDomain() }
     }
 
