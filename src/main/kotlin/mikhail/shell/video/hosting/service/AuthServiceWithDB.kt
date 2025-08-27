@@ -37,14 +37,12 @@ class AuthServiceWithDB(
 ) : AuthService {
 
     override fun signInWithPassword(userName: String, password: String): AuthModel {
-        val compoundError = CompoundError<SignInError>()
         val method = if (userName.matches(ValidationRules.EMAIL_REGEX)) AuthenticationMethod.EMAIL else AuthenticationMethod.TEL
         val authDetailEntity = authDetailRepository.findByUserNameAndId_Method(userName, method).orElseThrow()
         val userId = authDetailEntity.id.userId
         val expectedPassword = passwordRepository.findById(userId).orElseThrow().password
         if (!passwordEncoder.matches(password, expectedPassword)) {
-            compoundError.add(SignInError.PASSWORD_INCORRECT)
-            throw ValidationException(compoundError)
+            throw IllegalArgumentException()
         } else {
             val token = jwtTokenUtil.generateToken(userId.toString())
             return AuthModel(token, userId)
@@ -57,14 +55,8 @@ class AuthServiceWithDB(
 
     @Transactional
     override fun requestSignUpWithPassword(userName: String) {
-        val compoundError = CompoundError<SignUpError>()
-        if (userName.length > ValidationRules.MAX_USERNAME_LENGTH) {
-            compoundError.add(SignUpError.USERNAME_TOO_LARGE)
-        } else if (authDetailRepository.existsByUserNameAndId_Method(userName, AuthenticationMethod.EMAIL)) {
-            compoundError.add(SignUpError.USERNAME_EXISTS)
-        }
-        if (compoundError.isNotEmpty()) {
-            throw ValidationException(compoundError)
+        if (authDetailRepository.existsByUserNameAndId_Method(userName, AuthenticationMethod.EMAIL)) {
+            throw UniquenessViolationException()
         }
         val code = cryptoUtils.generateString(4)
         SimpleMailMessage().apply {
@@ -85,14 +77,8 @@ class AuthServiceWithDB(
     }
 
     override fun verifySignUpWithPassword(userName: String, code: String): String {
-        val compoundError = CompoundError<SignUpError>()
-        if (userName.length > ValidationRules.MAX_USERNAME_LENGTH) {
-            compoundError.add(USERNAME_TOO_LARGE)
-        } else if (authDetailRepository.existsByUserNameAndId_Method(userName, AuthenticationMethod.EMAIL)) {
-            compoundError.add(USERNAME_EXISTS)
-        }
-        if (compoundError.isNotEmpty()) {
-            throw ValidationException(compoundError)
+        if (authDetailRepository.existsByUserNameAndId_Method(userName, AuthenticationMethod.EMAIL)) {
+            throw UniquenessViolationException()
         }
         val verificationEntity = verificationRepository
             .findByUserNameAndPurpose(
@@ -101,16 +87,6 @@ class AuthServiceWithDB(
             ).orElseThrow {
                 IllegalArgumentException()
             }
-        if (code.length != ValidationRules.CODE_LENGTH) {
-            compoundError.add(CODE_LENGTH_NOT_CORRECT)
-        } else if (!passwordEncoder.matches(code, verificationEntity.code)) {
-            compoundError.add(CODE_NOT_CORRECT)
-        } else if (verificationEntity.issuedAt.toKotlinInstant() + 10.minutes < Clock.System.now()) {
-            compoundError.add(CODE_NOT_VALID)
-        }
-        if (compoundError.isNotEmpty()) {
-            throw ValidationException(compoundError)
-        }
         verificationRepository.delete(verificationEntity)
         return jwtTokenUtil.generateToken(userName, SHORT_LIVED_TOKEN_EXPIRATION_DURATION)
     }
@@ -120,31 +96,16 @@ class AuthServiceWithDB(
         password: String,
         user: User
     ): AuthModel {
-        val compoundError = CompoundError<SignUpError>()
         val userName = jwtTokenUtil.extractSubject(token)
-        if (userName == null) {
-            compoundError.add(USERNAME_EMPTY)
-        } else if (authDetailRepository.existsByUserNameAndId_Method(userName, AuthenticationMethod.EMAIL)) {
-            compoundError.add(USERNAME_EXISTS)
+        if (authDetailRepository.existsByUserNameAndId_Method(userName, AuthenticationMethod.EMAIL)) {
+            throw UniquenessViolationException()
         }
-        if (!password.matches(ValidationRules.PASSWORD_REGEX)) {
-            compoundError.add(PASSWORD_NOT_VALID)
+        if (userRepository.existsByNick(user.nick)) {
+            throw UniquenessViolationException()
         }
-        if (user.nick.length > ValidationRules.MAX_NAME_LENGTH) {
-            compoundError.add(NICK_TOO_LARGE)
-        } else if (userRepository.existsByNick(user.nick)) {
-            compoundError.add(NICK_EXISTS)
-        }
-        if (compoundError.isNotEmpty()) {
-            throw ValidationException(compoundError)
-        }
-        val createdUser = userRepository.save(user.toEntity())
-        val userId = createdUser.userId!!
-        val authDetailEntityId = AuthDetailEntityId(userId, AuthenticationMethod.EMAIL)
-        val authDetailEntity = AuthDetailEntity(authDetailEntityId, userName!!)
-        authDetailRepository.save(authDetailEntity)
-        val passwordEntity = PasswordEntity(userId, passwordEncoder.encode(password))
-        passwordRepository.save(passwordEntity)
+        val userId = userRepository.save(user.toEntity()).userId!!
+        authDetailRepository.save(AuthDetailEntity(AuthDetailEntityId(userId, AuthenticationMethod.EMAIL), userName!!))
+        passwordRepository.save(PasswordEntity(userId, passwordEncoder.encode(password)))
         val authToken = jwtTokenUtil.generateToken(userId.toString())
         return AuthModel(authToken, userId)
     }

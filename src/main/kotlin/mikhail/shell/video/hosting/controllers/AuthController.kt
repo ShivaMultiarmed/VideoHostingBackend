@@ -1,6 +1,10 @@
 package mikhail.shell.video.hosting.controllers
 
 import jakarta.servlet.http.HttpServletRequest
+import jakarta.validation.constraints.Email
+import jakarta.validation.constraints.Max
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Pattern
 import mikhail.shell.video.hosting.domain.AuthModel
 import mikhail.shell.video.hosting.domain.ValidationRules
 import mikhail.shell.video.hosting.domain.ValidationRules.EMAIL_REGEX
@@ -25,73 +29,32 @@ class AuthController(
 
     @PostMapping("/signin/password")
     fun signInWithPassword(
-        @RequestParam username: String,
-        @RequestParam password: String
+        @RequestParam @NotBlank @Email @Max(ValidationRules.MAX_USERNAME_LENGTH.toLong()) username: String,
+        @RequestParam @NotBlank @Pattern(regexp = "^(?=.*[0-9])(?=.*[^a-zA-Z0-9])\\S{8,20}$") password: String
     ): AuthModel {
-        val compoundError = CompoundError<SignInError>()
-        if (username.isEmpty()) {
-            compoundError.add(SignInError.USERNAME_EMPTY)
-        } else if (!username.matches(EMAIL_REGEX)) {
-            compoundError.add(SignInError.USERNAME_MALFORMED)
-        }
-        if (password.isEmpty()) {
-            compoundError.add(SignInError.PASSWORD_EMPTY)
-        }
-        if (compoundError.isNotEmpty()) {
-            throw ValidationException(compoundError)
-        }
         return authService.signInWithPassword(username, password)
     }
 
     @PostMapping("/signup/password/request")
     fun requestSignUpWithPassword(@RequestParam userName: String) {
-        val compoundError = CompoundError<SignUpError>()
-        if (userName.isEmpty()) {
-            compoundError.add(SignUpError.USERNAME_EMPTY)
-        } else if (!userName.matches(EMAIL_REGEX)) {
-            compoundError.add(SignUpError.USERNAME_MALFORMED)
-        }
-        if (compoundError.isNotEmpty()) {
-            throw ValidationException(compoundError)
-        }
         authService.requestSignUpWithPassword(userName)
     }
 
-    @PostMapping("/signup/password/verify")
+    @PostMapping("/signup/password/verification")
     fun verifySignUpWithPassword(
         @RequestParam userName: String,
         @RequestParam code: String
     ): String {
-        val compoundError = CompoundError<SignUpError>()
-        if (userName.isEmpty()) {
-            compoundError.add(SignUpError.USERNAME_EMPTY)
-        } else if (!userName.matches(EMAIL_REGEX)) {
-            compoundError.add(SignUpError.USERNAME_MALFORMED)
-        }
-        if (compoundError.isNotEmpty()) {
-            throw ValidationException(compoundError)
-        }
         return authService.verifySignUpWithPassword(userName, code)
     }
 
-    @PostMapping("/signup/password/confirm")
+    @PostMapping("/signup/password/confirmation")
     fun confirmSignUpWithPassword(
         request: HttpServletRequest,
         @RequestBody signUpDto: SignUpDto
     ) {
-        val compoundError = CompoundError<SignUpError>()
-        val token = request.getHeader(HttpHeaders.AUTHORIZATION).removePrefix("Bearer ")
-        if (signUpDto.password.isEmpty()) {
-            compoundError.add(SignUpError.PASSWORD_EMPTY)
-        }
-        if (signUpDto.userDto.nick.isEmpty()) {
-            compoundError.add(SignUpError.NICK_EMPTY)
-        }
-        if (compoundError.isNotEmpty()) {
-            throw ValidationException(compoundError)
-        }
         authService.confirmSignUpWithPassword(
-            token = token,
+            token = request.getHeader(HttpHeaders.AUTHORIZATION).removePrefix("Bearer "),
             password = signUpDto.password,
             user = signUpDto.userDto.toDomain()
         )

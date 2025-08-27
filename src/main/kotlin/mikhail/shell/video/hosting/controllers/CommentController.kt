@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController
 import java.time.Instant
 
 @RestController
-@RequestMapping("/api/v1/comments")
+@RequestMapping("/api/v2/comments")
 class CommentController @Autowired constructor(
     private val commentService: CommentService
 ) {
@@ -82,18 +82,18 @@ class CommentController @Autowired constructor(
 }
 
 data class CommentCreationRequest(
-    @field:Positive @Max(Long.MAX_VALUE)
+    @field:Positive
     val videoId: Long,
-    @field:Positive @Max(Long.MAX_VALUE)
+    @field:Positive
     val userId: Long,
     @field:NotBlank @Max(ValidationRules.MAX_TEXT_LENGTH.toLong())
     val text: String
 )
 
 data class CommentEditingRequest(
-    @field:Positive @Max(Long.MAX_VALUE)
+    @field:Positive
     val commentId: Long,
-    @field:Positive @Max(Long.MAX_VALUE)
+    @field:Positive
     val videoId: Long,
     @field:NotBlank @Max(ValidationRules.MAX_TEXT_LENGTH.toLong())
     val text: String

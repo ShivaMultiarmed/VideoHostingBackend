@@ -1,6 +1,7 @@
 package mikhail.shell.video.hosting.controllers
 
 import jakarta.validation.constraints.Max
+import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Positive
 import mikhail.shell.video.hosting.domain.*
@@ -22,7 +23,7 @@ import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 
 @RestController
-@RequestMapping("/api/v1/channels")
+@RequestMapping("/api/v2/channels")
 class ChannelController @Autowired constructor(
     private val channelService: ChannelService
 ) {
@@ -96,14 +97,22 @@ class ChannelController @Autowired constructor(
     }
 
     @GetMapping("/owner/{userId}")
-    fun getAllChannelsByOwnerId(@PathVariable @Positive userId: Long): List<ChannelDto> {
-        return channelService.getChannelsByOwnerId(userId).map { it.toDto() }
+    fun getAllChannelsByOwnerId(
+        @PathVariable @Positive userId: Long,
+        @RequestParam @Positive partIndex: Long,
+        @RequestParam @Min(1) @Max(100) partSize: Int
+    ): List<ChannelDto> {
+        return channelService.getChannelsByOwnerId(
+            userId = userId,
+            partIndex = partIndex,
+            partSize = partSize
+        ).map { it.toDto() }
     }
 
     @GetMapping("/subscriptions")
     fun getAllChannelsBySubscriberId(
-        @Positive @Max(Long.MAX_VALUE) partIndex: Long = 0,
-        @Positive @Max(Int.MAX_VALUE.toLong()) partSize: Int = 10,
+        @Positive partIndex: Long = 0,
+        @Positive partSize: Int = 10,
         @AuthenticationPrincipal userId: Long
     ): List<ChannelDto> {
         return channelService.getSubscriptions(

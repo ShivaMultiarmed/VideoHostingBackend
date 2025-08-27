@@ -17,6 +17,7 @@ object ValidationRules {
     const val MAX_VIDEO_SIZE = 512 * 1024 * 1024
     val PASSWORD_REGEX = Regex("^(?=.*[0-9])(?=.*[^a-zA-Z0-9])\\S{8,20}$")
     val EMAIL_REGEX = Regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}\$")
+    val TEL_REGEX = Regex("^\\d{8,15}\$")
 }
 
 @Target(AnnotationTarget.FIELD)

@@ -91,6 +91,10 @@ class ChannelServiceWithDB @Autowired constructor(
         )
     }
 
+    override fun getChannelsByOwnerId(userId: Long): List<Channel> {
+        return channelRepository.findByOwnerId(userId).map { it.toDomain() }
+    }
+
     override fun getHeader(channelId: Long): Resource {
         return FileSystemResource(
             findFileByName(CHANNEL_HEADERS_BASE_PATH, channelId.toString())
@@ -99,11 +103,18 @@ class ChannelServiceWithDB @Autowired constructor(
         )
     }
 
-    override fun getChannelsByOwnerId(userId: Long): List<Channel> {
+    override fun getChannelsByOwnerId(
+        userId: Long,
+        partIndex: Long,
+        partSize: Int
+    ): List<Channel> {
         if (!userRepository.existsById(userId)) {
             throw NoSuchElementException()
         }
-        return channelRepository.findByOwnerId(userId).map { it.toDomain() }
+        return channelRepository.findByOwnerId(
+            ownerId = userId,
+            pageable = PageRequest.of(partIndex.toInt(), partSize)
+        ).map { it.toDomain() }
     }
 
     override fun getSubscriptions(

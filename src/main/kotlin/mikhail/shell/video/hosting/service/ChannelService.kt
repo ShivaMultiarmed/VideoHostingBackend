@@ -13,6 +13,11 @@ interface ChannelService {
         header: UploadedFile?
     ): Channel
     fun getChannelsByOwnerId(userId: Long): List<Channel>
+    fun getChannelsByOwnerId(
+        userId: Long,
+        partIndex: Long,
+        partSize: Int
+    ): List<Channel>
     fun getSubscriptions(
         userId: Long,
         partIndex: Long,

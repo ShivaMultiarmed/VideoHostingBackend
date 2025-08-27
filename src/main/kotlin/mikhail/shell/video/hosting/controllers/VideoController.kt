@@ -32,7 +32,7 @@ import java.io.RandomAccessFile
 import java.time.Instant
 
 @RestController
-@RequestMapping("/api/v1/videos")
+@RequestMapping("/api/v2/videos")
 class VideoController @Autowired constructor(
     private val videoService: VideoService,
     private val channelService: ChannelService,

@@ -2,11 +2,13 @@ package mikhail.shell.video.hosting.service
 
 
 import mikhail.shell.video.hosting.domain.*
-import mikhail.shell.video.hosting.errors.CompoundError
-import mikhail.shell.video.hosting.errors.EditUserError
-import mikhail.shell.video.hosting.errors.ValidationException
+import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_LOGOS_BASE_PATH
+import mikhail.shell.video.hosting.domain.ApplicationPaths.USER_AVATARS_BASE_PATH
+import mikhail.shell.video.hosting.errors.UniquenessViolationException
 import mikhail.shell.video.hosting.repository.*
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.core.io.FileSystemResource
+import org.springframework.core.io.Resource
 import org.springframework.stereotype.Service
 
 @Service
@@ -17,45 +19,25 @@ class UserServiceWithDB @Autowired constructor(
     private val commentService: CommentService
 ) : UserService {
     override fun get(userId: Long): User {
-        val userEntity = userRepository.findById(userId).orElseThrow()
-        return userEntity.toDomain()
+        return userRepository.findById(userId).orElseThrow().toDomain()
     }
 
     override fun edit(user: User, avatarAction: EditAction, avatar: UploadedFile?): User {
-        val compoundError = CompoundError<EditUserError>()
         if (!userRepository.existsById(user.userId!!)) {
             throw NoSuchElementException()
         }
-        if (user.nick.length > ValidationRules.MAX_NAME_LENGTH) {
-            compoundError.add(EditUserError.NICK_TOO_LARGE)
-        } else if (userRepository.existsByNick(user.nick)) {
-            compoundError.add(EditUserError.NICK_EXISTS)
+        if (userRepository.existsByNick(user.nick)) {
+            throw UniquenessViolationException()
         }
-        if ((user.name?.length?: 0) > ValidationRules.MAX_NAME_LENGTH) {
-            compoundError.add(EditUserError.NAME_TOO_LARGE)
-        }
-        if ((user.email?.length?: 0) > ValidationRules.MAX_USERNAME_LENGTH) {
-            compoundError.add(EditUserError.EMAIL_TOO_LARGE)
-        }
-        if ((user.bio?.length ?: 0) > ValidationRules.MAX_TEXT_LENGTH) {
-            compoundError.add(EditUserError.BIO_TOO_LARGE)
-        }
-        if (avatar?.mimeType?.substringBefore("/") != "image" && avatar != null) {
-            compoundError.add(EditUserError.AVATAR_TYPE_NOT_VALID)
-        }
-        if (compoundError.isNotEmpty()) {
-            throw ValidationException(compoundError)
-        }
-        val userEntity = user.toEntity()
-        val editedUserEntity = userRepository.save(userEntity)
+        val editedUserEntity = userRepository.save(user.toEntity())
         if (avatarAction != EditAction.KEEP) {
-            findFileByName(java.io.File(ApplicationPaths.USER_AVATARS_BASE_PATH), user.userId.toString())?.delete()
+            findFileByName(java.io.File(USER_AVATARS_BASE_PATH), user.userId.toString())?.delete()
         }
         if (avatarAction == EditAction.UPDATE) {
             avatar?.let {
                 uploadImage(
                     uploadedFile = it,
-                    targetFile = "${ApplicationPaths.USER_AVATARS_BASE_PATH}/${user.userId}.jpg",
+                    targetFile = "$USER_AVATARS_BASE_PATH/${user.userId}.jpg",
                     width = 480,
                     height = 480
                 )
@@ -77,17 +59,16 @@ class UserServiceWithDB @Autowired constructor(
         }
         commentService.removeAllByUserId(userId)
         val credentialIds = authDetailRepository.findById_UserId(userId).map { it.id }
-        findFileByName(java.io.File(ApplicationPaths.USER_AVATARS_BASE_PATH), userId.toString())?.delete()
+        findFileByName(USER_AVATARS_BASE_PATH, userId.toString())?.delete()
         authDetailRepository.deleteAllById(credentialIds)
         userRepository.deleteById(userId)
     }
 
-    override fun getAvatar(userId: Long): java.io.File {
-        val file = findFileByName(java.io.File(ApplicationPaths.USER_AVATARS_BASE_PATH), userId.toString())
-        if (file?.exists() != true || !userRepository.existsById(userId)) {
-            throw NoSuchElementException()
-        } else {
-            return file
-        }
+    override fun getAvatar(userId: Long): Resource {
+        return FileSystemResource(
+            findFileByName(USER_AVATARS_BASE_PATH, userId.toString())
+                .takeUnless { !userRepository.existsById(userId) || it?.exists() != true }
+                ?: throw NoSuchElementException()
+        )
     }
 }

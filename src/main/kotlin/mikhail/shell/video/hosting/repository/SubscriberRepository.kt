@@ -9,6 +9,9 @@ import org.springframework.stereotype.Repository
 @Repository
 interface SubscriberRepository: JpaRepository<Subscriber, SubscriberId> {
     fun findById_UserId(
+        userId: Long
+    ): List<Subscriber>
+    fun findById_UserId(
         userId: Long,
         pageable: Pageable
     ): List<Subscriber>
