@@ -1,9 +1,6 @@
 package mikhail.shell.video.hosting.controllers.advices
 
-import mikhail.shell.video.hosting.errors.Error
-import mikhail.shell.video.hosting.errors.UnauthenticatedException
-import mikhail.shell.video.hosting.errors.UniquenessViolationException
-import mikhail.shell.video.hosting.errors.ValidationException
+import mikhail.shell.video.hosting.errors.*
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -34,5 +31,9 @@ class HostingControllerAdvice {
     @ExceptionHandler(UniquenessViolationException::class)
     fun handleIllegalAccess(e: UniquenessViolationException): ResponseEntity<Unit> {
         return ResponseEntity.status(HttpStatus.CONFLICT).build()
+    }
+    @ExceptionHandler(ExpiredException::class)
+    fun handleExpiration(e: ExpiredException): ResponseEntity<Unit> {
+        return ResponseEntity.status(HttpStatus.GONE).build()
     }
 }

@@ -6,11 +6,14 @@ import co.elastic.clients.elasticsearch._types.ScriptSortType
 import co.elastic.clients.elasticsearch._types.SortOrder
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.json.JsonData
+import com.google.api.client.json.Json
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.Message
+import com.google.gson.Gson
 import jakarta.transaction.Transactional
+import mikhail.shell.video.hosting.controllers.VideoMetaData
 import mikhail.shell.video.hosting.domain.*
-import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_LOGOS_BASE_PATH
+import mikhail.shell.video.hosting.domain.ApplicationPaths.TEMP_VIDEO_SOURCE_BASE_PATH
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_COVERS_BASE_PATH
 import mikhail.shell.video.hosting.elastic.documents.toDocument
@@ -25,12 +28,14 @@ import org.springframework.data.domain.PageRequest
 import org.springframework.data.elasticsearch.client.elc.NativeQuery
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations
 import org.springframework.data.elasticsearch.core.search
-import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.nio.file.Paths
+import kotlin.io.path.Path
+import kotlin.io.path.createDirectory
+import kotlin.io.path.notExists
 
 @Service
 class VideoServiceWithDB @Autowired constructor(
@@ -175,7 +180,11 @@ class VideoServiceWithDB @Autowired constructor(
         return videoWithChannelsRepository.findAllById(ids).map { it.toDomain() }
     }
 
-    override fun save(userId: Long, video: Video, cover: UploadedFile?): Video {
+    override fun save(
+        userId: Long,
+        video: Video,
+        cover: UploadedFile?
+    ): Video {
         if (!channelRepository.existsByOwnerIdAndChannelId(userId = userId, channelId = video.channelId)) {
             throw IllegalAccessException()
         }
@@ -192,24 +201,20 @@ class VideoServiceWithDB @Autowired constructor(
         return savedVideoEntity.toDomain()
     }
 
-    override fun saveVideoSource(videoId: Long, source: UploadedFile): Boolean {
+    override fun saveVideoSource(userId: Long, videoId: Long, chunkIndex: Long, source: InputStream): Boolean {
         if (!videoRepository.existsById(videoId)) {
             throw NoSuchElementException()
         }
-        val compoundError = CompoundError<UploadVideoError>()
-        if (source.content?.isEmpty() != false) {
-            compoundError.add(UploadVideoError.SOURCE_EMPTY)
-        } else if (!source.mimeType!!.contains("video")) {
-            compoundError.add(UploadVideoError.SOURCE_TYPE_NOT_VALID)
-        } else if (source.content.size > ValidationRules.MAX_VIDEO_SIZE) {
-            compoundError.add(UploadVideoError.SOURCE_TOO_LARGE)
+        if (!videoWithChannelsRepository.existsByChannel_OwnerIdAndVideoId(userId, videoId)) {
+            throw IllegalAccessException()
         }
-        if (compoundError.isNotEmpty()) {
-            throw ValidationException(compoundError)
+        val path = Paths.get(TEMP_VIDEO_SOURCE_BASE_PATH, videoId.toString())
+        if (path.notExists()) {
+            path.createDirectory()
         }
         return saveFile(
-            input = source.inputStream,
-            path = "$VIDEOS_PLAYABLES_BASE_PATH/$videoId.${source.name.parseExtension()}"
+            input = source,
+            path = "$path/$chunkIndex.tmp"
         )
     }
 
@@ -228,6 +233,7 @@ class VideoServiceWithDB @Autowired constructor(
         }
         videoRepository.save(videoEntity)
         videoSearchRepository.save(videoEntity.toDocument())
+        assembleFile(videoId)
         val videoWithChannel = videoWithChannelsRepository.findById(videoId).get()
         val message = Message.builder()
             .setTopic("$CHANNELS_TOPICS_PREFIX.${videoWithChannel.channelId}")
@@ -239,6 +245,41 @@ class VideoServiceWithDB @Autowired constructor(
                 )
             ).build()
         fcm.send(message)
+    }
+
+    private fun assembleFile(videoId: Long) {
+        val tempPath = Path(
+            TEMP_VIDEO_SOURCE_BASE_PATH,
+            videoId.toString()
+        )
+        val metaData =
+            (tempPath.resolve(Path(videoId.toString())))
+                .toFile()
+                .inputStream()
+                .use {
+                    it.readBytes()
+                        .decodeToString()
+                        .let {
+                            Gson().fromJson(it, VideoMetaData::class.java)
+                        }
+                }
+        val extension = metaData.fileName.parseExtension()
+        val file = Path(VIDEOS_PLAYABLES_BASE_PATH, "$videoId.$extension").toFile()
+        file.outputStream().use { output ->
+            tempPath.toFile().listFiles { _, name ->
+                name.endsWith(".tmp")
+            }
+                ?.sortedBy { it.name }
+                ?.forEach {
+                    it.inputStream().use { input ->
+                        val buffer = ByteArray(IO_BUFFER_SIZE)
+                        var bytesRead: Int
+                        while (input.read(buffer).also { bytesRead = it } != -1) {
+                            output.write(buffer, 0, bytesRead)
+                        }
+                    }
+                }
+        }
     }
 
     override fun checkOwner(userId: Long, videoId: Long): Boolean {
@@ -313,8 +354,8 @@ class VideoServiceWithDB @Autowired constructor(
     override fun getCover(videoId: Long): Resource {
         return FileSystemResource(
             findFileByName(VIDEOS_COVERS_BASE_PATH, videoId.toString())
-            .takeUnless { !videoRepository.existsById(videoId) || it?.exists() != true }
-            ?: throw NoSuchElementException()
+                .takeUnless { !videoRepository.existsById(videoId) || it?.exists() != true }
+                ?: throw NoSuchElementException()
         )
     }
 

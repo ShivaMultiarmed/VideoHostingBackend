@@ -12,6 +12,8 @@ class UnauthenticatedException: RuntimeException()
 
 class UniquenessViolationException: RuntimeException()
 
+class ExpiredException: RuntimeException()
+
 class ValidationException(val error: Error): RuntimeException()
 
 class CompoundError<T: Error>(): Error {

@@ -37,7 +37,7 @@ class AuthServiceWithDB(
 ) : AuthService {
 
     override fun signInWithPassword(userName: String, password: String): AuthModel {
-        val method = if (userName.matches(ValidationRules.EMAIL_REGEX)) AuthenticationMethod.EMAIL else AuthenticationMethod.TEL
+        val method = if (userName.matches(ValidationRules.EMAIL_REGEX.toRegex())) AuthenticationMethod.EMAIL else AuthenticationMethod.TEL
         val authDetailEntity = authDetailRepository.findByUserNameAndId_Method(userName, method).orElseThrow()
         val userId = authDetailEntity.id.userId
         val expectedPassword = passwordRepository.findById(userId).orElseThrow().password
@@ -96,7 +96,7 @@ class AuthServiceWithDB(
         password: String,
         user: User
     ): AuthModel {
-        val userName = jwtTokenUtil.extractSubject(token)
+        val userName = jwtTokenUtil.extractSubject(token)?: throw UnauthenticatedException()
         if (authDetailRepository.existsByUserNameAndId_Method(userName, AuthenticationMethod.EMAIL)) {
             throw UniquenessViolationException()
         }
@@ -104,7 +104,7 @@ class AuthServiceWithDB(
             throw UniquenessViolationException()
         }
         val userId = userRepository.save(user.toEntity()).userId!!
-        authDetailRepository.save(AuthDetailEntity(AuthDetailEntityId(userId, AuthenticationMethod.EMAIL), userName!!))
+        authDetailRepository.save(AuthDetailEntity(AuthDetailEntityId(userId, AuthenticationMethod.EMAIL), userName))
         passwordRepository.save(PasswordEntity(userId, passwordEncoder.encode(password)))
         val authToken = jwtTokenUtil.generateToken(userId.toString())
         return AuthModel(authToken, userId)
@@ -112,11 +112,11 @@ class AuthServiceWithDB(
 
     override fun requestPasswordReset(userName: String) {
         val method = when {
-            userName.matches(ValidationRules.EMAIL_REGEX) -> AuthenticationMethod.EMAIL
-            else -> throw ValidationException(ResetError.USERNAME_MALFORMED)
+            userName.matches(ValidationRules.EMAIL_REGEX.toRegex()) -> AuthenticationMethod.EMAIL
+            else -> return
         }
         if (!authDetailRepository.existsByUserNameAndId_Method(userName, method)) {
-            throw ValidationException(ResetError.USERNAME_NOT_FOUND)
+            throw NoSuchElementException()
         }
         val resetCode = cryptoUtils.generateString(4)
         SimpleMailMessage().apply {
@@ -140,11 +140,11 @@ class AuthServiceWithDB(
         val verificationEntity = verificationRepository.findByUserNameAndPurpose(
             userName = userName,
             purpose = VerificationCodePurpose.RESET
-        ).orElseThrow { ValidationException(ResetError.CODE_NOT_VALID) }
+        ).orElseThrow { NoSuchElementException() }
         if (!passwordEncoder.matches(code, verificationEntity.code)) {
-            throw ValidationException(ResetError.CODE_NOT_CORRECT)
+            throw IllegalArgumentException()
         } else if (verificationEntity.issuedAt.toKotlinInstant() + SHORT_LIVED_TOKEN_EXPIRATION_DURATION < Clock.System.now()) {
-            throw ValidationException(ResetError.CODE_NOT_VALID)
+            throw ExpiredException()
         } else {
             verificationRepository.delete(verificationEntity)
             return jwtTokenUtil.generateToken(userName, SHORT_LIVED_TOKEN_EXPIRATION_DURATION)
@@ -153,19 +153,16 @@ class AuthServiceWithDB(
 
     override fun resetPassword(token: String, password: String) {
         if (!jwtTokenUtil.validateToken(token) || invalidTokenRepository.existsById(token)) {
-            throw ValidationException(ResetError.TOKEN_NOT_VALID)
-        }
-        if (!password.matches(ValidationRules.PASSWORD_REGEX)) {
-            throw ValidationException(ResetError.PASSWORD_NOT_VALID)
+            throw UnauthenticatedException()
         }
         val userName = jwtTokenUtil.extractSubject(token)!!
         val userId = authDetailRepository
             .findByUserName(userName)
-            .orElseThrow { ValidationException(ResetError.USERNAME_NOT_FOUND) }
+            .orElseThrow()
             .id.userId
         passwordRepository
             .findById(userId)
-            .get()
+            .orElseThrow()
             .copy(
                 password = passwordEncoder.encode(password)
             ).let {

@@ -1,8 +1,9 @@
 package mikhail.shell.video.hosting.service
 
+import mikhail.shell.video.hosting.controllers.VideoMetaData
 import mikhail.shell.video.hosting.domain.*
 import org.springframework.core.io.Resource
-import java.io.File
+import java.io.InputStream
 
 interface VideoService {
     fun get(videoId: Long): Video
@@ -14,12 +15,12 @@ interface VideoService {
     fun incrementViews(videoId: Long): Video
     fun delete(userId: Long, videoId: Long)
     fun edit(userId: Long, video: Video, coverAction: EditAction, cover: UploadedFile?): Video
-    fun saveVideoSource(videoId: Long, source: UploadedFile): Boolean
-    fun confirm(userId: Long, videoId: Long)
     fun checkOwner(userId: Long, videoId: Long): Boolean
     fun getRecommendations(userId: Long, partIndex: Long, partSize: Int): List<VideoWithChannel>
     fun checkExistence(videoId: Long): Boolean
     fun sync()
-    fun save(userId: Long, video: Video, cover: UploadedFile?): Video
     fun getCover(videoId: Long): Resource
+    fun save(userId: Long, video: Video, cover: UploadedFile?): Video
+    fun saveVideoSource(userId: Long, videoId: Long, chunkIndex: Long, source: InputStream): Boolean
+    fun confirm(userId: Long, videoId: Long)
 }

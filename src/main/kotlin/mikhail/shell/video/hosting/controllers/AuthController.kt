@@ -12,6 +12,7 @@ import mikhail.shell.video.hosting.dto.SignUpDto
 import mikhail.shell.video.hosting.dto.toDomain
 import mikhail.shell.video.hosting.errors.*
 import mikhail.shell.video.hosting.service.AuthService
+import org.hibernate.validator.constraints.Length
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -61,18 +62,14 @@ class AuthController(
     }
 
     @PostMapping("/reset/password/request")
-    fun requestPasswordReset(@RequestParam userName: String) {
-        if (userName.isEmpty()) {
-            throw ValidationException(ResetError.USERNAME_EMPTY)
-        } else {
-            authService.requestPasswordReset(userName)
-        }
+    fun requestPasswordReset(@RequestParam @NotBlank @Email userName: String) {
+        authService.requestPasswordReset(userName)
     }
 
     @PostMapping("/reset/password/verify")
     fun verifyPasswordReset(
-        @RequestParam userName: String,
-        @RequestParam code: String
+        @RequestParam @NotBlank @Email userName: String,
+        @RequestParam @NotBlank @Length(min = 4 , max = 4) code: String
     ) = authService.verifyPasswordReset(
         userName = userName,
         code = code
@@ -81,22 +78,17 @@ class AuthController(
     @PostMapping("/reset/password/confirm")
     fun confirmPasswordReset(
         request: HttpServletRequest,
-        @RequestParam password: String
-    ): ResponseEntity<Unit> {
+        @RequestParam @NotBlank @Pattern(regexp = ValidationRules.PASSWORD_REGEX) password: String
+    ) {
         val resetToken = request.getHeader("Authorization")?.removePrefix("Bearer ")
-            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
-        if (password.isEmpty()) {
-            throw ValidationException(ResetError.PASSWORD_EMPTY)
-        }
+            ?: throw UnauthenticatedException()
         authService.resetPassword(resetToken, password)
-        return ResponseEntity.status(HttpStatus.OK).build()
     }
 
     @PostMapping("/signout")
-    fun signOut(request: HttpServletRequest): ResponseEntity<Unit> {
+    fun signOut(request: HttpServletRequest) {
         val token = request.getHeader("Authorization")?.substring("Bearer ".length)
-            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+            ?: throw UnauthenticatedException()
         authService.signOut(token)
-        return ResponseEntity.ok().build()
     }
 }

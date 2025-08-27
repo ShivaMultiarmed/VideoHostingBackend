@@ -15,9 +15,11 @@ object ValidationRules {
     const val MAX_USERNAME_LENGTH = 50
     const val MAX_IMAGE_SIZE = 10 * 1024 * 1024
     const val MAX_VIDEO_SIZE = 512 * 1024 * 1024
-    val PASSWORD_REGEX = Regex("^(?=.*[0-9])(?=.*[^a-zA-Z0-9])\\S{8,20}$")
-    val EMAIL_REGEX = Regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}\$")
-    val TEL_REGEX = Regex("^\\d{8,15}\$")
+    const val MIN_PASSWORD_LENGTH = 8
+    const val MAX_PASSWORD_LENGTH = 20
+    const val PASSWORD_REGEX = "^(?=.*[0-9])(?=.*[^a-zA-Z0-9])\\S{$MIN_PASSWORD_LENGTH,$MAX_PASSWORD_LENGTH}$"
+    const val EMAIL_REGEX = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}\$"
+    const val TEL_REGEX = "^\\d{8,15}\$"
 }
 
 @Target(AnnotationTarget.FIELD)

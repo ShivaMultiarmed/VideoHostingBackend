@@ -7,7 +7,6 @@ import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Positive
 import mikhail.shell.video.hosting.domain.*
-import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_COVERS_BASE_PATH
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH
 import mikhail.shell.video.hosting.dto.*
 import mikhail.shell.video.hosting.service.ChannelService
@@ -15,7 +14,6 @@ import mikhail.shell.video.hosting.service.UserService
 import mikhail.shell.video.hosting.service.VideoService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.core.io.FileSystemResource
 import org.springframework.core.io.Resource
 import org.springframework.data.repository.query.Param
 import org.springframework.http.HttpHeaders
@@ -30,6 +28,7 @@ import java.io.File
 import java.io.InputStream
 import java.io.RandomAccessFile
 import java.time.Instant
+import javax.activation.MimetypesFileTypeMap
 
 @RestController
 @RequestMapping("/api/v2/videos")
@@ -195,6 +194,11 @@ class VideoController @Autowired constructor(
         @Validated @ModelAttribute request: VideoCreationRequest,
         @AuthenticationPrincipal userId: Long
     ): VideoDto {
+        if(!MimetypesFileTypeMap.getDefaultFileTypeMap().getContentType(request.metadata.fileName).contains("video")) {
+            throw IllegalArgumentException()
+        } else if (request.metadata.size > ValidationRules.MAX_VIDEO_SIZE) {
+            throw IllegalArgumentException()
+        }
         return videoService.save(
             userId = userId,
             video = Video(
@@ -202,7 +206,7 @@ class VideoController @Autowired constructor(
                 title = request.title,
                 dateTime = Instant.now()
             ),
-            cover = request.cover?.toUploadedFile()
+            cover = request.cover?.toUploadedFile(),
         ).let {
             it.toDto(
                 sourceUrl = "$BASE_URL/videos/${it.videoId}/play",
@@ -214,30 +218,20 @@ class VideoController @Autowired constructor(
     @PostMapping("/{videoId}/source", consumes = ["application/octet-stream"])
     fun uploadSource(
         @PathVariable videoId: Long,
-        @RequestParam extension: String,
+        @RequestParam chunkIndex: Long,
         input: InputStream,
         @AuthenticationPrincipal userId: Long
-    ): ResponseEntity<Unit> {
-        if (!videoService.checkOwner(userId, videoId)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
-        }
-        if (!videoService.checkExistence(videoId)) {
-            throw NoSuchElementException()
-        }
-        val fileName = "source.$extension"
-        val result = videoService.saveVideoSource(
-            videoId,
-            input
+    ) {
+        videoService.saveVideoSource(
+            userId = userId,
+            videoId = videoId,
+            chunkIndex = chunkIndex,
+            source = input
         )
-        return if (result) {
-            ResponseEntity.status(HttpStatus.CREATED).build()
-        } else {
-            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
-        }
     }
 
-    @PostMapping("/{videoId}/confirm")
-    fun confirmVideoUpload(
+    @PostMapping("/{videoId}/confirmation")
+    fun confirmUpload(
         @PathVariable @Positive videoId: Long,
         @AuthenticationPrincipal userId: Long
     ) = videoService.confirm(userId = userId, videoId = videoId)
@@ -268,7 +262,7 @@ class VideoController @Autowired constructor(
     }
 
     @DeleteMapping("/{videoId}")
-    fun deleteVideo(
+    fun delete(
         @PathVariable @Positive videoId: Long,
         @AuthenticationPrincipal userId: Long
     ) {
@@ -322,7 +316,15 @@ data class VideoCreationRequest(
     )
     val cover: MultipartFile?,
     @field:NotBlank @field:Max(ValidationRules.MAX_TEXT_LENGTH.toLong())
-    val description: String?
+    val description: String?,
+    val metadata: VideoMetaData
+)
+
+data class VideoMetaData(
+    @field:NotBlank @field:Max(ValidationRules.MAX_NAME_LENGTH.toLong())
+    val fileName: String,
+    @field:Positive
+    val size: Long
 )
 
 data class VideoEditingRequest(
