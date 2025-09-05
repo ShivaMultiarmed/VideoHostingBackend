@@ -2,13 +2,20 @@ package mikhail.shell.video.hosting.controllers
 
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Positive
+import jakarta.validation.constraints.Size
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH
+import mikhail.shell.video.hosting.domain.ValidationRules.MAX_IMAGE_SIZE
+import mikhail.shell.video.hosting.domain.ValidationRules.MAX_NAME_LENGTH
+import mikhail.shell.video.hosting.domain.ValidationRules.MAX_TEXT_LENGTH
+import mikhail.shell.video.hosting.domain.ValidationRules.MAX_TITLE_LENGTH
 import mikhail.shell.video.hosting.dto.*
+import mikhail.shell.video.hosting.errors.FileError
 import mikhail.shell.video.hosting.service.ChannelService
 import mikhail.shell.video.hosting.service.UserService
 import mikhail.shell.video.hosting.service.VideoService
@@ -21,6 +28,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.validation.BindingResult
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
@@ -142,7 +150,7 @@ class VideoController @Autowired constructor(
     fun provideVideosFromChannel(
         @PathVariable @Positive channelId: Long,
         @Param("partSize") @Min(1) @Max(100) partSize: Int = 10,
-        @Param("partNumber") @Min(0) @Max(Long.MAX_VALUE) partNumber: Long = 0
+        @Param("partNumber") @Min(0) partNumber: Long = 0
     ): List<VideoDto> {
         return videoService
             .getByChannelId(
@@ -167,7 +175,7 @@ class VideoController @Autowired constructor(
 
     @GetMapping("/search")
     fun search(
-        @RequestParam @NotBlank @Max(ValidationRules.MAX_TITLE_LENGTH.toLong()) query: String,
+        @RequestParam @NotBlank @Max(MAX_TITLE_LENGTH.toLong()) query: String,
         @RequestParam @Min(1) @Max(100) partSize: Int = 10,
         @RequestParam @Min(0) @Max(Long.MAX_VALUE) partNumber: Long = 0
     ): List<VideoWithChannelDto> {
@@ -189,16 +197,12 @@ class VideoController @Autowired constructor(
         }
     }
 
-    @PostMapping
+    @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun upload(
-        @Validated @ModelAttribute request: VideoCreationRequest,
+        @RequestPart @Valid request: VideoCreationRequest,
+        @RequestPart @FileSize(max = MAX_IMAGE_SIZE) @FileType("image")  cover: MultipartFile?,
         @AuthenticationPrincipal userId: Long
     ): VideoDto {
-        if(!MimetypesFileTypeMap.getDefaultFileTypeMap().getContentType(request.metadata.fileName).contains("video")) {
-            throw IllegalArgumentException()
-        } else if (request.metadata.size > ValidationRules.MAX_VIDEO_SIZE) {
-            throw IllegalArgumentException()
-        }
         return videoService.save(
             userId = userId,
             video = Video(
@@ -206,7 +210,7 @@ class VideoController @Autowired constructor(
                 title = request.title,
                 dateTime = Instant.now()
             ),
-            cover = request.cover?.toUploadedFile(),
+            cover = cover?.toUploadedFile(),
         ).let {
             it.toDto(
                 sourceUrl = "$BASE_URL/videos/${it.videoId}/play",
@@ -239,9 +243,10 @@ class VideoController @Autowired constructor(
     @PatchMapping("/{videoId}/increment-views")
     fun incrementViews(@PathVariable @Positive videoId: Long) = videoService.incrementViews(videoId).toDto()
 
-    @PatchMapping("/edit")
+    @PatchMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun editVideo(
-        @Validated @ModelAttribute request: VideoEditingRequest,
+        @RequestPart @Valid request: VideoEditingRequest,
+        @RequestPart @FileSize(max = MAX_IMAGE_SIZE) @FileType("image")  cover: MultipartFile?,
         @AuthenticationPrincipal userId: Long
     ): VideoDto {
         return videoService.edit(
@@ -252,7 +257,7 @@ class VideoController @Autowired constructor(
                 channelId = request.channelId,
             ),
             coverAction = request.coverAction,
-            cover = request.cover?.toUploadedFile()
+            cover = cover?.toUploadedFile()
         ).let {
             it.toDto(
                 sourceUrl = "$BASE_URL/videos/${it.videoId}/play",
@@ -306,22 +311,17 @@ class VideoController @Autowired constructor(
 }
 
 data class VideoCreationRequest(
-    @field:NotBlank @field:Max(ValidationRules.MAX_TITLE_LENGTH.toLong())
+    @field:NotBlank @field:Size(max = MAX_TITLE_LENGTH, message = "LARGE")
     val title: String,
     @field:Positive
     val channelId: Long,
-    @field:FileValidation(
-        max = ValidationRules.MAX_IMAGE_SIZE.toLong(),
-        mime = "image"
-    )
-    val cover: MultipartFile?,
-    @field:NotBlank @field:Max(ValidationRules.MAX_TEXT_LENGTH.toLong())
+    @field:NotBlank @field:Size(max = MAX_TEXT_LENGTH, message = "LARGE")
     val description: String?,
     val metadata: VideoMetaData
 )
 
 data class VideoMetaData(
-    @field:NotBlank @field:Max(ValidationRules.MAX_NAME_LENGTH.toLong())
+    @field:NotBlank @field:Size(max = MAX_NAME_LENGTH) // TODO: message
     val fileName: String,
     @field:Positive
     val size: Long
@@ -330,16 +330,11 @@ data class VideoMetaData(
 data class VideoEditingRequest(
     @field:Positive
     val videoId: Long,
-    @field:NotBlank @field:Max(ValidationRules.MAX_TITLE_LENGTH.toLong())
+    @field:NotBlank @field:Size(max = MAX_TITLE_LENGTH, message = "LARGE")
     val title: String,
     @field:Positive
     val channelId: Long,
-    @field:FileValidation(
-        max = ValidationRules.MAX_IMAGE_SIZE.toLong(),
-        mime = "image"
-    )
-    val cover: MultipartFile?,
     val coverAction: EditAction,
-    @field:NotBlank @field:Max(ValidationRules.MAX_TEXT_LENGTH.toLong())
+    @field:NotBlank @field:Size(max = MAX_TEXT_LENGTH, message = "LARGE")
     val description: String?
 )

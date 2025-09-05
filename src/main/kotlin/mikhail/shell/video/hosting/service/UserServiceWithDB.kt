@@ -4,7 +4,10 @@ package mikhail.shell.video.hosting.service
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_LOGOS_BASE_PATH
 import mikhail.shell.video.hosting.domain.ApplicationPaths.USER_AVATARS_BASE_PATH
+import mikhail.shell.video.hosting.errors.Error
+import mikhail.shell.video.hosting.errors.TextError
 import mikhail.shell.video.hosting.errors.UniquenessViolationException
+import mikhail.shell.video.hosting.errors.ValidationException
 import mikhail.shell.video.hosting.repository.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.io.FileSystemResource
@@ -26,8 +29,12 @@ class UserServiceWithDB @Autowired constructor(
         if (!userRepository.existsById(user.userId!!)) {
             throw NoSuchElementException()
         }
+        val errors = mutableMapOf<String, Error>()
         if (userRepository.existsByNick(user.nick)) {
-            throw UniquenessViolationException()
+            errors["nick"] = TextError.EXISTS
+        }
+        if (errors.isNotEmpty()) {
+            throw ValidationException(errors)
         }
         val editedUserEntity = userRepository.save(user.toEntity())
         if (avatarAction != EditAction.KEEP) {

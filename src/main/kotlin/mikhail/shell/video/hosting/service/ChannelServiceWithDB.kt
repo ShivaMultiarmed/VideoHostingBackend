@@ -23,6 +23,7 @@ import org.springframework.core.io.Resource
 import org.springframework.data.domain.PageRequest
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service
+import org.w3c.dom.Text
 import java.io.File
 
 @Service
@@ -59,11 +60,17 @@ class ChannelServiceWithDB @Autowired constructor(
 
     @Transactional
     override fun createChannel(channel: Channel, logo: UploadedFile?, header: UploadedFile?): Channel {
-        val createdChannel = try {
-            channelRepository.save(channel.toEntity()).toDomain()
-        } catch (e: ConstraintViolationException) {
-            throw UniquenessViolationException()
+        val errors = mutableMapOf<String, Error>()
+        if (channelRepository.existsByTitle(channel.title)) {
+            errors["title"] = TextError.EXISTS
         }
+        if (channel.alias != null && channelRepository.existsByAlias(channel.alias)) {
+            errors["alias"] = TextError.EXISTS
+        }
+        if (errors.isNotEmpty()) {
+            throw ValidationException(errors)
+        }
+        val createdChannel = channelRepository.save(channel.toEntity()).toDomain()
         header?.let {
             uploadImage(
                 uploadedFile = it,
@@ -172,13 +179,15 @@ class ChannelServiceWithDB @Autowired constructor(
         if (!channelRepository.existsByOwnerIdAndChannelId(channel.ownerId, channel.channelId)) {
             throw IllegalAccessException()
         }
-        if (channelRepository.existsByTitle(channel.title)
-            && currentChannelEntity.title != channel.title ||
-            channel.alias != null
-            && channelRepository.existsByAlias(channel.alias)
-            && currentChannelEntity.alias != channel.alias
-        ) {
-            throw UniquenessViolationException()
+        val errors = mutableMapOf<String, Error>()
+        if (channelRepository.existsByTitle(channel.title) && currentChannelEntity.title != channel.title) {
+            errors["title"] = TextError.EXISTS
+        }
+        if (channel.alias != null && channelRepository.existsByAlias(channel.alias) && currentChannelEntity.alias != channel.alias) {
+            errors["alias"] = TextError.EXISTS
+        }
+        if (errors.isNotEmpty()) {
+            throw ValidationException(errors)
         }
         val editedChannel = channelRepository.save(
             currentChannelEntity.copy(

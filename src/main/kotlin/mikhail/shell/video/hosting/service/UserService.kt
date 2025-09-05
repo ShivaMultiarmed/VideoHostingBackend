@@ -4,7 +4,6 @@ import mikhail.shell.video.hosting.domain.EditAction
 import mikhail.shell.video.hosting.domain.UploadedFile
 import mikhail.shell.video.hosting.domain.User
 import org.springframework.core.io.Resource
-import java.io.File
 
 interface UserService {
     fun get(userId: Long): User

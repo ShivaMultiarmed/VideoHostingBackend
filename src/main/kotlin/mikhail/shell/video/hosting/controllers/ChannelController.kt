@@ -1,10 +1,9 @@
 package mikhail.shell.video.hosting.controllers
 
-import jakarta.validation.constraints.Max
-import jakarta.validation.constraints.Min
-import jakarta.validation.constraints.NotBlank
-import jakarta.validation.constraints.Positive
+import jakarta.validation.Valid
+import jakarta.validation.constraints.*
 import mikhail.shell.video.hosting.domain.*
+import mikhail.shell.video.hosting.domain.ValidationRules.MAX_IMAGE_SIZE
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_TEXT_LENGTH
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_TITLE_LENGTH
 import mikhail.shell.video.hosting.dto.ChannelDto
@@ -59,9 +58,11 @@ class ChannelController @Autowired constructor(
                 .body(image)
     }
 
-    @PostMapping(consumes = ["multipart/form-data"])
+    @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun createChannel(
-        @Validated @ModelAttribute channel: ChannelCreationRequest,
+        @RequestPart @Valid channel: ChannelCreationRequest,
+        @RequestPart @FileSize(max = MAX_IMAGE_SIZE) @FileType("image")  logo: MultipartFile?,
+        @RequestPart @FileSize(max = MAX_IMAGE_SIZE) @FileType("image")  header: MultipartFile?,
         @AuthenticationPrincipal userId: Long,
     ): ChannelDto {
         return channelService.createChannel(
@@ -71,14 +72,16 @@ class ChannelController @Autowired constructor(
                 alias = channel.alias,
                 description = channel.description
             ),
-            logo = channel.logo?.toUploadedFile(),
-            header = channel.header?.toUploadedFile()
+            logo = logo?.toUploadedFile(),
+            header = header?.toUploadedFile()
         ).toDto()
     }
 
-    @PatchMapping(consumes = ["multipart/form-data"])
+    @PatchMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun editChannel(
-        @Validated @ModelAttribute channel: ChannelEditingRequest,
+        @RequestPart @Valid channel: ChannelEditingRequest,
+        @RequestPart @FileSize(max = MAX_IMAGE_SIZE) @FileType("image") logo: MultipartFile?,
+        @RequestPart @FileSize(max = MAX_IMAGE_SIZE) @FileType("image") header: MultipartFile?,
         @AuthenticationPrincipal userId: Long
     ): ChannelDto {
         return channelService.editChannel(
@@ -89,9 +92,9 @@ class ChannelController @Autowired constructor(
                 alias = channel.alias,
                 description = channel.description
             ),
-            header = channel.header?.toUploadedFile(),
+            header = header?.toUploadedFile(),
             headerAction = channel.editHeaderAction,
-            logo = channel.logo?.toUploadedFile(),
+            logo = logo?.toUploadedFile(),
             logoAction = channel.editHeaderAction,
         ).toDto()
     }
@@ -174,22 +177,12 @@ class ChannelController @Autowired constructor(
 
 data class ChannelCreationRequest(
     @field:NotBlank
-    @field:Max(MAX_TITLE_LENGTH.toLong())
+    @field:Size(max = MAX_TITLE_LENGTH, message = "LARGE")
     val title: String,
     @field:NotBlank
-    @field:Max(MAX_TITLE_LENGTH.toLong())
+    @field:Size(max = MAX_TITLE_LENGTH, message = "LARGE")
     val alias: String?,
-    @field:FileValidation(
-        max = ValidationRules.MAX_IMAGE_SIZE.toLong(),
-        mime = "image"
-    )
-    val logo: MultipartFile?,
-    @field:FileValidation(
-        max = ValidationRules.MAX_IMAGE_SIZE.toLong(),
-        mime = "image"
-    )
-    val header: MultipartFile?,
-    @field:Max(MAX_TEXT_LENGTH.toLong())
+    @field:Size(max = MAX_TEXT_LENGTH, message = "LARGE")
     val description: String?
 )
 
@@ -197,23 +190,13 @@ data class ChannelEditingRequest(
     @field:Positive
     val channelId: Long,
     @field:NotBlank
-    @field:Max(MAX_TITLE_LENGTH.toLong())
+    @field:Size(max = MAX_TITLE_LENGTH, message = "LARGE")
     val title: String,
     @field:NotBlank
-    @field:Max(MAX_TITLE_LENGTH.toLong())
+    @field:Size(max = MAX_TITLE_LENGTH, message = "LARGE")
     val alias: String?,
     val editLogoAction: EditAction,
-    @field:FileValidation(
-        max = ValidationRules.MAX_IMAGE_SIZE.toLong(),
-        mime = "image"
-    )
-    val logo: MultipartFile?,
     val editHeaderAction: EditAction,
-    @field:FileValidation(
-        max = ValidationRules.MAX_IMAGE_SIZE.toLong(),
-        mime = "image"
-    )
-    val header: MultipartFile?,
-    @field:Max(MAX_TEXT_LENGTH.toLong())
+    @field:Size(max = MAX_TEXT_LENGTH, message = "LARGE")
     val description: String?
 )

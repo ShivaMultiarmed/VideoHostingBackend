@@ -1,6 +1,11 @@
 package mikhail.shell.video.hosting.dto
 
+import jakarta.validation.constraints.Pattern
+import mikhail.shell.video.hosting.controllers.UserCreatingRequest
 import mikhail.shell.video.hosting.domain.User
+import mikhail.shell.video.hosting.domain.ValidationRules
+import mikhail.shell.video.hosting.domain.ValidationRules.PASSWORD_REGEX
+import mikhail.shell.video.hosting.errors.TextError
 
 data class UserDto(
     val userId: Long? = null,
@@ -30,7 +35,8 @@ fun UserDto.toDomain() = User(
     email = email
 )
 
-data class SignUpDto(
+data class SignUpRequest(
+    @Pattern(regexp = PASSWORD_REGEX, message = "PATTERN")
     val password: String,
-    val userDto: UserDto
+    val request: UserCreatingRequest
 )

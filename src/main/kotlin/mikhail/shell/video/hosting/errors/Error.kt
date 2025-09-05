@@ -6,7 +6,9 @@ import com.fasterxml.jackson.annotation.JsonProperty
 
 interface Error
 
-data object UnexpectedError: Error
+data object UnexpectedError: Error {
+    override fun toString() = "UNEXPECTED"
+}
 
 class UnauthenticatedException: RuntimeException()
 
@@ -14,7 +16,7 @@ class UniquenessViolationException: RuntimeException()
 
 class ExpiredException: RuntimeException()
 
-class ValidationException(val error: Error): RuntimeException()
+class ValidationException(errors: Map<String, Error>): RuntimeException()
 
 class CompoundError<T: Error>(): Error {
     @JsonProperty("errors") private val _errors: MutableList<T> = mutableListOf()
@@ -64,3 +66,24 @@ fun Error.toCompound(): CompoundError<Error> {
 }
 
 fun Error?.isNotEmpty(): Boolean = !isEmpty()
+
+enum class TextError: Error {
+    EMPTY,
+    SHORT,
+    LONG,
+    EXISTS,
+    NOT_EXISTS,
+    NOT_CORRECT,
+    NOT_VALID,
+    PATTERN
+}
+
+enum class OptionError: Error {
+    EMPTY
+}
+
+enum class FileError: Error {
+    EMPTY,
+    LARGE,
+    NOT_SUPPORTED
+}

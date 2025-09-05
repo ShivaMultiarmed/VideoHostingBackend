@@ -1,11 +1,17 @@
 package mikhail.shell.video.hosting.controllers
 
+import jakarta.validation.Valid
 import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Positive
+import jakarta.validation.constraints.Size
 import mikhail.shell.video.hosting.domain.*
+import mikhail.shell.video.hosting.domain.ValidationRules.MAX_IMAGE_SIZE
+import mikhail.shell.video.hosting.domain.ValidationRules.MAX_NAME_LENGTH
+import mikhail.shell.video.hosting.domain.ValidationRules.MAX_TEXT_LENGTH
+import mikhail.shell.video.hosting.domain.ValidationRules.MAX_USERNAME_LENGTH
 import mikhail.shell.video.hosting.dto.UserDto
 import mikhail.shell.video.hosting.dto.toDto
 import mikhail.shell.video.hosting.service.UserService
@@ -32,9 +38,10 @@ class UserController @Autowired constructor(
         return userService.get(userId).toDto()
     }
 
-    @PatchMapping(consumes = ["multipart/form-data"])
+    @PatchMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun edit(
-        @Validated @ModelAttribute user: UserEditingRequest,
+        @RequestPart @Valid user: UserEditingRequest,
+        @RequestPart @FileSize(MAX_IMAGE_SIZE) @FileType("image")  avatar: MultipartFile?,
         @AuthenticationPrincipal userId: Long
     ): UserDto {
         return userService.edit(
@@ -47,7 +54,7 @@ class UserController @Autowired constructor(
                 email = user.email
             ),
             avatarAction = user.avatarAction,
-            avatar = user.avatar?.toUploadedFile()
+            avatar = avatar?.toUploadedFile()
         ).toDto()
     }
 
@@ -69,21 +76,29 @@ class UserController @Autowired constructor(
     )
 }
 
-data class UserEditingRequest(
-    @field:NotBlank @field:Max(ValidationRules.MAX_USERNAME_LENGTH.toLong())
+data class UserCreatingRequest(
+    @field:NotBlank @field:Size(max = MAX_USERNAME_LENGTH, message = "LARGE")
     val nick: String,
-    @field:NotBlank @field:Max(ValidationRules.MAX_NAME_LENGTH.toLong())
+    @field:NotBlank @field:Size(max = MAX_NAME_LENGTH, message = "LARGE")
     val name: String?,
-    @field:NotBlank @field:Max(ValidationRules.MAX_TEXT_LENGTH.toLong())
+    @field:NotBlank @field:Size(max = MAX_TEXT_LENGTH, message = "LARGE")
     val bio: String?,
-    @field:Pattern(regexp = "^\\d{8,15}$")
+    @field:Pattern(regexp = "^\\d{8,15}$", message = "PATTERN")
     val tel: String?,
-    @field:Email
+    @field:Email(message = "PATTERN")
+    val email: String?
+)
+
+data class UserEditingRequest(
+    @field:NotBlank @field:Size(max = MAX_USERNAME_LENGTH, message = "LARGE")
+    val nick: String,
+    @field:NotBlank @field:Size(max = MAX_NAME_LENGTH, message = "LARGE")
+    val name: String?,
+    @field:NotBlank @field:Size(max = MAX_TEXT_LENGTH, message = "LARGE")
+    val bio: String?,
+    @field:Pattern(regexp = "^\\d{8,15}$", message = "PATTERN")
+    val tel: String?,
+    @field:Email(message = "PATTERN")
     val email: String?,
     val avatarAction: EditAction,
-    @field:FileValidation(
-        max = ValidationRules.MAX_IMAGE_SIZE.toLong(),
-        mime = "image"
-    )
-    val avatar: MultipartFile?
 )

@@ -13,7 +13,7 @@ object ValidationRules {
     const val MAX_NAME_LENGTH = 50
     const val MAX_TEXT_LENGTH = 255
     const val MAX_USERNAME_LENGTH = 50
-    const val MAX_IMAGE_SIZE = 10 * 1024 * 1024
+    const val MAX_IMAGE_SIZE = 10 * 1024 * 1024L
     const val MAX_VIDEO_SIZE = 512 * 1024 * 1024
     const val MIN_PASSWORD_LENGTH = 8
     const val MAX_PASSWORD_LENGTH = 20
@@ -22,28 +22,46 @@ object ValidationRules {
     const val TEL_REGEX = "^\\d{8,15}\$"
 }
 
-@Target(AnnotationTarget.FIELD)
+@Target(AnnotationTarget.VALUE_PARAMETER)
 @Retention(AnnotationRetention.RUNTIME)
 @Constraint(validatedBy = [FileSizeValidator::class])
-annotation class FileValidation(
+annotation class FileSize(
     val max: Long,
+    val message: String = "",
+    val groups: Array<KClass<*>> = [],
+    val payload: Array<KClass<out Payload>> = []
+)
+
+class FileSizeValidator: ConstraintValidator<FileSize, MultipartFile?> {
+    private var max: Long = 0
+
+    override fun initialize(constraintAnnotation: FileSize?) {
+        max = constraintAnnotation?.max?: max
+    }
+
+    override fun isValid(p0: MultipartFile?, p1: ConstraintValidatorContext?): Boolean {
+        return p0!= null && !p0.isEmpty && p0.size <= max
+    }
+}
+
+@Target(AnnotationTarget.VALUE_PARAMETER)
+@Retention(AnnotationRetention.RUNTIME)
+@Constraint(validatedBy = [FileSizeValidator::class])
+annotation class FileType(
     val mime: String,
     val message: String = "",
     val groups: Array<KClass<*>> = [],
     val payload: Array<KClass<out Payload>> = []
 )
 
-class FileSizeValidator: ConstraintValidator<FileValidation, MultipartFile?> {
-
-    private var max: Long = 0
+class FileTypeValidator: ConstraintValidator<FileType, MultipartFile?> {
     private var mime: String = ""
 
-    override fun initialize(constraintAnnotation: FileValidation?) {
-        max = constraintAnnotation?.max?: max
+    override fun initialize(constraintAnnotation: FileType?) {
         mime = constraintAnnotation?.mime?: mime
     }
 
     override fun isValid(p0: MultipartFile?, p1: ConstraintValidatorContext?): Boolean {
-        return p0!= null && !p0.isEmpty && p0.size <= max && p0.contentType?.contains(mime)?: false
+        return p0!= null && !p0.isEmpty && p0.contentType?.startsWith(mime)?: false
     }
 }

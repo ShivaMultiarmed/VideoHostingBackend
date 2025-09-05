@@ -1,21 +1,20 @@
 package mikhail.shell.video.hosting.controllers
 
 import jakarta.servlet.http.HttpServletRequest
+import jakarta.validation.Valid
 import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Pattern
 import mikhail.shell.video.hosting.domain.AuthModel
+import mikhail.shell.video.hosting.domain.User
 import mikhail.shell.video.hosting.domain.ValidationRules
-import mikhail.shell.video.hosting.domain.ValidationRules.EMAIL_REGEX
-import mikhail.shell.video.hosting.dto.SignUpDto
+import mikhail.shell.video.hosting.dto.SignUpRequest
 import mikhail.shell.video.hosting.dto.toDomain
 import mikhail.shell.video.hosting.errors.*
 import mikhail.shell.video.hosting.service.AuthService
 import org.hibernate.validator.constraints.Length
 import org.springframework.http.HttpHeaders
-import org.springframework.http.HttpStatus
-import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -52,12 +51,18 @@ class AuthController(
     @PostMapping("/signup/password/confirmation")
     fun confirmSignUpWithPassword(
         request: HttpServletRequest,
-        @RequestBody signUpDto: SignUpDto
+        @RequestBody @Valid signUpRequest: SignUpRequest
     ) {
         authService.confirmSignUpWithPassword(
             token = request.getHeader(HttpHeaders.AUTHORIZATION).removePrefix("Bearer "),
-            password = signUpDto.password,
-            user = signUpDto.userDto.toDomain()
+            password = signUpRequest.password,
+            user = User(
+                nick = signUpRequest.request.nick,
+                name = signUpRequest.request.name,
+                bio = signUpRequest.request.bio,
+                tel = signUpRequest.request.tel,
+                email = signUpRequest.request.nick,
+            )
         )
     }
 
