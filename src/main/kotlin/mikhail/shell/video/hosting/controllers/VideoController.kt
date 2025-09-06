@@ -152,10 +152,7 @@ class VideoController @Autowired constructor(
     fun provideVideosFromChannel(
         @PathVariable @LongId channelId: Long,
         @RequestParam @Min(value = 1, message = "LOW") @Max(value = 100, message = "HIGH") partSize: Int = 10,
-        @RequestParam @Min(value = 0, message = "LOW") @Max(
-            value = Long.MAX_VALUE,
-            message = "HIGH"
-        ) partNumber: Long = 0
+        @RequestParam @Min(value = 0, message = "LOW") @Max(value = Long.MAX_VALUE, message = "HIGH") partNumber: Long = 0
     ): List<VideoDto> {
         return videoService.getByChannelId(
             channelId = channelId,
@@ -206,9 +203,18 @@ class VideoController @Autowired constructor(
     @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun upload(
         @RequestPart @Valid request: VideoCreationRequest,
+        @RequestPart source: VideoMetaData,
         @RequestPart @Image cover: MultipartFile?,
         @AuthenticationPrincipal userId: Long
-    ): VideoDto {
+    ): ResponseEntity<*> {
+        if (source.size == 0L) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("source" to FileError.EMPTY))
+        } else if (source.size > MAX_VIDEO_SIZE) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("source" to FileError.LARGE))
+        }
+        if ((MimetypesFileTypeMap.getDefaultFileTypeMap().getContentType(source.fileName)?: "") != source.mimeType) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("source" to FileError.NOT_SUPPORTED))
+        }
         return videoService.save(
             userId = userId,
             video = Video(
@@ -222,6 +228,8 @@ class VideoController @Autowired constructor(
                 sourceUrl = "$BASE_URL/videos/${it.videoId}/play",
                 coverUrl = "$BASE_URL/videos/${it.videoId}/cover"
             )
+        }.let {
+            ResponseEntity.status(HttpStatus.OK).body(it)
         }
     }
 
@@ -325,13 +333,14 @@ data class VideoCreationRequest(
     @field:LongId
     val channelId: Long,
     @field:Description
-    val description: String?,
-    val metadata: VideoMetaData
+    val description: String?
 )
 
 data class VideoMetaData(
     @field:NotBlank(message = "EMPTY") @field:Size(max = MAX_NAME_LENGTH, message = "LARGE")
     val fileName: String,
+    @field:NotBlank(message = "NOT_SUPPORTED") // TODO validate mime type
+    val mimeType: String,
     @field:Positive(message = "EMPTY") @field:Size(max = MAX_VIDEO_SIZE, message = "LARGE")
     val size: Long
 )
