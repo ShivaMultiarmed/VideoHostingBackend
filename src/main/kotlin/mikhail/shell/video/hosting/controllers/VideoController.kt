@@ -330,9 +330,9 @@ data class VideoCreationRequest(
 )
 
 data class VideoMetaData(
-    @field:NotBlank(message = "EMPTY") @field:Size(max = MAX_NAME_LENGTH) // TODO: message
+    @field:NotBlank(message = "EMPTY") @field:Size(max = MAX_NAME_LENGTH, message = "LARGE")
     val fileName: String,
-    @field:Positive(message = "EMPTY") @field:Size(max = MAX_VIDEO_SIZE, message = "LARGE") // TODO: unify with fileName?
+    @field:Positive(message = "EMPTY") @field:Size(max = MAX_VIDEO_SIZE, message = "LARGE")
     val size: Long
 )
 
