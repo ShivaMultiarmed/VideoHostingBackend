@@ -14,8 +14,10 @@ import mikhail.shell.video.hosting.domain.ValidationRules.MAX_IMAGE_SIZE
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_NAME_LENGTH
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_TEXT_LENGTH
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_TITLE_LENGTH
+import mikhail.shell.video.hosting.domain.ValidationRules.MAX_VIDEO_SIZE
 import mikhail.shell.video.hosting.dto.*
 import mikhail.shell.video.hosting.errors.FileError
+import mikhail.shell.video.hosting.errors.TextError
 import mikhail.shell.video.hosting.service.ChannelService
 import mikhail.shell.video.hosting.service.UserService
 import mikhail.shell.video.hosting.service.VideoService
@@ -49,20 +51,20 @@ class VideoController @Autowired constructor(
     private lateinit var BASE_URL: String
 
     @GetMapping("/{videoId}")
-    fun get(@PathVariable @Positive videoId: Long): VideoDto {
+    fun get(@PathVariable @LongId videoId: Long): VideoDto {
         return videoService.get(videoId).toDto()
     }
 
     @GetMapping("/{videoId}/details")
     fun getVideoDetails(
-        @PathVariable @Positive videoId: Long,
+        @PathVariable @LongId videoId: Long,
         @AuthenticationPrincipal userId: Long
     ): VideoDetailsDto {
         val videoDto = videoService.get(videoId = videoId, userId = userId).toDto(
             sourceUrl = "$BASE_URL/videos/${videoId}/play",
             coverUrl = "$BASE_URL/videos/${videoId}/cover"
         )
-        val channelDto = channelService.getForUser(videoDto.channelId, userId).toDto(
+        val channelDto = channelService.getForUser(channelId = videoDto.channelId, userId = userId).toDto(
             avatarUrl = "$BASE_URL/channels/${videoDto.channelId}/avatar",
             coverUrl = "$BASE_URL/channels/${videoDto.channelId}/cover"
         )
@@ -74,7 +76,7 @@ class VideoController @Autowired constructor(
 
     @PatchMapping("/{videoId}/rate")
     fun rateVideo(
-        @PathVariable videoId: Long,
+        @PathVariable @LongId videoId: Long,
         @RequestParam liking: Liking,
         @AuthenticationPrincipal userId: Long
     ): VideoWithUserDto {
@@ -86,7 +88,7 @@ class VideoController @Autowired constructor(
 
     @GetMapping(path = ["/{videoId}/play", "/{videoId}/download"])
     fun playVideo(
-        @PathVariable videoId: Long,
+        @PathVariable @LongId videoId: Long,
         request: HttpServletRequest,
         response: HttpServletResponse
     ): ResponseEntity<Any> {
@@ -148,25 +150,29 @@ class VideoController @Autowired constructor(
 
     @GetMapping("/channel/{channelId}")
     fun provideVideosFromChannel(
-        @PathVariable @Positive channelId: Long,
-        @Param("partSize") @Min(1) @Max(100) partSize: Int = 10,
-        @Param("partNumber") @Min(0) partNumber: Long = 0
+        @PathVariable @LongId channelId: Long,
+        @RequestParam @Min(value = 1, message = "LOW") @Max(value = 100, message = "HIGH") partSize: Int = 10,
+        @RequestParam @Min(value = 0, message = "LOW") @Max(
+            value = Long.MAX_VALUE,
+            message = "HIGH"
+        ) partNumber: Long = 0
     ): List<VideoDto> {
-        return videoService
-            .getByChannelId(
-                channelId = channelId,
-                partSize = partSize,
-                partNumber = partNumber
-            ).map {
-                it.toDto(
-                    sourceUrl = "$BASE_URL/videos/${it.videoId}/play",
-                    coverUrl = "$BASE_URL/videos/${it.videoId}/cover"
-                )
-            }
+        return videoService.getByChannelId(
+            channelId = channelId,
+            partSize = partSize,
+            partNumber = partNumber
+        ).map {
+            it.toDto(
+                sourceUrl = "$BASE_URL/videos/${it.videoId}/play",
+                coverUrl = "$BASE_URL/videos/${it.videoId}/cover"
+            )
+        }
     }
 
     @GetMapping("/{videoId}/cover")
-    fun provideVideoCover(@PathVariable @Positive videoId: Long): ResponseEntity<Resource> {
+    fun provideVideoCover(
+        @PathVariable @LongId videoId: Long
+    ): ResponseEntity<Resource> {
         val image = videoService.getCover(videoId)
         return ResponseEntity.status(HttpStatus.OK)
             .contentType(MediaType.parseMediaType("image/${image.file.extension}"))
@@ -175,9 +181,9 @@ class VideoController @Autowired constructor(
 
     @GetMapping("/search")
     fun search(
-        @RequestParam @NotBlank @Max(MAX_TITLE_LENGTH.toLong()) query: String,
-        @RequestParam @Min(1) @Max(100) partSize: Int = 10,
-        @RequestParam @Min(0) @Max(Long.MAX_VALUE) partNumber: Long = 0
+        @RequestParam @Title query: String,
+        @RequestParam @Min(value = 1, message = "LOW") @Max(value = 100, message = "HIGH") partSize: Int = 10,
+        @RequestParam @Min(value = 0, message = "LOW") @Max(value = Long.MAX_VALUE, message = "HIGH") partNumber: Long = 0
     ): List<VideoWithChannelDto> {
         return videoService.getByQuery(
             query = query,
@@ -200,7 +206,7 @@ class VideoController @Autowired constructor(
     @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun upload(
         @RequestPart @Valid request: VideoCreationRequest,
-        @RequestPart @FileSize(max = MAX_IMAGE_SIZE) @FileType("image")  cover: MultipartFile?,
+        @RequestPart @Image cover: MultipartFile?,
         @AuthenticationPrincipal userId: Long
     ): VideoDto {
         return videoService.save(
@@ -221,8 +227,8 @@ class VideoController @Autowired constructor(
 
     @PostMapping("/{videoId}/source", consumes = ["application/octet-stream"])
     fun uploadSource(
-        @PathVariable videoId: Long,
-        @RequestParam chunkIndex: Long,
+        @PathVariable @LongId videoId: Long,
+        @RequestParam @Positive(message = "LOW") @Max(value = Long.MAX_VALUE, message = "HIGH") chunkIndex: Long,
         input: InputStream,
         @AuthenticationPrincipal userId: Long
     ) {
@@ -236,17 +242,21 @@ class VideoController @Autowired constructor(
 
     @PostMapping("/{videoId}/confirmation")
     fun confirmUpload(
-        @PathVariable @Positive videoId: Long,
+        @PathVariable @LongId videoId: Long,
         @AuthenticationPrincipal userId: Long
     ) = videoService.confirm(userId = userId, videoId = videoId)
 
     @PatchMapping("/{videoId}/increment-views")
-    fun incrementViews(@PathVariable @Positive videoId: Long) = videoService.incrementViews(videoId).toDto()
+    fun incrementViews(
+        @PathVariable @LongId videoId: Long
+    ): VideoDto {
+        return videoService.incrementViews(videoId).toDto()
+    }
 
     @PatchMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun editVideo(
         @RequestPart @Valid request: VideoEditingRequest,
-        @RequestPart @FileSize(max = MAX_IMAGE_SIZE) @FileType("image")  cover: MultipartFile?,
+        @RequestPart @Image cover: MultipartFile?,
         @AuthenticationPrincipal userId: Long
     ): VideoDto {
         return videoService.edit(
@@ -268,7 +278,7 @@ class VideoController @Autowired constructor(
 
     @DeleteMapping("/{videoId}")
     fun delete(
-        @PathVariable @Positive videoId: Long,
+        @PathVariable @Image videoId: Long,
         @AuthenticationPrincipal userId: Long
     ) {
         videoService.delete(userId = userId, videoId = videoId)
@@ -276,27 +286,26 @@ class VideoController @Autowired constructor(
 
     @GetMapping("/recommendations")
     fun getRecommendations(
-        @RequestParam @Min(0) @Max(Long.MAX_VALUE) partIndex: Long = 0,
-        @RequestParam @Min(1) @Max(100) partSize: Int = 10,
+        @RequestParam @Min(value = 0, message = "LOW") @Max(value = Long.MAX_VALUE, message = "HIGH") partIndex: Long = 0,
+        @RequestParam @Min(value = 0, message = "LOW") @Max(value = 100, message = "HIGH") partSize: Int = 10,
         @AuthenticationPrincipal userId: Long
     ): List<VideoWithChannelDto> {
-        return videoService
-            .getRecommendations(
-                userId,
-                partIndex,
-                partSize
-            ).map {
-                VideoWithChannelDto(
-                    video = it.video.toDto(
-                        sourceUrl = "$BASE_URL/videos/${it.video.videoId}/play",
-                        coverUrl = "$BASE_URL/videos/${it.video.videoId}/cover"
-                    ),
-                    channel = it.channel.toDto(
-                        avatarUrl = "$BASE_URL/channels/${it.channel.channelId}/avatar",
-                        coverUrl = "$BASE_URL/channels/${it.channel.channelId}/cover"
-                    )
+        return videoService.getRecommendations(
+            userId,
+            partIndex,
+            partSize
+        ).map {
+            VideoWithChannelDto(
+                video = it.video.toDto(
+                    sourceUrl = "$BASE_URL/videos/${it.video.videoId}/play",
+                    coverUrl = "$BASE_URL/videos/${it.video.videoId}/cover"
+                ),
+                channel = it.channel.toDto(
+                    avatarUrl = "$BASE_URL/channels/${it.channel.channelId}/avatar",
+                    coverUrl = "$BASE_URL/channels/${it.channel.channelId}/cover"
                 )
-            }
+            )
+        }
     }
 
     private fun Video.toDto() = toDto(
@@ -311,30 +320,30 @@ class VideoController @Autowired constructor(
 }
 
 data class VideoCreationRequest(
-    @field:NotBlank @field:Size(max = MAX_TITLE_LENGTH, message = "LARGE")
+    @field:Title
     val title: String,
-    @field:Positive
+    @field:LongId
     val channelId: Long,
-    @field:NotBlank @field:Size(max = MAX_TEXT_LENGTH, message = "LARGE")
+    @field:Description
     val description: String?,
     val metadata: VideoMetaData
 )
 
 data class VideoMetaData(
-    @field:NotBlank @field:Size(max = MAX_NAME_LENGTH) // TODO: message
+    @field:NotBlank(message = "EMPTY") @field:Size(max = MAX_NAME_LENGTH) // TODO: message
     val fileName: String,
-    @field:Positive
+    @field:Positive(message = "EMPTY") @field:Size(max = MAX_VIDEO_SIZE, message = "LARGE") // TODO: unify with fileName?
     val size: Long
 )
 
 data class VideoEditingRequest(
-    @field:Positive
+    @field:LongId
     val videoId: Long,
-    @field:NotBlank @field:Size(max = MAX_TITLE_LENGTH, message = "LARGE")
+    @field:Title
     val title: String,
-    @field:Positive
+    @field:LongId
     val channelId: Long,
     val coverAction: EditAction,
-    @field:NotBlank @field:Size(max = MAX_TEXT_LENGTH, message = "LARGE")
+    @field:Description
     val description: String?
 )

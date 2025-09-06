@@ -17,7 +17,6 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
-import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 
@@ -30,20 +29,20 @@ class ChannelController @Autowired constructor(
     private lateinit var BASE_URL: String
 
     @GetMapping("/{channelId}")
-    fun get(@PathVariable @Positive channelId: Long): ChannelDto {
+    fun get(@PathVariable @LongId channelId: Long): ChannelDto {
         return channelService.getChannel(channelId).toDto()
     }
 
     @GetMapping("/{channelId}/details")
     fun getDetails(
-        @PathVariable @Positive channelId: Long,
+        @PathVariable @LongId channelId: Long,
         @AuthenticationPrincipal userId: Long
     ): ChannelWithUserDto {
         return channelService.getForUser(channelId = channelId, userId = userId).toDto()
     }
 
     @GetMapping("/{channelId}/header")
-    fun getHeader(@PathVariable @Positive channelId: Long): ResponseEntity<Resource> {
+    fun getHeader(@PathVariable @LongId channelId: Long): ResponseEntity<Resource> {
         val image = channelService.getHeader(channelId)
         return ResponseEntity.status(HttpStatus.OK)
             .contentType(MediaType.parseMediaType("image/${image.file.extension}"))
@@ -51,7 +50,7 @@ class ChannelController @Autowired constructor(
     }
 
     @GetMapping("/{channelId}/logo")
-    fun getLogo(@PathVariable @Positive channelId: Long): ResponseEntity<Resource> {
+    fun getLogo(@PathVariable @LongId channelId: Long): ResponseEntity<Resource> {
         val image = channelService.getLogo(channelId)
         return ResponseEntity.status(HttpStatus.OK)
                 .contentType(MediaType.parseMediaType("image/${image.file.extension}"))
@@ -61,8 +60,8 @@ class ChannelController @Autowired constructor(
     @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun createChannel(
         @RequestPart @Valid channel: ChannelCreationRequest,
-        @RequestPart @FileSize(max = MAX_IMAGE_SIZE) @FileType("image")  logo: MultipartFile?,
-        @RequestPart @FileSize(max = MAX_IMAGE_SIZE) @FileType("image")  header: MultipartFile?,
+        @RequestPart @Image logo: MultipartFile?,
+        @RequestPart @Image header: MultipartFile?,
         @AuthenticationPrincipal userId: Long,
     ): ChannelDto {
         return channelService.createChannel(
@@ -80,8 +79,8 @@ class ChannelController @Autowired constructor(
     @PatchMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun editChannel(
         @RequestPart @Valid channel: ChannelEditingRequest,
-        @RequestPart @FileSize(max = MAX_IMAGE_SIZE) @FileType("image") logo: MultipartFile?,
-        @RequestPart @FileSize(max = MAX_IMAGE_SIZE) @FileType("image") header: MultipartFile?,
+        @RequestPart @Image logo: MultipartFile?,
+        @RequestPart @Image header: MultipartFile?,
         @AuthenticationPrincipal userId: Long
     ): ChannelDto {
         return channelService.editChannel(
@@ -99,9 +98,9 @@ class ChannelController @Autowired constructor(
         ).toDto()
     }
 
-    @GetMapping("/owner/{userId}")
+    @GetMapping("/owners/{userId}")
     fun getAllChannelsByOwnerId(
-        @PathVariable @Positive userId: Long,
+        @PathVariable @LongId userId: Long,
         @RequestParam @Positive partIndex: Long,
         @RequestParam @Min(1) @Max(100) partSize: Int
     ): List<ChannelDto> {
@@ -127,7 +126,7 @@ class ChannelController @Autowired constructor(
 
     @PatchMapping("/{channelId}/subscription")
     fun subscribe(
-        @PathVariable @Positive channelId: Long,
+        @PathVariable @LongId channelId: Long,
         @RequestParam subscription: Subscription,
         @RequestParam @NotBlank fcmToken: String,
         @AuthenticationPrincipal userId: Long,
@@ -140,17 +139,17 @@ class ChannelController @Autowired constructor(
         ).toDto()
     }
 
-    @PostMapping("/notifications/subscribe")
+    @PostMapping("/notifications/subscription")
     fun resubscribeToFCM(
-        @RequestParam token: String,
+        @RequestParam @NotBlank token: String,
         @AuthenticationPrincipal userId: Long
     ) {
-        channelService.subscribeToNotifications(userId, token)
+        channelService.subscribeToNotifications(userId = userId, token = token)
     }
 
     @DeleteMapping("/notifications/subscription")
     fun unsubscribeFromFCM(
-        @RequestParam token: String,
+        @RequestParam @NotBlank token: String,
         @AuthenticationPrincipal userId: Long
     ) {
         channelService.unsubscribeFromNotifications(userId = userId, token = token)
@@ -158,10 +157,10 @@ class ChannelController @Autowired constructor(
 
     @DeleteMapping("/{channelId}")
     fun remove(
-        @PathVariable channelId: Long,
+        @PathVariable @LongId channelId: Long,
         @AuthenticationPrincipal userId: Long
     ) {
-        channelService.removeChannel(channelId)
+        channelService.removeChannel(userId = userId, channelId = channelId)
     }
 
     private fun Channel.toDto(): ChannelDto = toDto(
@@ -176,27 +175,17 @@ class ChannelController @Autowired constructor(
 }
 
 data class ChannelCreationRequest(
-    @field:NotBlank
-    @field:Size(max = MAX_TITLE_LENGTH, message = "LARGE")
-    val title: String,
-    @field:NotBlank
-    @field:Size(max = MAX_TITLE_LENGTH, message = "LARGE")
-    val alias: String?,
-    @field:Size(max = MAX_TEXT_LENGTH, message = "LARGE")
-    val description: String?
+    @field:Title val title: String,
+    @field:Title val alias: String?,
+    @field:Description val description: String?
 )
 
 data class ChannelEditingRequest(
-    @field:Positive
-    val channelId: Long,
-    @field:NotBlank
-    @field:Size(max = MAX_TITLE_LENGTH, message = "LARGE")
-    val title: String,
-    @field:NotBlank
-    @field:Size(max = MAX_TITLE_LENGTH, message = "LARGE")
-    val alias: String?,
+    @field:Positive(message = "LOW") val channelId: Long,
+    @field:Title val title: String,
+    @field:Title val alias: String?,
     val editLogoAction: EditAction,
     val editHeaderAction: EditAction,
-    @field:Size(max = MAX_TEXT_LENGTH, message = "LARGE")
+    @field:Description
     val description: String?
 )

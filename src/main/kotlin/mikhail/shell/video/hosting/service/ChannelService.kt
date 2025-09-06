@@ -32,7 +32,6 @@ interface ChannelService {
     fun subscribeToNotifications(userId: Long, token: String)
     fun unsubscribeFromNotifications(userId: Long, token: String)
     fun getChannel(channelId: Long): Channel
-    fun removeChannel(channelId: Long)
     fun checkOwner(userId: Long, channelId: Long): Boolean
     fun checkExistence(channelId: Long): Boolean
     fun getLogo(channelId: Long): Resource
@@ -44,4 +43,5 @@ interface ChannelService {
         logo: UploadedFile?,
         logoAction: EditAction
     ): Channel
+    fun removeChannel(userId: Long, channelId: Long)
 }

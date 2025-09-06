@@ -78,6 +78,12 @@ enum class TextError: Error {
     PATTERN
 }
 
+enum class NumericError: Error {
+    EMPTY,
+    LOW,
+    HIGH
+}
+
 enum class OptionError: Error {
     EMPTY
 }
