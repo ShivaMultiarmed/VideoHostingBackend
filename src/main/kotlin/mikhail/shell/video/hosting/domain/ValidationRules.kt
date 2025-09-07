@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Positive
 import jakarta.validation.constraints.Size
+import mikhail.shell.video.hosting.domain.ValidationRules.FILE_NAME_REGEX
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_DESCRIPTION_LENGTH
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_IMAGE_SIZE
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_NAME_LENGTH
@@ -16,6 +17,7 @@ import org.springframework.web.multipart.MultipartFile
 import kotlin.reflect.KClass
 
 object ValidationRules {
+    const val FILE_NAME_REGEX = "^\\S+\\.\\S+$"
     const val CODE_LENGTH = 4
     const val MAX_TITLE_LENGTH = 100
     const val MAX_NAME_LENGTH = 50
@@ -66,6 +68,21 @@ class NotEmptyFileValidator: ConstraintValidator<MaxFileSize, MultipartFile?> {
 
     override fun isValid(p0: MultipartFile?, p1: ConstraintValidatorContext?): Boolean {
         return p0!= null && !p0.isEmpty
+    }
+}
+
+@Target(AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.ANNOTATION_CLASS)
+@Retention(AnnotationRetention.RUNTIME)
+@Constraint(validatedBy = [FileNameValidator::class])
+annotation class FileName(
+    val message: String = "",
+    val groups: Array<KClass<*>> = [],
+    val payload: Array<KClass<out Payload>> = []
+)
+
+class FileNameValidator: ConstraintValidator<MaxFileSize, MultipartFile?> {
+    override fun isValid(p0: MultipartFile?, p1: ConstraintValidatorContext?): Boolean {
+        return p0!= null && p0.originalFilename!!.length < MAX_TITLE_LENGTH && !p0.originalFilename!!.matches(FILE_NAME_REGEX.toRegex())
     }
 }
 
@@ -147,6 +164,7 @@ annotation class LongId(
     val payload: Array<KClass<out Payload>> = []
 )
 
+@FileName(message = "NAME_NOT_VALID")
 @NotEmptyFile(message = "EMPTY")
 @MaxFileSize(max = MAX_IMAGE_SIZE, message = "LARGE")
 @FileType(mime = "image", message = "NOT_SUPPORTED")

@@ -10,6 +10,7 @@ import jakarta.validation.constraints.Positive
 import jakarta.validation.constraints.Size
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH
+import mikhail.shell.video.hosting.domain.ValidationRules.FILE_NAME_REGEX
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_IMAGE_SIZE
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_NAME_LENGTH
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_TEXT_LENGTH
@@ -212,6 +213,9 @@ class VideoController @Autowired constructor(
         } else if (source.size > MAX_VIDEO_SIZE) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("source" to FileError.LARGE))
         }
+        if (!source.fileName.matches(FILE_NAME_REGEX.toRegex())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("source" to FileError.NAME_NOT_VALID))
+        }
         val detectedMimeType = MimetypesFileTypeMap.getDefaultFileTypeMap().getContentType(source.fileName)?: ""
         if (!detectedMimeType.startsWith("video") || detectedMimeType != source.mimeType) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("source" to FileError.NOT_SUPPORTED))
@@ -338,11 +342,8 @@ data class VideoCreationRequest(
 )
 
 data class VideoMetaData(
-    @field:NotBlank(message = "EMPTY") @field:Size(max = MAX_NAME_LENGTH, message = "LARGE")
     val fileName: String,
-    @field:NotBlank(message = "NOT_SUPPORTED") // TODO validate mime type
     val mimeType: String,
-    @field:Positive(message = "EMPTY") @field:Size(max = MAX_VIDEO_SIZE, message = "LARGE")
     val size: Long
 )
 
