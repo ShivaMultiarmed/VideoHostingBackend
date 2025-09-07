@@ -5,7 +5,6 @@ import jakarta.validation.ConstraintValidator
 import jakarta.validation.ConstraintValidatorContext
 import jakarta.validation.Payload
 import jakarta.validation.constraints.Max
-import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Positive
 import jakarta.validation.constraints.Size
@@ -13,7 +12,6 @@ import mikhail.shell.video.hosting.domain.ValidationRules.MAX_DESCRIPTION_LENGTH
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_IMAGE_SIZE
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_NAME_LENGTH
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_TITLE_LENGTH
-import mikhail.shell.video.hosting.domain.ValidationRules.MAX_USERNAME_LENGTH
 import org.springframework.web.multipart.MultipartFile
 import kotlin.reflect.KClass
 
@@ -35,18 +33,18 @@ object ValidationRules {
 
 @Target(AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.ANNOTATION_CLASS)
 @Retention(AnnotationRetention.RUNTIME)
-@Constraint(validatedBy = [FileSizeValidator::class])
-annotation class FileSize(
+@Constraint(validatedBy = [MaxFileSizeValidator::class])
+annotation class MaxFileSize(
     val max: Long,
     val message: String = "",
     val groups: Array<KClass<*>> = [],
     val payload: Array<KClass<out Payload>> = []
 )
 
-class FileSizeValidator: ConstraintValidator<FileSize, MultipartFile?> {
+class MaxFileSizeValidator: ConstraintValidator<MaxFileSize, MultipartFile?> {
     private var max: Long = 0
 
-    override fun initialize(constraintAnnotation: FileSize?) {
+    override fun initialize(constraintAnnotation: MaxFileSize?) {
         max = constraintAnnotation?.max?: max
     }
 
@@ -57,7 +55,23 @@ class FileSizeValidator: ConstraintValidator<FileSize, MultipartFile?> {
 
 @Target(AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.ANNOTATION_CLASS)
 @Retention(AnnotationRetention.RUNTIME)
-@Constraint(validatedBy = [FileSizeValidator::class])
+@Constraint(validatedBy = [NotEmptyFileValidator::class])
+annotation class NotEmptyFile(
+    val message: String = "",
+    val groups: Array<KClass<*>> = [],
+    val payload: Array<KClass<out Payload>> = []
+)
+
+class NotEmptyFileValidator: ConstraintValidator<MaxFileSize, MultipartFile?> {
+
+    override fun isValid(p0: MultipartFile?, p1: ConstraintValidatorContext?): Boolean {
+        return p0!= null && !p0.isEmpty
+    }
+}
+
+@Target(AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.ANNOTATION_CLASS)
+@Retention(AnnotationRetention.RUNTIME)
+@Constraint(validatedBy = [FileTypeValidator::class])
 annotation class FileType(
     val mime: String,
     val message: String = "",
@@ -133,7 +147,8 @@ annotation class LongId(
     val payload: Array<KClass<out Payload>> = []
 )
 
-@FileSize(max = MAX_IMAGE_SIZE, message = "LARGE")
+@NotEmptyFile(message = "EMPTY")
+@MaxFileSize(max = MAX_IMAGE_SIZE, message = "LARGE")
 @FileType(mime = "image", message = "NOT_SUPPORTED")
 @Constraint(validatedBy = [])
 @Target(

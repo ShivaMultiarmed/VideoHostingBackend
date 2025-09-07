@@ -212,7 +212,8 @@ class VideoController @Autowired constructor(
         } else if (source.size > MAX_VIDEO_SIZE) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("source" to FileError.LARGE))
         }
-        if ((MimetypesFileTypeMap.getDefaultFileTypeMap().getContentType(source.fileName)?: "") != source.mimeType) {
+        val detectedMimeType = MimetypesFileTypeMap.getDefaultFileTypeMap().getContentType(source.fileName)?: ""
+        if (!detectedMimeType.startsWith("video") || detectedMimeType != source.mimeType) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("source" to FileError.NOT_SUPPORTED))
         }
         return videoService.save(

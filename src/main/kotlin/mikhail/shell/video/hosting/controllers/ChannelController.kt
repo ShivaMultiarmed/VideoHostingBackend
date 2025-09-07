@@ -181,7 +181,7 @@ data class ChannelCreationRequest(
 )
 
 data class ChannelEditingRequest(
-    @field:Positive(message = "LOW") val channelId: Long,
+    @field:LongId val channelId: Long,
     @field:Title val title: String,
     @field:Title val alias: String?,
     val editLogoAction: EditAction,

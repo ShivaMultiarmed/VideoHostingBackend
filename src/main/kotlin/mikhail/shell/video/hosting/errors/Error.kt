@@ -89,6 +89,7 @@ enum class OptionError: Error {
 }
 
 enum class FileError: Error {
+    NOT_FOUND,
     EMPTY,
     LARGE,
     NOT_SUPPORTED
