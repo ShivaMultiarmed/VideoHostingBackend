@@ -27,9 +27,7 @@ class SecurityConfiguration(
                 it.disable()
             }.authorizeHttpRequests {
                 it.requestMatchers(
-                    "/api/v1/auth/signin/**",
-                    "/api/v1/auth/signup/**",
-                    "/api/v1/auth/reset/**",
+                    "/api/v2/auth/**",
                     "/docs/**",
                     "/css/**",
                     "/.well-known/assetlinks.json",

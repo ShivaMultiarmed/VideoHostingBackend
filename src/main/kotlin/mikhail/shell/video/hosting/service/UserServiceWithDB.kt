@@ -62,7 +62,7 @@ class UserServiceWithDB @Autowired constructor(
             throw NoSuchElementException()
         }
         channelService.getChannelsByOwnerId(userId).forEach {
-            channelService.removeChannel(it.channelId!!)
+            channelService.removeChannel(userId, it.channelId!!)
         }
         commentService.removeAllByUserId(userId)
         val credentialIds = authDetailRepository.findById_UserId(userId).map { it.id }

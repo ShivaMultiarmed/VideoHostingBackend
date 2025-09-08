@@ -38,7 +38,7 @@ fun UserEntity.toDomain() = User(
 data class AuthDetailEntity(
     @EmbeddedId
     val id: AuthDetailEntityId,
-    val username: String,
+    val userName: String,
 )
 
 @Embeddable
@@ -55,6 +55,7 @@ enum class AuthenticationMethod {
 @Entity
 @Table(name = "passwords")
 data class PasswordEntity(
-    val id: Long,
+    @Id
+    val userId: Long,
     val password: String
 )

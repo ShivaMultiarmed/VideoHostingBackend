@@ -10,7 +10,7 @@ import java.time.Instant
 data class VerificationEntity(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long? = null,
-    val username: String, // either email or tel
+    val userName: String,
     val purpose: VerificationCodePurpose,
     val issuedAt: Instant,
     val code: String

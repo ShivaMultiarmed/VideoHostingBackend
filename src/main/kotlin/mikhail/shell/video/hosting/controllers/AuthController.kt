@@ -15,8 +15,10 @@ import mikhail.shell.video.hosting.domain.ValidationRules.PASSWORD_REGEX
 import mikhail.shell.video.hosting.dto.SignUpRequest
 import mikhail.shell.video.hosting.errors.*
 import mikhail.shell.video.hosting.service.AuthService
+import mikhail.shell.video.hosting.service.UserService
 import org.hibernate.validator.constraints.Length
 import org.springframework.http.HttpHeaders
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -33,9 +35,7 @@ class AuthController(
     fun signInWithPassword(
         @RequestParam @Email(message = "PATTERN") @Size(max = MAX_USERNAME_LENGTH, message = "LARGE") username: String,
         @RequestParam @NotBlank(message = "EMPTY") @Pattern(regexp = PASSWORD_REGEX, message = "PATTERN") password: String
-    ): AuthModel {
-        return authService.signInWithPassword(username, password)
-    }
+    ) = authService.signInWithPassword(username, password)
 
     @PostMapping("/signup/password/request")
     fun requestSignUpWithPassword(@RequestParam @Email(message = "PATTERN") @Size(max = MAX_USERNAME_LENGTH, message = "LARGE") userName: String) {
@@ -46,9 +46,7 @@ class AuthController(
     fun verifySignUpWithPassword(
         @RequestParam @Email(message = "PATTERN") @Size(max = MAX_USERNAME_LENGTH, message = "LARGE") userName: String,
         @RequestParam @Size(min = 4, max = 4, message = "NOT_CORRECT") code: String
-    ): String {
-        return authService.verifySignUpWithPassword(userName = userName, code = code)
-    }
+    ) = authService.verifySignUpWithPassword(userName = userName, code = code)
 
     @PostMapping("/signup/password/confirmation")
     fun confirmSignUpWithPassword(
@@ -69,9 +67,7 @@ class AuthController(
     }
 
     @PostMapping("/reset/password/request")
-    fun requestPasswordReset(@RequestParam @Email(message = "PATTERN") userName: String) {
-        authService.requestPasswordReset(userName)
-    }
+    fun requestPasswordReset(@RequestParam @Email(message = "PATTERN") userName: String) = authService.requestPasswordReset(userName)
 
     @PostMapping("/reset/password/verification")
     fun verifyPasswordReset(
@@ -98,4 +94,7 @@ class AuthController(
             ?: throw UnauthenticatedException()
         authService.signOut(token)
     }
+
+    @GetMapping("/existence")
+    fun existsById(@RequestParam @Email(message = "PATTERN") userName: String) = authService.existsByUserName(userName)
 }

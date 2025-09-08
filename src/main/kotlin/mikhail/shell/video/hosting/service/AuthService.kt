@@ -25,4 +25,5 @@ interface AuthService {
     )
     fun signOut(token: String)
     fun verifyPasswordReset(userName: String, code: String): String
+    fun existsByUserName(userName: String): Boolean
 }

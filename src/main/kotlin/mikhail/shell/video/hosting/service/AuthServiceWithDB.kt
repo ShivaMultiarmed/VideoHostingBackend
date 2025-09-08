@@ -68,7 +68,7 @@ class AuthServiceWithDB(
         }
         verificationRepository.save(
             VerificationEntity(
-                username = userName,
+                userName = userName,
                 purpose = VerificationCodePurpose.SIGNUP,
                 issuedAt = Instant.now(),
                 code = passwordEncoder.encode(code)
@@ -128,7 +128,7 @@ class AuthServiceWithDB(
         }
         verificationRepository.save(
             VerificationEntity(
-                username = userName,
+                userName = userName,
                 issuedAt = Instant.now(),
                 purpose = VerificationCodePurpose.RESET,
                 code = passwordEncoder.encode(resetCode)
@@ -149,6 +149,10 @@ class AuthServiceWithDB(
             verificationRepository.delete(verificationEntity)
             return jwtTokenUtil.generateToken(userName, SHORT_LIVED_TOKEN_EXPIRATION_DURATION)
         }
+    }
+
+    override fun existsByUserName(userName: String): Boolean {
+        return authDetailRepository.existsByUserNameAndId_Method(userName, AuthenticationMethod.EMAIL)
     }
 
     override fun resetPassword(token: String, password: String) {
