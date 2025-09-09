@@ -1,5 +1,6 @@
 package mikhail.shell.video.hosting.controllers.advices
 
+import com.fasterxml.jackson.databind.PropertyNamingStrategy
 import mikhail.shell.video.hosting.errors.*
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity

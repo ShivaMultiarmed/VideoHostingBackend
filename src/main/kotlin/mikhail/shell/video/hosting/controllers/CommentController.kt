@@ -1,27 +1,25 @@
 package mikhail.shell.video.hosting.controllers
 
 import jakarta.servlet.http.HttpServletRequest
+import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Positive
 import mikhail.shell.video.hosting.domain.Comment
-import mikhail.shell.video.hosting.domain.ValidationRules
+import mikhail.shell.video.hosting.domain.LongId
+import mikhail.shell.video.hosting.domain.ValidationRules.MAX_TEXT_LENGTH
 import mikhail.shell.video.hosting.dto.CommentWithUserDto
 import mikhail.shell.video.hosting.dto.toDto
 import mikhail.shell.video.hosting.service.CommentService
-import mikhail.shell.video.hosting.service.VideoService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.http.HttpStatus
-import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
-import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.ModelAttribute
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
@@ -36,7 +34,7 @@ class CommentController @Autowired constructor(
     private lateinit var BASE_URL: String
     @PostMapping
     fun post(
-        @Validated @ModelAttribute request: CommentCreationRequest,
+        @Valid @RequestBody request: CommentCreationRequest,
         @AuthenticationPrincipal userId: Long,
     ) {
         commentService.post(
@@ -50,7 +48,7 @@ class CommentController @Autowired constructor(
     }
     @PatchMapping
     fun edit(
-        @Validated @ModelAttribute request: CommentEditingRequest,
+        @Valid @RequestBody request: CommentEditingRequest,
         @AuthenticationPrincipal userId: Long
     ) {
         commentService.edit(
@@ -62,19 +60,19 @@ class CommentController @Autowired constructor(
             )
         )
     }
-    @GetMapping("/videos/{videoId}")
+    @GetMapping("/videos/{video_id}")
     fun get(
         request: HttpServletRequest,
-        @PathVariable videoId: Long,
+        @PathVariable("video_id") @LongId videoId: Long,
         @RequestParam before: Instant
     ): List<CommentWithUserDto> {
         return commentService
             .get(videoId = videoId, before = before)
             .map { it.toDto(avatar = "$BASE_URL/users/${it.user.userId}/avatar") }
     }
-    @DeleteMapping("/{commentId}")
+    @DeleteMapping("/{video_id}")
     fun remove(
-        @RequestParam @Positive commentId: Long,
+        @RequestParam("video_id") @Positive commentId: Long,
         @AuthenticationPrincipal userId: Long
     ) {
         commentService.remove(userId,commentId)
@@ -82,19 +80,19 @@ class CommentController @Autowired constructor(
 }
 
 data class CommentCreationRequest(
-    @field:Positive
+    @field:LongId
     val videoId: Long,
-    @field:Positive
+    @field:LongId
     val userId: Long,
-    @field:NotBlank @Max(ValidationRules.MAX_TEXT_LENGTH.toLong())
+    @field:NotBlank @Max(MAX_TEXT_LENGTH.toLong())
     val text: String
 )
 
 data class CommentEditingRequest(
-    @field:Positive
+    @field:LongId
     val commentId: Long,
-    @field:Positive
+    @field:LongId
     val videoId: Long,
-    @field:NotBlank @Max(ValidationRules.MAX_TEXT_LENGTH.toLong())
+    @field:NotBlank @Max(MAX_TEXT_LENGTH.toLong())
     val text: String
 )

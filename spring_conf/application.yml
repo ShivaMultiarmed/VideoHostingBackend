@@ -3,6 +3,10 @@ server:
   address: 0.0.0.0
 
 spring:
+  web:
+    request-parameter-naming-strategy: SNAKE_CASE
+  jackson:
+    property-naming-strategy: SNAKE_CASE
   servlet:
     multipart:
       max-file-size: 50MB

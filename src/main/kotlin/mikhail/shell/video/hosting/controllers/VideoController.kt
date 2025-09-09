@@ -4,35 +4,24 @@ import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
-import jakarta.validation.constraints.Min
-import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Positive
-import jakarta.validation.constraints.Size
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH
 import mikhail.shell.video.hosting.domain.ValidationRules.FILE_NAME_REGEX
-import mikhail.shell.video.hosting.domain.ValidationRules.MAX_IMAGE_SIZE
-import mikhail.shell.video.hosting.domain.ValidationRules.MAX_NAME_LENGTH
-import mikhail.shell.video.hosting.domain.ValidationRules.MAX_TEXT_LENGTH
-import mikhail.shell.video.hosting.domain.ValidationRules.MAX_TITLE_LENGTH
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_VIDEO_SIZE
 import mikhail.shell.video.hosting.dto.*
 import mikhail.shell.video.hosting.errors.FileError
-import mikhail.shell.video.hosting.errors.TextError
 import mikhail.shell.video.hosting.service.ChannelService
 import mikhail.shell.video.hosting.service.UserService
 import mikhail.shell.video.hosting.service.VideoService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.core.io.Resource
-import org.springframework.data.repository.query.Param
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
-import org.springframework.validation.BindingResult
-import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 import java.io.File
@@ -51,14 +40,14 @@ class VideoController @Autowired constructor(
     @Value("\${video-hosting.server.base-url}")
     private lateinit var BASE_URL: String
 
-    @GetMapping("/{videoId}")
-    fun get(@PathVariable @LongId videoId: Long): VideoDto {
+    @GetMapping("/{video_id}")
+    fun get(@PathVariable("video_id") @LongId videoId: Long): VideoDto {
         return videoService.get(videoId).toDto()
     }
 
-    @GetMapping("/{videoId}/details")
+    @GetMapping("/{video_id}/details")
     fun getVideoDetails(
-        @PathVariable @LongId videoId: Long,
+        @PathVariable("video_id") @LongId videoId: Long,
         @AuthenticationPrincipal userId: Long
     ): VideoDetailsDto {
         val videoDto = videoService.get(videoId = videoId, userId = userId).toDto(
@@ -75,10 +64,10 @@ class VideoController @Autowired constructor(
         )
     }
 
-    @PatchMapping("/{videoId}/rate")
+    @PatchMapping("/{video_id}/rate")
     fun rateVideo(
-        @PathVariable @LongId videoId: Long,
-        @RequestParam liking: Liking,
+        @PathVariable("video_id") @LongId videoId: Long,
+        @RequestParam("liking") liking: Liking,
         @AuthenticationPrincipal userId: Long
     ): VideoWithUserDto {
         return videoService.rate(videoId = videoId, userId = userId, liking = liking).toDto(
@@ -87,9 +76,9 @@ class VideoController @Autowired constructor(
         )
     }
 
-    @GetMapping(path = ["/{videoId}/play", "/{videoId}/download"])
+    @GetMapping(path = ["/{video_id}/play", "/{video_id}/download"])
     fun playVideo(
-        @PathVariable @LongId videoId: Long,
+        @PathVariable("video_id") @LongId videoId: Long,
         request: HttpServletRequest,
         response: HttpServletResponse
     ): ResponseEntity<Any> {
@@ -149,16 +138,16 @@ class VideoController @Autowired constructor(
         return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT).build()
     }
 
-    @GetMapping("/channel/{channelId}")
+    @GetMapping("/channel/{channel_id}")
     fun provideVideosFromChannel(
-        @PathVariable @LongId channelId: Long,
-        @RequestParam @Min(value = 1, message = "LOW") @Max(value = 100, message = "HIGH") partSize: Int = 10,
-        @RequestParam @Min(value = 0, message = "LOW") @Max(value = Long.MAX_VALUE, message = "HIGH") partNumber: Long = 0
+        @PathVariable("channel_id") @LongId channelId: Long,
+        @RequestParam("part_size") @PartSize partSize: Int = 10,
+        @RequestParam("part_index") @PartIndex partIndex: Long = 0
     ): List<VideoDto> {
         return videoService.getByChannelId(
             channelId = channelId,
             partSize = partSize,
-            partNumber = partNumber
+            partIndex = partIndex
         ).map {
             it.toDto(
                 sourceUrl = "$BASE_URL/videos/${it.videoId}/play",
@@ -167,9 +156,9 @@ class VideoController @Autowired constructor(
         }
     }
 
-    @GetMapping("/{videoId}/cover")
+    @GetMapping("/{video_id}/cover")
     fun provideVideoCover(
-        @PathVariable @LongId videoId: Long
+        @PathVariable("video_id") @LongId videoId: Long
     ): ResponseEntity<Resource> {
         val image = videoService.getCover(videoId)
         return ResponseEntity.status(HttpStatus.OK)
@@ -179,14 +168,14 @@ class VideoController @Autowired constructor(
 
     @GetMapping("/search")
     fun search(
-        @RequestParam @Title query: String,
-        @RequestParam @Min(value = 1, message = "LOW") @Max(value = 100, message = "HIGH") partSize: Int = 10,
-        @RequestParam @Min(value = 0, message = "LOW") @Max(value = Long.MAX_VALUE, message = "HIGH") partNumber: Long = 0
+        @RequestParam("query") @Title query: String,
+        @RequestParam("part_size") @PartSize partSize: Int = 10,
+        @RequestParam("part_index") @PartIndex partIndex: Long = 0
     ): List<VideoWithChannelDto> {
         return videoService.getByQuery(
             query = query,
             partSize = partSize,
-            partNumber = partNumber
+            partIndex = partIndex
         ).map {
             VideoWithChannelDto(
                 video = it.video.toDto(
@@ -203,9 +192,9 @@ class VideoController @Autowired constructor(
 
     @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun upload(
-        @RequestPart @Valid request: VideoCreationRequest,
-        @RequestPart source: VideoMetaData,
-        @RequestPart @Image cover: MultipartFile?,
+        @RequestPart("video") @Valid video: VideoCreationRequest,
+        @RequestPart("source") source: VideoMetaData,
+        @RequestPart("cover") @Image cover: MultipartFile?,
         @AuthenticationPrincipal userId: Long
     ): ResponseEntity<*> {
         if (source.size == 0L) {
@@ -223,8 +212,8 @@ class VideoController @Autowired constructor(
         return videoService.save(
             userId = userId,
             video = Video(
-                channelId = request.channelId,
-                title = request.title,
+                channelId = video.channelId,
+                title = video.title,
                 dateTime = Instant.now()
             ),
             cover = cover?.toUploadedFile(),
@@ -238,10 +227,10 @@ class VideoController @Autowired constructor(
         }
     }
 
-    @PostMapping("/{videoId}/source", consumes = ["application/octet-stream"])
+    @PostMapping("/{video_id}/source", consumes = ["application/octet-stream"])
     fun uploadSource(
-        @PathVariable @LongId videoId: Long,
-        @RequestParam @Positive(message = "LOW") @Max(value = Long.MAX_VALUE, message = "HIGH") chunkIndex: Long,
+        @PathVariable("video_id") @LongId videoId: Long,
+        @RequestParam("chunk_index") @PartIndex chunkIndex: Long,
         input: InputStream,
         @AuthenticationPrincipal userId: Long
     ) {
@@ -253,33 +242,31 @@ class VideoController @Autowired constructor(
         )
     }
 
-    @PostMapping("/{videoId}/confirmation")
+    @PostMapping("/{video_id}/confirmation")
     fun confirmUpload(
-        @PathVariable @LongId videoId: Long,
+        @PathVariable("video_id") @LongId videoId: Long,
         @AuthenticationPrincipal userId: Long
     ) = videoService.confirm(userId = userId, videoId = videoId)
 
-    @PatchMapping("/{videoId}/increment-views")
-    fun incrementViews(
-        @PathVariable @LongId videoId: Long
-    ): VideoDto {
+    @PatchMapping("/{video_id}/increment-views")
+    fun incrementViews(@PathVariable("video_id") @LongId videoId: Long): VideoDto {
         return videoService.incrementViews(videoId).toDto()
     }
 
     @PatchMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun editVideo(
-        @RequestPart @Valid request: VideoEditingRequest,
-        @RequestPart @Image cover: MultipartFile?,
+        @RequestPart("video") @Valid video: VideoEditingRequest,
+        @RequestPart("cover") @Image cover: MultipartFile?,
         @AuthenticationPrincipal userId: Long
     ): VideoDto {
         return videoService.edit(
             userId = userId,
             video = Video(
-                videoId = request.videoId,
-                title = request.title,
-                channelId = request.channelId,
+                videoId = video.videoId,
+                title = video.title,
+                channelId = video.channelId,
             ),
-            coverAction = request.coverAction,
+            coverAction = video.coverAction,
             cover = cover?.toUploadedFile()
         ).let {
             it.toDto(
@@ -289,9 +276,9 @@ class VideoController @Autowired constructor(
         }
     }
 
-    @DeleteMapping("/{videoId}")
+    @DeleteMapping("/{video_id}")
     fun delete(
-        @PathVariable @Image videoId: Long,
+        @PathVariable("video_id") @Image videoId: Long,
         @AuthenticationPrincipal userId: Long
     ) {
         videoService.delete(userId = userId, videoId = videoId)
@@ -299,14 +286,14 @@ class VideoController @Autowired constructor(
 
     @GetMapping("/recommendations")
     fun getRecommendations(
-        @RequestParam @Min(value = 0, message = "LOW") @Max(value = Long.MAX_VALUE, message = "HIGH") partIndex: Long = 0,
-        @RequestParam @Min(value = 0, message = "LOW") @Max(value = 100, message = "HIGH") partSize: Int = 10,
+        @RequestParam("part_index") @PartIndex partIndex: Long,
+        @RequestParam("part_size") @PartSize partSize: Int,
         @AuthenticationPrincipal userId: Long
     ): List<VideoWithChannelDto> {
         return videoService.getRecommendations(
-            userId,
-            partIndex,
-            partSize
+            userId = userId,
+            partIndex = partIndex,
+            partSize = partSize
         ).map {
             VideoWithChannelDto(
                 video = it.video.toDto(

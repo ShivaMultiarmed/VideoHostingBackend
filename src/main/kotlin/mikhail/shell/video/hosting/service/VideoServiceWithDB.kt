@@ -6,7 +6,6 @@ import co.elastic.clients.elasticsearch._types.ScriptSortType
 import co.elastic.clients.elasticsearch._types.SortOrder
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.json.JsonData
-import com.google.api.client.json.Json
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.Message
 import com.google.gson.Gson
@@ -120,7 +119,7 @@ class VideoServiceWithDB @Autowired constructor(
     override fun getByChannelId(
         channelId: Long,
         partSize: Int,
-        partNumber: Long
+        partIndex: Long
     ): List<Video> {
         if (!channelRepository.existsById(channelId)) {
             throw NoSuchElementException()
@@ -128,7 +127,7 @@ class VideoServiceWithDB @Autowired constructor(
         return videoRepository.findByChannelIdAndStateOrderByDateTimeDesc(
             channelId = channelId,
             pageable = PageRequest.of(
-                partNumber.toInt(),
+                partIndex.toInt(),
                 partSize
             )
         ).map { it.toDomain() }
@@ -137,7 +136,7 @@ class VideoServiceWithDB @Autowired constructor(
     override fun getByQuery(
         query: String,
         partSize: Int,
-        partNumber: Long
+        partIndex: Long
     ): List<VideoWithChannel> {
         val sortingScriptStringified = """
             def secs = doc['dateTime'].value.toInstant().toEpochMilli() / 1000;

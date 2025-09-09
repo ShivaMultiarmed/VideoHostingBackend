@@ -3,9 +3,6 @@ package mikhail.shell.video.hosting.controllers
 import jakarta.validation.Valid
 import jakarta.validation.constraints.*
 import mikhail.shell.video.hosting.domain.*
-import mikhail.shell.video.hosting.domain.ValidationRules.MAX_IMAGE_SIZE
-import mikhail.shell.video.hosting.domain.ValidationRules.MAX_TEXT_LENGTH
-import mikhail.shell.video.hosting.domain.ValidationRules.MAX_TITLE_LENGTH
 import mikhail.shell.video.hosting.dto.ChannelDto
 import mikhail.shell.video.hosting.dto.ChannelWithUserDto
 import mikhail.shell.video.hosting.dto.toDto
@@ -28,29 +25,29 @@ class ChannelController @Autowired constructor(
     @Value("\${video-hosting.server.base-url}")
     private lateinit var BASE_URL: String
 
-    @GetMapping("/{channelId}")
-    fun get(@PathVariable @LongId channelId: Long): ChannelDto {
+    @GetMapping("/{channel_id}")
+    fun get(@PathVariable("channel_id") @LongId channelId: Long): ChannelDto {
         return channelService.getChannel(channelId).toDto()
     }
 
-    @GetMapping("/{channelId}/details")
+    @GetMapping("/{channel_id}/details")
     fun getDetails(
-        @PathVariable @LongId channelId: Long,
+        @PathVariable("channel_id") @LongId channelId: Long,
         @AuthenticationPrincipal userId: Long
     ): ChannelWithUserDto {
         return channelService.getForUser(channelId = channelId, userId = userId).toDto()
     }
 
-    @GetMapping("/{channelId}/header")
-    fun getHeader(@PathVariable @LongId channelId: Long): ResponseEntity<Resource> {
+    @GetMapping("/{channel_id}/header")
+    fun getHeader(@PathVariable("channel_id") @LongId channelId: Long): ResponseEntity<Resource> {
         val image = channelService.getHeader(channelId)
         return ResponseEntity.status(HttpStatus.OK)
             .contentType(MediaType.parseMediaType("image/${image.file.extension}"))
             .body(image)
     }
 
-    @GetMapping("/{channelId}/logo")
-    fun getLogo(@PathVariable @LongId channelId: Long): ResponseEntity<Resource> {
+    @GetMapping("/{channel_id}/logo")
+    fun getLogo(@PathVariable("channel_id") @LongId channelId: Long): ResponseEntity<Resource> {
         val image = channelService.getLogo(channelId)
         return ResponseEntity.status(HttpStatus.OK)
                 .contentType(MediaType.parseMediaType("image/${image.file.extension}"))
@@ -59,9 +56,9 @@ class ChannelController @Autowired constructor(
 
     @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun createChannel(
-        @RequestPart @Valid channel: ChannelCreationRequest,
-        @RequestPart @Image logo: MultipartFile?,
-        @RequestPart @Image header: MultipartFile?,
+        @RequestPart("channel") @Valid channel: ChannelCreationRequest,
+        @RequestPart("logo") @Image logo: MultipartFile?,
+        @RequestPart("header") @Image header: MultipartFile?,
         @AuthenticationPrincipal userId: Long,
     ): ChannelDto {
         return channelService.createChannel(
@@ -78,9 +75,9 @@ class ChannelController @Autowired constructor(
 
     @PatchMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun editChannel(
-        @RequestPart @Valid channel: ChannelEditingRequest,
-        @RequestPart @Image logo: MultipartFile?,
-        @RequestPart @Image header: MultipartFile?,
+        @RequestPart("channel") @Valid channel: ChannelEditingRequest,
+        @RequestPart("logo") @Image logo: MultipartFile?,
+        @RequestPart("header") @Image header: MultipartFile?,
         @AuthenticationPrincipal userId: Long
     ): ChannelDto {
         return channelService.editChannel(
@@ -98,11 +95,11 @@ class ChannelController @Autowired constructor(
         ).toDto()
     }
 
-    @GetMapping("/owners/{userId}")
+    @GetMapping("/owners/{user_id}")
     fun getAllChannelsByOwnerId(
-        @PathVariable @LongId userId: Long,
-        @RequestParam @Positive partIndex: Long,
-        @RequestParam @Min(1) @Max(100) partSize: Int
+        @PathVariable("user_id") @LongId userId: Long,
+        @RequestParam("part_index") @PartIndex partIndex: Long,
+        @RequestParam("part_size") @PartSize partSize: Int
     ): List<ChannelDto> {
         return channelService.getChannelsByOwnerId(
             userId = userId,
@@ -113,8 +110,8 @@ class ChannelController @Autowired constructor(
 
     @GetMapping("/subscriptions")
     fun getAllChannelsBySubscriberId(
-        @Positive partIndex: Long = 0,
-        @Positive partSize: Int = 10,
+        @RequestParam("part_index") @PartIndex partIndex: Long,
+        @RequestParam("part_size") @PartSize partSize: Int,
         @AuthenticationPrincipal userId: Long
     ): List<ChannelDto> {
         return channelService.getSubscriptions(
@@ -124,11 +121,11 @@ class ChannelController @Autowired constructor(
         ).map { it.toDto() }
     }
 
-    @PatchMapping("/{channelId}/subscription")
+    @PatchMapping("/{channel_id}/subscription")
     fun subscribe(
-        @PathVariable @LongId channelId: Long,
-        @RequestParam subscription: Subscription,
-        @RequestParam @NotBlank fcmToken: String,
+        @PathVariable("channel_id") @LongId channelId: Long,
+        @RequestParam("subscription") subscription: Subscription,
+        @RequestParam("fcm_token") @NotBlank fcmToken: String,
         @AuthenticationPrincipal userId: Long,
     ): ChannelWithUserDto {
         return channelService.changeSubscriptionState(
@@ -141,7 +138,7 @@ class ChannelController @Autowired constructor(
 
     @PostMapping("/notifications/subscription")
     fun resubscribeToFCM(
-        @RequestParam @NotBlank token: String,
+        @RequestParam("fcm_token") @NotBlank token: String,
         @AuthenticationPrincipal userId: Long
     ) {
         channelService.subscribeToNotifications(userId = userId, token = token)
@@ -149,15 +146,15 @@ class ChannelController @Autowired constructor(
 
     @DeleteMapping("/notifications/subscription")
     fun unsubscribeFromFCM(
-        @RequestParam @NotBlank token: String,
+        @RequestParam("fcm_token") @NotBlank token: String,
         @AuthenticationPrincipal userId: Long
     ) {
         channelService.unsubscribeFromNotifications(userId = userId, token = token)
     }
 
-    @DeleteMapping("/{channelId}")
+    @DeleteMapping("/{channel_id}")
     fun remove(
-        @PathVariable @LongId channelId: Long,
+        @PathVariable("channel_id") @LongId channelId: Long,
         @AuthenticationPrincipal userId: Long
     ) {
         channelService.removeChannel(userId = userId, channelId = channelId)

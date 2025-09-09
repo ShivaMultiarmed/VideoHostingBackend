@@ -4,15 +4,14 @@ import jakarta.validation.Constraint
 import jakarta.validation.ConstraintValidator
 import jakarta.validation.ConstraintValidatorContext
 import jakarta.validation.Payload
-import jakarta.validation.constraints.Max
-import jakarta.validation.constraints.NotBlank
-import jakarta.validation.constraints.Positive
-import jakarta.validation.constraints.Size
+import jakarta.validation.constraints.*
 import mikhail.shell.video.hosting.domain.ValidationRules.FILE_NAME_REGEX
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_DESCRIPTION_LENGTH
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_IMAGE_SIZE
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_NAME_LENGTH
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_TITLE_LENGTH
+import mikhail.shell.video.hosting.domain.ValidationRules.MAX_USERNAME_LENGTH
+import mikhail.shell.video.hosting.domain.ValidationRules.PASSWORD_REGEX
 import org.springframework.web.multipart.MultipartFile
 import kotlin.reflect.KClass
 
@@ -64,7 +63,7 @@ annotation class NotEmptyFile(
     val payload: Array<KClass<out Payload>> = []
 )
 
-class NotEmptyFileValidator: ConstraintValidator<MaxFileSize, MultipartFile?> {
+class NotEmptyFileValidator: ConstraintValidator<NotEmptyFile, MultipartFile?> {
 
     override fun isValid(p0: MultipartFile?, p1: ConstraintValidatorContext?): Boolean {
         return p0!= null && !p0.isEmpty
@@ -80,7 +79,7 @@ annotation class FileName(
     val payload: Array<KClass<out Payload>> = []
 )
 
-class FileNameValidator: ConstraintValidator<MaxFileSize, MultipartFile?> {
+class FileNameValidator: ConstraintValidator<FileName, MultipartFile?> {
     override fun isValid(p0: MultipartFile?, p1: ConstraintValidatorContext?): Boolean {
         return p0!= null && p0.originalFilename!!.length < MAX_TITLE_LENGTH && !p0.originalFilename!!.matches(FILE_NAME_REGEX.toRegex())
     }
@@ -117,6 +116,34 @@ class FileTypeValidator: ConstraintValidator<FileType, MultipartFile?> {
     AnnotationTarget.PROPERTY_GETTER
 )
 annotation class Name(
+    val message: String = "",
+    val groups: Array<KClass<*>> = [],
+    val payload: Array<KClass<out Payload>> = []
+)
+
+@Email(message = "PATTERN")
+@Size(max = MAX_USERNAME_LENGTH, message = "LARGE")
+@Constraint(validatedBy = [])
+@Target(
+    AnnotationTarget.FIELD,
+    AnnotationTarget.VALUE_PARAMETER,
+    AnnotationTarget.PROPERTY_GETTER
+)
+annotation class UserName(
+    val message: String = "",
+    val groups: Array<KClass<*>> = [],
+    val payload: Array<KClass<out Payload>> = []
+)
+
+@NotBlank(message = "EMPTY")
+@Pattern(regexp = PASSWORD_REGEX, message = "PATTERN")
+@Constraint(validatedBy = [])
+@Target(
+    AnnotationTarget.FIELD,
+    AnnotationTarget.VALUE_PARAMETER,
+    AnnotationTarget.PROPERTY_GETTER
+)
+annotation class Password(
     val message: String = "",
     val groups: Array<KClass<*>> = [],
     val payload: Array<KClass<out Payload>> = []
@@ -179,3 +206,32 @@ annotation class Image(
     val groups: Array<KClass<*>> = [],
     val payload: Array<KClass<out Payload>> = []
 )
+
+@Min(value = 0, message = "LOW")
+@Max(value = Long.MAX_VALUE, message = "HIGH")
+@Constraint(validatedBy = [])
+@Target(
+    AnnotationTarget.FIELD,
+    AnnotationTarget.VALUE_PARAMETER,
+    AnnotationTarget.PROPERTY_GETTER
+)
+annotation class PartIndex(
+    val message: String = "",
+    val groups: Array<KClass<*>> = [],
+    val payload: Array<KClass<out Payload>> = []
+)
+
+@Positive(message = "LOW")
+@Max(value = 100, message = "HIGH")
+@Constraint(validatedBy = [])
+@Target(
+    AnnotationTarget.FIELD,
+    AnnotationTarget.VALUE_PARAMETER,
+    AnnotationTarget.PROPERTY_GETTER
+)
+annotation class PartSize(
+    val message: String = "",
+    val groups: Array<KClass<*>> = [],
+    val payload: Array<KClass<out Payload>> = []
+)
+

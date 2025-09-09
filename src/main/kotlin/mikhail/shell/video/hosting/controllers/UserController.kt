@@ -26,15 +26,15 @@ class UserController @Autowired constructor(
 ) {
     @Value("\${video-hosting.server.base-url}")
     private lateinit var BASE_URL: String
-    @GetMapping("/{userId}")
-    fun get(@PathVariable @Positive(message = "LOW") userId: Long): UserDto {
+    @GetMapping("/{user_id}")
+    fun get(@PathVariable("user_id") @LongId userId: Long): UserDto {
         return userService.get(userId).toDto()
     }
 
     @PatchMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun edit(
-        @RequestPart @Valid user: UserEditingRequest,
-        @RequestPart @Image avatar: MultipartFile?,
+        @RequestPart("user") @Valid user: UserEditingRequest,
+        @RequestPart("avatar") @Image avatar: MultipartFile?,
         @AuthenticationPrincipal userId: Long
     ): UserDto {
         return userService.edit(
@@ -56,8 +56,8 @@ class UserController @Autowired constructor(
         userService.remove(userId)
     }
 
-    @GetMapping("/{userId}/avatar")
-    fun getAvatar(@PathVariable @LongId userId: Long): ResponseEntity<Resource> {
+    @GetMapping("/{user_id}/avatar")
+    fun getAvatar(@PathVariable("user_id") @LongId userId: Long): ResponseEntity<Resource> {
         val image = userService.getAvatar(userId)
         return ResponseEntity.status(HttpStatus.OK)
             .contentType(MediaType.parseMediaType("image/${image.file.extension}"))
