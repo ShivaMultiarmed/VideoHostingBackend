@@ -1,9 +1,5 @@
 package mikhail.shell.video.hosting.domain
 
-import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNELS_BASE_PATH
-import mikhail.shell.video.hosting.domain.ApplicationPaths.TEMP_PATH
-import mikhail.shell.video.hosting.domain.ApplicationPaths.USERS_BASE_PATH
-import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_BASE_PATH
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 

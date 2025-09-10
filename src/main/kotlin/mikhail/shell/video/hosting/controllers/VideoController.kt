@@ -4,7 +4,6 @@ import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import jakarta.validation.Valid
 import mikhail.shell.video.hosting.domain.*
-import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_SOURCES_BASE_PATH
 import mikhail.shell.video.hosting.domain.ValidationRules.FILE_NAME_REGEX
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_VIDEO_SIZE
 import mikhail.shell.video.hosting.dto.*
@@ -52,8 +51,8 @@ class VideoController @Autowired constructor(
             coverUrl = "$BASE_URL/videos/${videoId}/cover"
         )
         val channelDto = channelService.getForUser(channelId = videoDto.channelId, userId = userId).toDto(
-            logo = "$BASE_URL/channels/${videoDto.channelId}/avatar",
-            header = "$BASE_URL/channels/${videoDto.channelId}/cover"
+            logo = "$BASE_URL/channels/${videoDto.channelId}/logo",
+            header = "$BASE_URL/channels/${videoDto.channelId}/header"
         )
         return VideoDetailsDto(
             video = videoDto,
