@@ -5,9 +5,10 @@ import mikhail.shell.video.hosting.domain.CommentWithUser
 import java.time.Instant
 
 interface CommentService {
-    fun post(comment: Comment)
-    fun get(videoId: Long, before: Instant): List<CommentWithUser>
+    fun get(commentId: Long): Comment
+    fun post(comment: Comment): Comment
+    fun get(videoId: Long, before: Instant, partSize: Int): List<CommentWithUser>
     fun remove(userId: Long, commentId: Long)
     fun removeAllByUserId(userId: Long): Boolean
-    fun edit(comment: Comment)
+    fun edit(comment: Comment): Comment
 }

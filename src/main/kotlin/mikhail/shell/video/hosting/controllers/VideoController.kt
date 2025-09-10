@@ -244,7 +244,7 @@ class VideoController @Autowired constructor(
         @AuthenticationPrincipal userId: Long
     ) = videoService.confirm(userId = userId, videoId = videoId)
 
-    @PatchMapping("/{video_id}/increment-views")
+    @PatchMapping("/{video_id}/views")
     fun incrementViews(@PathVariable("video_id") @LongId videoId: Long): VideoDto {
         return videoService.incrementViews(videoId).toDto()
     }

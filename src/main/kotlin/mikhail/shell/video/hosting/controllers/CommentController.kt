@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Positive
 import mikhail.shell.video.hosting.domain.Comment
 import mikhail.shell.video.hosting.domain.LongId
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_TEXT_LENGTH
+import mikhail.shell.video.hosting.dto.CommentDto
 import mikhail.shell.video.hosting.dto.CommentWithUserDto
 import mikhail.shell.video.hosting.dto.toDto
 import mikhail.shell.video.hosting.service.CommentService
@@ -28,71 +29,78 @@ import java.time.Instant
 @RestController
 @RequestMapping("/api/v2/comments")
 class CommentController @Autowired constructor(
-    private val commentService: CommentService
+    private val commentService: CommentService,
 ) {
     @Value("\${video-hosting.server.base-url}")
     private lateinit var BASE_URL: String
+
     @PostMapping
     fun post(
         @Valid @RequestBody request: CommentCreationRequest,
         @AuthenticationPrincipal userId: Long,
-    ) {
-        commentService.post(
+    ): CommentDto {
+        return commentService.post(
             Comment(
                 videoId = request.videoId,
                 userId = userId,
                 text = request.text,
                 dateTime = Instant.now()
             )
-        )
+        ).toDto()
     }
+
     @PatchMapping
     fun edit(
         @Valid @RequestBody request: CommentEditingRequest,
-        @AuthenticationPrincipal userId: Long
-    ) {
-        commentService.edit(
+        @AuthenticationPrincipal userId: Long,
+    ): CommentDto {
+        return commentService.edit(
             Comment(
                 commentId = request.commentId,
                 userId = userId,
                 text = request.text,
-                videoId = request.videoId
+                videoId = commentService.get(request.commentId).videoId
             )
-        )
+        ).toDto()
     }
+
     @GetMapping("/videos/{video_id}")
     fun get(
         request: HttpServletRequest,
         @PathVariable("video_id") @LongId videoId: Long,
-        @RequestParam before: Instant
+        @RequestParam("before") before: Instant,
+        @RequestParam("part_size") partSize: Int,
     ): List<CommentWithUserDto> {
-        return commentService
-            .get(videoId = videoId, before = before)
-            .map { it.toDto(avatar = "$BASE_URL/users/${it.user.userId}/avatar") }
+        return commentService.get(
+            videoId = videoId,
+            before = before,
+            partSize = partSize
+        ).map {
+            it.toDto(
+                avatar = "$BASE_URL/users/${it.user.userId}/avatar"
+            )
+        }
     }
+
     @DeleteMapping("/{video_id}")
     fun remove(
         @RequestParam("video_id") @Positive commentId: Long,
-        @AuthenticationPrincipal userId: Long
+        @AuthenticationPrincipal userId: Long,
     ) {
-        commentService.remove(userId,commentId)
+        commentService.remove(userId, commentId)
     }
 }
 
 data class CommentCreationRequest(
     @field:LongId
     val videoId: Long,
-    @field:LongId
-    val userId: Long,
     @field:NotBlank @Max(MAX_TEXT_LENGTH.toLong())
-    val text: String
+    val text: String,
 )
 
 data class CommentEditingRequest(
     @field:LongId
     val commentId: Long,
-    @field:LongId
-    val videoId: Long,
     @field:NotBlank @Max(MAX_TEXT_LENGTH.toLong())
-    val text: String
+    val text: String,
 )

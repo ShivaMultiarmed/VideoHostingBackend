@@ -19,7 +19,7 @@ interface CommentWithUserRepository: JpaRepository<CommentWithUserEntity, Long> 
     fun findByVideoIdAndDateTimeBeforeOrderByDateTimeDesc(
         videoId: Long,
         before: Instant,
-        pageable: Pageable = PageRequest.of(0, 10)
+        pageable: Pageable
     ): List<CommentWithUserEntity>
     fun existsByUserIdAndCommentId(userId: Long, commentId: Long): Boolean
 }
