@@ -4,13 +4,12 @@ import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import jakarta.validation.Valid
 import mikhail.shell.video.hosting.domain.*
-import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH
+import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_SOURCES_BASE_PATH
 import mikhail.shell.video.hosting.domain.ValidationRules.FILE_NAME_REGEX
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_VIDEO_SIZE
 import mikhail.shell.video.hosting.dto.*
 import mikhail.shell.video.hosting.errors.FileError
 import mikhail.shell.video.hosting.service.ChannelService
-import mikhail.shell.video.hosting.service.UserService
 import mikhail.shell.video.hosting.service.VideoService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
@@ -33,7 +32,7 @@ import javax.activation.MimetypesFileTypeMap
 class VideoController @Autowired constructor(
     private val videoService: VideoService,
     private val channelService: ChannelService,
-    private val userService: UserService
+    private val appPaths: ApplicationPathsInitializer
 ) {
     @Value("\${video-hosting.server.base-url}")
     private lateinit var BASE_URL: String
@@ -80,7 +79,7 @@ class VideoController @Autowired constructor(
         request: HttpServletRequest,
         response: HttpServletResponse
     ): ResponseEntity<Any> {
-        val sourcesDirectory = File(VIDEOS_PLAYABLES_BASE_PATH)
+        val sourcesDirectory = File(appPaths.VIDEOS_SOURCES_BASE_PATH)
         val file = findFileByName(sourcesDirectory, videoId.toString())
         if (file?.exists() != true || !videoService.checkExistence(videoId)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build()

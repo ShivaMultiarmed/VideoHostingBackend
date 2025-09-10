@@ -2,12 +2,7 @@ package mikhail.shell.video.hosting.service
 
 import com.google.firebase.messaging.FirebaseMessaging
 import jakarta.transaction.Transactional
-import jakarta.validation.ConstraintViolationException
 import mikhail.shell.video.hosting.domain.*
-import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_HEADERS_BASE_PATH
-import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_LOGOS_BASE_PATH
-import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_COVERS_BASE_PATH
-import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH
 import mikhail.shell.video.hosting.domain.Subscription.NOT_SUBSCRIBED
 import mikhail.shell.video.hosting.domain.Subscription.SUBSCRIBED
 import mikhail.shell.video.hosting.elastic.repository.VideoSearchRepository
@@ -21,9 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.io.FileSystemResource
 import org.springframework.core.io.Resource
 import org.springframework.data.domain.PageRequest
-import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service
-import org.w3c.dom.Text
 import java.io.File
 
 @Service
@@ -33,7 +26,8 @@ class ChannelServiceWithDB @Autowired constructor(
     private val subscriberRepository: SubscriberRepository,
     private val videoRepository: VideoRepository,
     private val videoSearchRepository: VideoSearchRepository,
-    private val fcm: FirebaseMessaging
+    private val fcm: FirebaseMessaging,
+    private val appPaths: ApplicationPathsInitializer
 ) : ChannelService {
 
     override fun get(channelId: Long): Channel {
@@ -74,7 +68,7 @@ class ChannelServiceWithDB @Autowired constructor(
         header?.let {
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$CHANNEL_HEADERS_BASE_PATH/${createdChannel.channelId}.jpg",
+                targetFile = "${appPaths.CHANNEL_HEADERS_BASE_PATH}/${createdChannel.channelId}.jpg",
                 width = 512,
                 height = 128
             )
@@ -82,7 +76,7 @@ class ChannelServiceWithDB @Autowired constructor(
         logo?.let {
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$CHANNEL_LOGOS_BASE_PATH/${createdChannel.channelId}.jpg",
+                targetFile = "${appPaths.CHANNEL_LOGOS_BASE_PATH}/${createdChannel.channelId}.jpg",
                 width = 128,
                 height = 128
             )
@@ -92,7 +86,7 @@ class ChannelServiceWithDB @Autowired constructor(
 
     override fun getLogo(channelId: Long): Resource {
         return FileSystemResource(
-            findFileByName(CHANNEL_LOGOS_BASE_PATH, channelId.toString())
+            findFileByName(appPaths.CHANNEL_LOGOS_BASE_PATH, channelId.toString())
             .takeUnless { !channelRepository.existsById(channelId) || it?.exists() != true }
             ?: throw NoSuchElementException()
         )
@@ -104,7 +98,7 @@ class ChannelServiceWithDB @Autowired constructor(
 
     override fun getHeader(channelId: Long): Resource {
         return FileSystemResource(
-            findFileByName(CHANNEL_HEADERS_BASE_PATH, channelId.toString())
+            findFileByName(appPaths.CHANNEL_HEADERS_BASE_PATH, channelId.toString())
             .takeUnless { !channelRepository.existsById(channelId) || it?.exists() != true }
             ?: throw NoSuchElementException()
         )
@@ -197,26 +191,26 @@ class ChannelServiceWithDB @Autowired constructor(
             )
         ).toDomain()
         if (headerAction != EditAction.KEEP) {
-            findFileByName(CHANNEL_HEADERS_BASE_PATH, channel.channelId.toString())?.delete()
+            findFileByName(appPaths.CHANNEL_HEADERS_BASE_PATH, channel.channelId.toString())?.delete()
         }
         if (headerAction == EditAction.UPDATE) {
             header?.let { uploadedFile ->
                 uploadImage(
                     uploadedFile = uploadedFile,
-                    targetFile = "$CHANNEL_HEADERS_BASE_PATH/${editedChannel.channelId}.jpg",
+                    targetFile = "${appPaths.CHANNEL_HEADERS_BASE_PATH}/${editedChannel.channelId}.jpg",
                     width = 512,
                     height = 128
                 )
             }
         }
         if (logoAction != EditAction.KEEP) {
-            findFileByName(CHANNEL_LOGOS_BASE_PATH, channel.channelId.toString())?.delete()
+            findFileByName(appPaths.CHANNEL_LOGOS_BASE_PATH, channel.channelId.toString())?.delete()
         }
         if (logoAction == EditAction.UPDATE) {
             logo?.let { uploadedFile ->
                 uploadImage(
                     uploadedFile = uploadedFile,
-                    targetFile = "$CHANNEL_LOGOS_BASE_PATH/${editedChannel.channelId}.jpg",
+                    targetFile = "${appPaths.CHANNEL_LOGOS_BASE_PATH}/${editedChannel.channelId}.jpg",
                     width = 512,
                     height = 128
                 )
@@ -231,13 +225,13 @@ class ChannelServiceWithDB @Autowired constructor(
         } else if (channelRepository.existsByOwnerIdAndChannelId(userId, channelId)) {
             throw IllegalAccessException()
         } else {
-            findFileByName(File(CHANNEL_LOGOS_BASE_PATH), channelId.toString())?.delete()
-            findFileByName(File(CHANNEL_HEADERS_BASE_PATH), channelId.toString())?.delete()
+            findFileByName(File(appPaths.CHANNEL_LOGOS_BASE_PATH), channelId.toString())?.delete()
+            findFileByName(File(appPaths.CHANNEL_HEADERS_BASE_PATH), channelId.toString())?.delete()
             val videoIds = videoRepository.findByChannelId(channelId).map { it.videoId }
             videoSearchRepository.deleteAllById(videoIds)
             videoIds.filterNotNull().forEach {
-                findFileByName(File(VIDEOS_COVERS_BASE_PATH), it.toString())?.delete()
-                findFileByName(File(VIDEOS_PLAYABLES_BASE_PATH), it.toString())?.delete()
+                findFileByName(File(appPaths.VIDEOS_COVERS_BASE_PATH), it.toString())?.delete()
+                findFileByName(File(appPaths.VIDEOS_SOURCES_BASE_PATH), it.toString())?.delete()
             }
             channelRepository.deleteById(channelId)
         }

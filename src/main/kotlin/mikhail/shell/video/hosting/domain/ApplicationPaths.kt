@@ -1,7 +1,6 @@
 package mikhail.shell.video.hosting.domain
 
 import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNELS_BASE_PATH
-import mikhail.shell.video.hosting.domain.ApplicationPaths.STORAGE_BASE_PATH
 import mikhail.shell.video.hosting.domain.ApplicationPaths.TEMP_PATH
 import mikhail.shell.video.hosting.domain.ApplicationPaths.USERS_BASE_PATH
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_BASE_PATH
@@ -10,33 +9,16 @@ import org.springframework.stereotype.Component
 
 @Component
 class ApplicationPathsInitializer(
-    @Value("\${hosting.storage.path}") storageBasePath: String
+    @Value("\${hosting.storage.path}") val STORAGE_BASE_PATH: String,
 ) {
-    init {
-        ApplicationPaths.STORAGE_BASE_PATH = storageBasePath
-        ApplicationPaths.CHANNELS_BASE_PATH = "$STORAGE_BASE_PATH/channels"
-        ApplicationPaths.CHANNEL_HEADERS_BASE_PATH = "$CHANNELS_BASE_PATH/covers"
-        ApplicationPaths.CHANNEL_LOGOS_BASE_PATH = "$CHANNELS_BASE_PATH/avatars"
-        ApplicationPaths.VIDEOS_BASE_PATH = "$STORAGE_BASE_PATH/videos"
-        ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH = "$VIDEOS_BASE_PATH/sources"
-        ApplicationPaths.VIDEOS_COVERS_BASE_PATH = "$VIDEOS_BASE_PATH/covers"
-        ApplicationPaths.USERS_BASE_PATH = "$STORAGE_BASE_PATH/users"
-        ApplicationPaths.USER_AVATARS_BASE_PATH = "$USERS_BASE_PATH/avatars"
-        ApplicationPaths.TEMP_PATH = "$storageBasePath/tmp"
-        ApplicationPaths.TEMP_VIDEO_SOURCE_BASE_PATH = "$TEMP_PATH/videos/sources"
-    }
-}
-
-object ApplicationPaths {
-    lateinit var STORAGE_BASE_PATH : String
-    lateinit var CHANNELS_BASE_PATH: String
-    lateinit var CHANNEL_HEADERS_BASE_PATH: String
-    lateinit var CHANNEL_LOGOS_BASE_PATH: String
-    lateinit var VIDEOS_BASE_PATH: String
-    lateinit var VIDEOS_PLAYABLES_BASE_PATH: String
-    lateinit var VIDEOS_COVERS_BASE_PATH: String
-    lateinit var USERS_BASE_PATH: String
-    lateinit var USER_AVATARS_BASE_PATH: String
-    lateinit var TEMP_PATH: String
-    lateinit var TEMP_VIDEO_SOURCE_BASE_PATH: String
+    val CHANNELS_BASE_PATH = "$STORAGE_BASE_PATH/channels"
+    val CHANNEL_HEADERS_BASE_PATH = "$CHANNELS_BASE_PATH/headers"
+    val CHANNEL_LOGOS_BASE_PATH = "$CHANNELS_BASE_PATH/logos"
+    val VIDEOS_BASE_PATH = "$STORAGE_BASE_PATH/videos"
+    val VIDEOS_SOURCES_BASE_PATH = "$VIDEOS_BASE_PATH/sources"
+    val VIDEOS_COVERS_BASE_PATH = "$VIDEOS_BASE_PATH/covers"
+    val USERS_BASE_PATH = "$STORAGE_BASE_PATH/users"
+    val USER_AVATARS_BASE_PATH = "$USERS_BASE_PATH/avatars"
+    val TEMP_PATH = "$STORAGE_BASE_PATH/tmp"
+    val TEMP_VIDEO_SOURCE_BASE_PATH = "$TEMP_PATH/videos/sources"
 }

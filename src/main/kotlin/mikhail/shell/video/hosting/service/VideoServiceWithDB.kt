@@ -12,9 +12,6 @@ import com.google.gson.Gson
 import jakarta.transaction.Transactional
 import mikhail.shell.video.hosting.controllers.VideoMetaData
 import mikhail.shell.video.hosting.domain.*
-import mikhail.shell.video.hosting.domain.ApplicationPaths.TEMP_VIDEO_SOURCE_BASE_PATH
-import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH
-import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_COVERS_BASE_PATH
 import mikhail.shell.video.hosting.elastic.documents.toDocument
 import mikhail.shell.video.hosting.elastic.repository.VideoSearchRepository
 import mikhail.shell.video.hosting.entities.*
@@ -46,7 +43,8 @@ class VideoServiceWithDB @Autowired constructor(
     private val userRepository: UserRepository,
     private val userLikeVideoRepository: UserLikeVideoRepository,
     private val channelRepository: ChannelRepository,
-    private val fcm: FirebaseMessaging
+    private val fcm: FirebaseMessaging,
+    private val appPaths: ApplicationPathsInitializer
 ) : VideoService {
 
     override fun get(videoId: Long): Video {
@@ -192,7 +190,7 @@ class VideoServiceWithDB @Autowired constructor(
         cover?.let {
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$VIDEOS_COVERS_BASE_PATH/${savedVideoEntity.videoId}.jpg",
+                targetFile = "$appPaths.VIDEOS_COVERS_BASE_PATH/${savedVideoEntity.videoId}.jpg",
                 width = 500,
                 height = 280
             )
@@ -207,7 +205,7 @@ class VideoServiceWithDB @Autowired constructor(
         if (!videoWithChannelsRepository.existsByChannel_OwnerIdAndVideoId(userId, videoId)) {
             throw IllegalAccessException()
         }
-        val path = Paths.get(TEMP_VIDEO_SOURCE_BASE_PATH, videoId.toString())
+        val path = Paths.get(appPaths.TEMP_VIDEO_SOURCE_BASE_PATH, videoId.toString())
         if (path.notExists()) {
             path.createDirectory()
         }
@@ -247,10 +245,7 @@ class VideoServiceWithDB @Autowired constructor(
     }
 
     private fun assembleFile(videoId: Long) {
-        val tempPath = Path(
-            TEMP_VIDEO_SOURCE_BASE_PATH,
-            videoId.toString()
-        )
+        val tempPath = Path(appPaths.TEMP_VIDEO_SOURCE_BASE_PATH, videoId.toString())
         val metaData =
             (tempPath.resolve(Path(videoId.toString())))
                 .toFile()
@@ -263,7 +258,7 @@ class VideoServiceWithDB @Autowired constructor(
                         }
                 }
         val extension = metaData.fileName.parseExtension()
-        val file = Path(VIDEOS_PLAYABLES_BASE_PATH, "$videoId.$extension").toFile()
+        val file = Path(appPaths.VIDEOS_SOURCES_BASE_PATH, "$videoId.$extension").toFile()
         file.outputStream().use { output ->
             tempPath.toFile().listFiles { _, name ->
                 name.endsWith(".tmp")
@@ -346,13 +341,13 @@ class VideoServiceWithDB @Autowired constructor(
         }
         videoRepository.deleteById(videoId)
         videoSearchRepository.deleteById(videoId)
-        findFileByName(File(VIDEOS_PLAYABLES_BASE_PATH), videoId.toString())?.delete()
-        findFileByName(File(VIDEOS_COVERS_BASE_PATH), videoId.toString())?.delete()
+        findFileByName(File(appPaths.VIDEOS_SOURCES_BASE_PATH), videoId.toString())?.delete()
+        findFileByName(File(appPaths.VIDEOS_COVERS_BASE_PATH), videoId.toString())?.delete()
     }
 
     override fun getCover(videoId: Long): Resource {
         return FileSystemResource(
-            findFileByName(VIDEOS_COVERS_BASE_PATH, videoId.toString())
+            findFileByName(appPaths.VIDEOS_COVERS_BASE_PATH, videoId.toString())
                 .takeUnless { !videoRepository.existsById(videoId) || it?.exists() != true }
                 ?: throw NoSuchElementException()
         )
@@ -374,12 +369,12 @@ class VideoServiceWithDB @Autowired constructor(
         val updatedVideoEntity = videoRepository.save(videoEntity)
         videoSearchRepository.save(updatedVideoEntity.toDocument())
         if (coverAction != EditAction.KEEP) {
-            findFileByName(Paths.get(VIDEOS_COVERS_BASE_PATH).toFile(), video.videoId.toString())?.delete()
+            findFileByName(Paths.get(appPaths.VIDEOS_COVERS_BASE_PATH).toFile(), video.videoId.toString())?.delete()
         }
         if (cover != null) {
             uploadImage(
                 uploadedFile = cover,
-                targetFile = "$VIDEOS_COVERS_BASE_PATH/${updatedVideoEntity.videoId}.jpg",
+                targetFile = "${appPaths.VIDEOS_COVERS_BASE_PATH}/${updatedVideoEntity.videoId}.jpg",
                 width = 500,
                 height = 280
             )

@@ -2,11 +2,8 @@ package mikhail.shell.video.hosting.service
 
 
 import mikhail.shell.video.hosting.domain.*
-import mikhail.shell.video.hosting.domain.ApplicationPaths.CHANNEL_LOGOS_BASE_PATH
-import mikhail.shell.video.hosting.domain.ApplicationPaths.USER_AVATARS_BASE_PATH
 import mikhail.shell.video.hosting.errors.Error
 import mikhail.shell.video.hosting.errors.TextError
-import mikhail.shell.video.hosting.errors.UniquenessViolationException
 import mikhail.shell.video.hosting.errors.ValidationException
 import mikhail.shell.video.hosting.repository.*
 import org.springframework.beans.factory.annotation.Autowired
@@ -19,7 +16,8 @@ class UserServiceWithDB @Autowired constructor(
     private val userRepository: UserRepository,
     private val channelService: ChannelService,
     private val authDetailRepository: AuthDetailRepository,
-    private val commentService: CommentService
+    private val commentService: CommentService,
+    private val appPaths: ApplicationPathsInitializer
 ) : UserService {
     override fun get(userId: Long): User {
         return userRepository.findById(userId).orElseThrow().toDomain()
@@ -38,13 +36,13 @@ class UserServiceWithDB @Autowired constructor(
         }
         val editedUserEntity = userRepository.save(user.toEntity())
         if (avatarAction != EditAction.KEEP) {
-            findFileByName(java.io.File(USER_AVATARS_BASE_PATH), user.userId.toString())?.delete()
+            findFileByName(appPaths.USER_AVATARS_BASE_PATH, user.userId.toString())?.delete()
         }
         if (avatarAction == EditAction.UPDATE) {
             avatar?.let {
                 uploadImage(
                     uploadedFile = it,
-                    targetFile = "$USER_AVATARS_BASE_PATH/${user.userId}.jpg",
+                    targetFile = "${appPaths.USER_AVATARS_BASE_PATH}/${user.userId}.jpg",
                     width = 480,
                     height = 480
                 )
@@ -66,14 +64,14 @@ class UserServiceWithDB @Autowired constructor(
         }
         commentService.removeAllByUserId(userId)
         val credentialIds = authDetailRepository.findById_UserId(userId).map { it.id }
-        findFileByName(USER_AVATARS_BASE_PATH, userId.toString())?.delete()
+        findFileByName(appPaths.USER_AVATARS_BASE_PATH, userId.toString())?.delete()
         authDetailRepository.deleteAllById(credentialIds)
         userRepository.deleteById(userId)
     }
 
     override fun getAvatar(userId: Long): Resource {
         return FileSystemResource(
-            findFileByName(USER_AVATARS_BASE_PATH, userId.toString())
+            findFileByName(appPaths.USER_AVATARS_BASE_PATH, userId.toString())
                 .takeUnless { !userRepository.existsById(userId) || it?.exists() != true }
                 ?: throw NoSuchElementException()
         )
