@@ -3,8 +3,6 @@ package mikhail.shell.video.hosting.controllers
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import jakarta.validation.Valid
-import jakarta.validation.constraints.Max
-import jakarta.validation.constraints.Positive
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ApplicationPaths.VIDEOS_PLAYABLES_BASE_PATH
 import mikhail.shell.video.hosting.domain.ValidationRules.FILE_NAME_REGEX
@@ -55,8 +53,8 @@ class VideoController @Autowired constructor(
             coverUrl = "$BASE_URL/videos/${videoId}/cover"
         )
         val channelDto = channelService.getForUser(channelId = videoDto.channelId, userId = userId).toDto(
-            avatarUrl = "$BASE_URL/channels/${videoDto.channelId}/avatar",
-            coverUrl = "$BASE_URL/channels/${videoDto.channelId}/cover"
+            logo = "$BASE_URL/channels/${videoDto.channelId}/avatar",
+            header = "$BASE_URL/channels/${videoDto.channelId}/cover"
         )
         return VideoDetailsDto(
             video = videoDto,
@@ -183,8 +181,8 @@ class VideoController @Autowired constructor(
                     coverUrl = "$BASE_URL/videos/${it.video.videoId}/cover"
                 ),
                 channel = it.channel.toDto(
-                    avatarUrl = "$BASE_URL/channels/${it.channel.channelId}/avatar",
-                    coverUrl = "$BASE_URL/channels/${it.channel.channelId}/cover"
+                    logo = "$BASE_URL/channels/${it.channel.channelId}/avatar",
+                    header = "$BASE_URL/channels/${it.channel.channelId}/cover"
                 )
             )
         }
@@ -301,8 +299,8 @@ class VideoController @Autowired constructor(
                     coverUrl = "$BASE_URL/videos/${it.video.videoId}/cover"
                 ),
                 channel = it.channel.toDto(
-                    avatarUrl = "$BASE_URL/channels/${it.channel.channelId}/avatar",
-                    coverUrl = "$BASE_URL/channels/${it.channel.channelId}/cover"
+                    logo = "$BASE_URL/channels/${it.channel.channelId}/avatar",
+                    header = "$BASE_URL/channels/${it.channel.channelId}/cover"
                 )
             )
         }

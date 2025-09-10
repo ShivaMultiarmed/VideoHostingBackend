@@ -96,7 +96,7 @@ class ChannelController @Autowired constructor(
     }
 
     @GetMapping("/owners/{user_id}")
-    fun getAllChannelsByOwnerId(
+    fun getOwnedChannels(
         @PathVariable("user_id") @LongId userId: Long,
         @RequestParam("part_index") @PartIndex partIndex: Long,
         @RequestParam("part_size") @PartSize partSize: Int
@@ -109,7 +109,7 @@ class ChannelController @Autowired constructor(
     }
 
     @GetMapping("/subscriptions")
-    fun getAllChannelsBySubscriberId(
+    fun getSubscriptions(
         @RequestParam("part_index") @PartIndex partIndex: Long,
         @RequestParam("part_size") @PartSize partSize: Int,
         @AuthenticationPrincipal userId: Long
@@ -161,13 +161,13 @@ class ChannelController @Autowired constructor(
     }
 
     private fun Channel.toDto(): ChannelDto = toDto(
-        avatarUrl = "$BASE_URL/channels/$channelId/avatar",
-        coverUrl = "$BASE_URL/channels/$channelId/cover"
+        logo = "$BASE_URL/channels/$channelId/logo",
+        header = "$BASE_URL/channels/$channelId/header"
     )
 
     private fun ChannelWithUser.toDto() = toDto(
-        avatarUrl = "$BASE_URL/channels/$channelId/avatar",
-        coverUrl = "$BASE_URL/channels/$channelId/cover"
+        logo = "$BASE_URL/channels/$channelId/logo",
+        header = "$BASE_URL/channels/$channelId/header"
     )
 }
 

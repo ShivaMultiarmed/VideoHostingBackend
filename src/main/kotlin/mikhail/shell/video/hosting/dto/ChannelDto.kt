@@ -11,8 +11,8 @@ data class ChannelDto(
     val alias: String? = null,
     val description: String? = null,
     val subscribers: Long = 0,
-    val coverUrl: String? = null,
-    val avatarUrl: String? = null
+    val header: String? = null,
+    val logo: String? = null
 )
 
 fun ChannelDto.toDomain() = Channel(
@@ -25,8 +25,8 @@ fun ChannelDto.toDomain() = Channel(
 )
 
 fun Channel.toDto(
-    coverUrl: String? = null,
-    avatarUrl: String? = null
+    header: String? = null,
+    logo: String? = null
 ) = ChannelDto(
     channelId = channelId,
     ownerId = ownerId,
@@ -34,8 +34,8 @@ fun Channel.toDto(
     alias = alias,
     description = description,
     subscribers = subscribers,
-    coverUrl = coverUrl,
-    avatarUrl = avatarUrl
+    header = header,
+    logo = logo
 )
 
 data class ChannelWithUserDto(
@@ -46,13 +46,13 @@ data class ChannelWithUserDto(
     val description: String? = null,
     val subscribers: Long = 0,
     val subscription: Subscription = Subscription.NOT_SUBSCRIBED,
-    val coverUrl: String? = null,
-    val avatarUrl: String? = null
+    val header: String? = null,
+    val logo: String? = null
 )
 
 fun ChannelWithUser.toDto(
-    coverUrl: String? = null,
-    avatarUrl: String? = null
+    header: String? = null,
+    logo: String? = null
 ) = ChannelWithUserDto(
     channelId = channelId,
     ownerId = ownerId,
@@ -61,6 +61,6 @@ fun ChannelWithUser.toDto(
     description = description,
     subscribers = subscribers,
     subscription = subscription,
-    coverUrl = coverUrl,
-    avatarUrl = avatarUrl
+    header = header,
+    logo = logo
 )
