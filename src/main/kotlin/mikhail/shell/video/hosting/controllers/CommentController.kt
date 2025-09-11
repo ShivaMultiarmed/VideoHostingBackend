@@ -38,7 +38,7 @@ class CommentController @Autowired constructor(
     fun post(
         @Valid @RequestBody request: CommentCreationRequest,
         @AuthenticationPrincipal userId: Long,
-    ): CommentDto {
+    ): CommentWithUserDto {
         return commentService.post(
             Comment(
                 videoId = request.videoId,
@@ -46,14 +46,16 @@ class CommentController @Autowired constructor(
                 text = request.text,
                 dateTime = Instant.now()
             )
-        ).toDto()
+        ).toDto(
+            avatar = "$BASE_URL/users/$userId/avatar"
+        )
     }
 
     @PatchMapping
     fun edit(
         @Valid @RequestBody request: CommentEditingRequest,
         @AuthenticationPrincipal userId: Long,
-    ): CommentDto {
+    ): CommentWithUserDto {
         return commentService.edit(
             Comment(
                 commentId = request.commentId,
@@ -61,7 +63,9 @@ class CommentController @Autowired constructor(
                 text = request.text,
                 videoId = commentService.get(request.commentId).videoId
             )
-        ).toDto()
+        ).toDto(
+            avatar = "$BASE_URL/users/$userId/avatar"
+        )
     }
 
     @GetMapping("/videos/{video_id}")
@@ -84,7 +88,7 @@ class CommentController @Autowired constructor(
 
     @DeleteMapping("/{video_id}")
     fun remove(
-        @RequestParam("video_id") @Positive commentId: Long,
+        @PathVariable("video_id") @Positive commentId: Long,
         @AuthenticationPrincipal userId: Long,
     ) {
         commentService.remove(userId, commentId)
