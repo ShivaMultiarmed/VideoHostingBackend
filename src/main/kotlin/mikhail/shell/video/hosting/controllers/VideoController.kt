@@ -46,10 +46,7 @@ class VideoController @Autowired constructor(
         @PathVariable("video_id") @LongId videoId: Long,
         @AuthenticationPrincipal userId: Long
     ): VideoDetailsDto {
-        val videoDto = videoService.get(videoId = videoId, userId = userId).toDto(
-            sourceUrl = "$BASE_URL/videos/${videoId}/play",
-            coverUrl = "$BASE_URL/videos/${videoId}/cover"
-        )
+        val videoDto = videoService.get(videoId = videoId, userId = userId).toDto()
         val channelDto = channelService.getForUser(channelId = videoDto.channelId, userId = userId).toDto(
             logo = "$BASE_URL/channels/${videoDto.channelId}/logo",
             header = "$BASE_URL/channels/${videoDto.channelId}/header"
@@ -66,13 +63,10 @@ class VideoController @Autowired constructor(
         @RequestParam("liking") liking: Liking,
         @AuthenticationPrincipal userId: Long
     ): VideoWithUserDto {
-        return videoService.rate(videoId = videoId, userId = userId, liking = liking).toDto(
-            sourceUrl = "$BASE_URL/videos/${videoId}/play",
-            coverUrl = "$BASE_URL/videos/${videoId}/cover"
-        )
+        return videoService.rate(videoId = videoId, userId = userId, liking = liking).toDto()
     }
 
-    @GetMapping(path = ["/{video_id}/play", "/{video_id}/download"])
+    @GetMapping("/{video_id}/source")
     fun playVideo(
         @PathVariable("video_id") @LongId videoId: Long,
         request: HttpServletRequest,
@@ -145,10 +139,7 @@ class VideoController @Autowired constructor(
             partSize = partSize,
             partIndex = partIndex
         ).map {
-            it.toDto(
-                sourceUrl = "$BASE_URL/videos/${it.videoId}/play",
-                coverUrl = "$BASE_URL/videos/${it.videoId}/cover"
-            )
+            it.toDto()
         }
     }
 
@@ -174,10 +165,7 @@ class VideoController @Autowired constructor(
             partIndex = partIndex
         ).map {
             VideoWithChannelDto(
-                video = it.video.toDto(
-                    sourceUrl = "$BASE_URL/videos/${it.video.videoId}/play",
-                    coverUrl = "$BASE_URL/videos/${it.video.videoId}/cover"
-                ),
+                video = it.video.toDto(),
                 channel = it.channel.toDto(
                     logo = "$BASE_URL/channels/${it.channel.channelId}/avatar",
                     header = "$BASE_URL/channels/${it.channel.channelId}/cover"
@@ -213,12 +201,7 @@ class VideoController @Autowired constructor(
                 dateTime = Instant.now()
             ),
             cover = cover?.toUploadedFile(),
-        ).let {
-            it.toDto(
-                sourceUrl = "$BASE_URL/videos/${it.videoId}/play",
-                coverUrl = "$BASE_URL/videos/${it.videoId}/cover"
-            )
-        }.let {
+        ).toDto().let {
             ResponseEntity.status(HttpStatus.OK).body(it)
         }
     }
@@ -264,12 +247,7 @@ class VideoController @Autowired constructor(
             ),
             coverAction = video.coverAction,
             cover = cover?.toUploadedFile()
-        ).let {
-            it.toDto(
-                sourceUrl = "$BASE_URL/videos/${it.videoId}/play",
-                coverUrl = "$BASE_URL/videos/${it.videoId}/cover"
-            )
-        }
+        ).toDto()
     }
 
     @DeleteMapping("/{video_id}")
@@ -292,10 +270,7 @@ class VideoController @Autowired constructor(
             partSize = partSize
         ).map {
             VideoWithChannelDto(
-                video = it.video.toDto(
-                    sourceUrl = "$BASE_URL/videos/${it.video.videoId}/play",
-                    coverUrl = "$BASE_URL/videos/${it.video.videoId}/cover"
-                ),
+                video = it.video.toDto(),
                 channel = it.channel.toDto(
                     logo = "$BASE_URL/channels/${it.channel.channelId}/avatar",
                     header = "$BASE_URL/channels/${it.channel.channelId}/cover"
@@ -305,12 +280,12 @@ class VideoController @Autowired constructor(
     }
 
     private fun Video.toDto() = toDto(
-        sourceUrl = "$BASE_URL/videos/${videoId}/play",
+        sourceUrl = "$BASE_URL/videos/${videoId}/source",
         coverUrl = "$BASE_URL/videos/${videoId}/cover"
     )
 
     private fun VideoWithUser.toDto() = toDto(
-        sourceUrl = "$BASE_URL/videos/${videoId}/play",
+        sourceUrl = "$BASE_URL/videos/${videoId}/source",
         coverUrl = "$BASE_URL/videos/${videoId}/cover"
     )
 }
