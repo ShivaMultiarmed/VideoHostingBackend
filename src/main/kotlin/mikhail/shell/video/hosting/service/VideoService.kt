@@ -10,7 +10,7 @@ interface VideoService {
     fun checkLiking(videoId: Long, userId: Long): Liking
     fun rate(videoId: Long, userId: Long, liking: Liking): VideoWithUser
     fun getByChannelId(channelId: Long, partSize: Int, partIndex: Long): List<Video>
-    fun getByQuery(query: String, partSize: Int, partIndex: Long): List<VideoWithChannel>
+    fun getByQuery(query: String, partSize: Int, cursor: Long?): List<VideoWithChannel>
     fun incrementViews(videoId: Long): Video
     fun delete(userId: Long, videoId: Long)
     fun edit(userId: Long, video: Video, coverAction: EditAction, cover: UploadedFile?): Video

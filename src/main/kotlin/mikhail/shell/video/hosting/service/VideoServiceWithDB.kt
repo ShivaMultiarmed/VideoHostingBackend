@@ -134,7 +134,7 @@ class VideoServiceWithDB @Autowired constructor(
     override fun getByQuery(
         query: String,
         partSize: Int,
-        partIndex: Long
+        cursor: Long?
     ): List<VideoWithChannel> {
         val sortingScriptStringified = """
             def secs = doc['dateTime'].value.toInstant().toEpochMilli() / 1000;
@@ -164,14 +164,33 @@ class VideoServiceWithDB @Autowired constructor(
         val searchQuery = NativeQuery.builder()
             .withQuery(
                 Query.of {
-                    it.match { aMatch ->
-                        aMatch
-                            .field("title")
-                            .query(query)
+                    it.bool { aMatch ->
+                        aMatch.should {
+                            it.match {
+                                it.field("title").query(query)
+                            }
+                        }
+                        aMatch.should {
+                            it.match {
+                                it.field("description").query(query)
+                            }
+                        }
                     }
                 }
             )
+            .let {
+                if (cursor != null) it.withQuery(
+                    Query.of{
+                        it.range {
+                            it.number {
+                                it.field("videoId").lt(cursor.toDouble())
+                            }
+                        }
+                    }
+                ) else it
+            }
             .withSort(scriptSortBuilder)
+            .withPageable(PageRequest.of(0, partSize))
             .build()
         val ids = elasticSearchOperations.search<VideoEntity>(searchQuery).map { it.content.videoId }
         return videoWithChannelsRepository.findAllById(ids).map { it.toDomain() }

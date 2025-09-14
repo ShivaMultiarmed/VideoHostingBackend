@@ -95,7 +95,7 @@ class ChannelController @Autowired constructor(
         ).toDto()
     }
 
-    @GetMapping("/owners/{user_id}")
+    @GetMapping("/owner/{user_id}")
     fun getOwnedChannels(
         @PathVariable("user_id") @LongId userId: Long,
         @RequestParam("part_index") @PartIndex partIndex: Long,

@@ -156,13 +156,13 @@ class VideoController @Autowired constructor(
     @GetMapping("/search")
     fun search(
         @RequestParam("query") @Title query: String,
-        @RequestParam("part_size") @PartSize partSize: Int = 10,
-        @RequestParam("part_index") @PartIndex partIndex: Long = 0
+        @RequestParam("cursor") @LongId cursor: Long?,
+        @RequestParam("part_size") @PartSize partSize: Int = 10
     ): List<VideoWithChannelDto> {
         return videoService.getByQuery(
             query = query,
             partSize = partSize,
-            partIndex = partIndex
+            cursor = cursor
         ).map {
             VideoWithChannelDto(
                 video = it.video.toDto(),
