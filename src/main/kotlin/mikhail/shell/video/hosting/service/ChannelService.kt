@@ -33,7 +33,7 @@ interface ChannelService {
     fun unsubscribeFromNotifications(userId: Long, token: String)
     fun getChannel(channelId: Long): Channel
     fun checkOwner(userId: Long, channelId: Long): Boolean
-    fun checkExistence(channelId: Long): Boolean
+    fun existsById(channelId: Long): Boolean
     fun getLogo(channelId: Long): Resource
     fun getHeader(channelId: Long): Resource
     fun editChannel(
@@ -44,4 +44,6 @@ interface ChannelService {
         logoAction: EditAction
     ): Channel
     fun removeChannel(userId: Long, channelId: Long)
+    fun existsByTitle(channelId: Long? = null, title: String): Boolean
+    fun existsByAlias(channelId: Long? = null, alias: String): Boolean
 }

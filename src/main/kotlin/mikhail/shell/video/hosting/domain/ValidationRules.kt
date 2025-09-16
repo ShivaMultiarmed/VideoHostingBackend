@@ -32,7 +32,7 @@ object ValidationRules {
     const val TEL_REGEX = "^\\d{8,15}\$"
 }
 
-@Target(AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.ANNOTATION_CLASS)
+@Target(AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.TYPE, AnnotationTarget.ANNOTATION_CLASS)
 @Retention(AnnotationRetention.RUNTIME)
 @Constraint(validatedBy = [MaxFileSizeValidator::class])
 annotation class MaxFileSize(
@@ -54,7 +54,7 @@ class MaxFileSizeValidator: ConstraintValidator<MaxFileSize, MultipartFile?> {
     }
 }
 
-@Target(AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.ANNOTATION_CLASS)
+@Target(AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.TYPE, AnnotationTarget.ANNOTATION_CLASS)
 @Retention(AnnotationRetention.RUNTIME)
 @Constraint(validatedBy = [NotEmptyFileValidator::class])
 annotation class NotEmptyFile(
@@ -70,7 +70,7 @@ class NotEmptyFileValidator: ConstraintValidator<NotEmptyFile, MultipartFile?> {
     }
 }
 
-@Target(AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.ANNOTATION_CLASS)
+@Target(AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.TYPE, AnnotationTarget.ANNOTATION_CLASS)
 @Retention(AnnotationRetention.RUNTIME)
 @Constraint(validatedBy = [FileNameValidator::class])
 annotation class FileName(
@@ -81,11 +81,11 @@ annotation class FileName(
 
 class FileNameValidator: ConstraintValidator<FileName, MultipartFile?> {
     override fun isValid(p0: MultipartFile?, p1: ConstraintValidatorContext?): Boolean {
-        return p0!= null && p0.originalFilename!!.length < MAX_TITLE_LENGTH && !p0.originalFilename!!.matches(FILE_NAME_REGEX.toRegex())
+        return p0!= null && p0.originalFilename!!.length <= MAX_TITLE_LENGTH && !p0.originalFilename!!.matches(FILE_NAME_REGEX.toRegex())
     }
 }
 
-@Target(AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.ANNOTATION_CLASS)
+@Target(AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.TYPE, AnnotationTarget.ANNOTATION_CLASS)
 @Retention(AnnotationRetention.RUNTIME)
 @Constraint(validatedBy = [FileTypeValidator::class])
 annotation class FileType(
@@ -112,6 +112,7 @@ class FileTypeValidator: ConstraintValidator<FileType, MultipartFile?> {
 @Constraint(validatedBy = [])
 @Target(
     AnnotationTarget.FIELD,
+    AnnotationTarget.TYPE,
     AnnotationTarget.VALUE_PARAMETER,
     AnnotationTarget.PROPERTY_GETTER
 )
@@ -126,6 +127,7 @@ annotation class Name(
 @Constraint(validatedBy = [])
 @Target(
     AnnotationTarget.FIELD,
+    AnnotationTarget.TYPE,
     AnnotationTarget.VALUE_PARAMETER,
     AnnotationTarget.PROPERTY_GETTER
 )
@@ -140,6 +142,7 @@ annotation class UserName(
 @Constraint(validatedBy = [])
 @Target(
     AnnotationTarget.FIELD,
+    AnnotationTarget.TYPE,
     AnnotationTarget.VALUE_PARAMETER,
     AnnotationTarget.PROPERTY_GETTER
 )
@@ -154,6 +157,7 @@ annotation class Password(
 @Constraint(validatedBy = [])
 @Target(
     AnnotationTarget.FIELD,
+    AnnotationTarget.TYPE,
     AnnotationTarget.VALUE_PARAMETER,
     AnnotationTarget.PROPERTY_GETTER
 )
@@ -168,6 +172,7 @@ annotation class Title(
 @Constraint(validatedBy = [])
 @Target(
     AnnotationTarget.FIELD,
+    AnnotationTarget.TYPE,
     AnnotationTarget.VALUE_PARAMETER,
     AnnotationTarget.PROPERTY_GETTER
 )
@@ -182,6 +187,7 @@ annotation class Description(
 @Constraint(validatedBy = [])
 @Target(
     AnnotationTarget.FIELD,
+    AnnotationTarget.TYPE,
     AnnotationTarget.VALUE_PARAMETER,
     AnnotationTarget.PROPERTY_GETTER
 )
@@ -198,6 +204,7 @@ annotation class LongId(
 @Constraint(validatedBy = [])
 @Target(
     AnnotationTarget.FIELD,
+    AnnotationTarget.TYPE,
     AnnotationTarget.VALUE_PARAMETER,
     AnnotationTarget.PROPERTY_GETTER
 )
@@ -212,6 +219,7 @@ annotation class Image(
 @Constraint(validatedBy = [])
 @Target(
     AnnotationTarget.FIELD,
+    AnnotationTarget.TYPE,
     AnnotationTarget.VALUE_PARAMETER,
     AnnotationTarget.PROPERTY_GETTER
 )
@@ -226,6 +234,7 @@ annotation class PartIndex(
 @Constraint(validatedBy = [])
 @Target(
     AnnotationTarget.FIELD,
+    AnnotationTarget.TYPE,
     AnnotationTarget.VALUE_PARAMETER,
     AnnotationTarget.PROPERTY_GETTER
 )

@@ -237,11 +237,27 @@ class ChannelServiceWithDB @Autowired constructor(
         }
     }
 
+    override fun existsByTitle(channelId: Long?, title: String): Boolean {
+        return if (channelId == null) {
+            channelRepository.existsByTitle(title)
+        } else {
+            channelRepository.existsByChannelIdAndTitle(channelId, title)
+        }
+    }
+
+    override fun existsByAlias(channelId: Long?, alias: String): Boolean {
+        return if (channelId == null) {
+            channelRepository.existsByAlias(alias)
+        } else {
+            channelRepository.existsByChannelIdAndAlias(channelId, alias)
+        }
+    }
+
     override fun checkOwner(userId: Long, channelId: Long): Boolean {
         return channelRepository.existsByOwnerIdAndChannelId(userId, channelId)
     }
 
-    override fun checkExistence(channelId: Long): Boolean {
+    override fun existsById(channelId: Long): Boolean {
         return channelRepository.existsById(channelId)
     }
 

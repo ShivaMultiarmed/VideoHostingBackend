@@ -160,6 +160,32 @@ class ChannelController @Autowired constructor(
         channelService.removeChannel(userId = userId, channelId = channelId)
     }
 
+    @GetMapping("/existence/title")
+    fun existsByTitle(
+        @RequestParam("channel_id") @LongId channelId: Long?,
+        @RequestParam("title") @Title title: String
+    ): ResponseEntity<Unit> {
+        val exists = channelService.existsByTitle(channelId, title)
+        return if (channelId != null && exists || channelId == null && !exists) {
+            ResponseEntity.status(HttpStatus.OK).build()
+        } else {
+            ResponseEntity.status(HttpStatus.CONFLICT).build()
+        }
+    }
+
+    @GetMapping("/existence/alias")
+    fun existsByAlias(
+        @RequestParam("channel_id") @LongId channelId: Long?,
+        @RequestParam("alias") @Title alias: String
+    ): ResponseEntity<Unit> {
+        val exists = channelService.existsByAlias(channelId, alias)
+        return if (channelId != null && exists || channelId == null && !exists) {
+            ResponseEntity.status(HttpStatus.OK).build()
+        } else {
+            ResponseEntity.status(HttpStatus.CONFLICT).build()
+        }
+    }
+
     private fun Channel.toDto(): ChannelDto = toDto(
         logo = "$BASE_URL/channels/$channelId/logo",
         header = "$BASE_URL/channels/$channelId/header"
@@ -172,9 +198,9 @@ class ChannelController @Autowired constructor(
 }
 
 data class ChannelCreationRequest(
-    @field:Title val title: String,
-    @field:Title val alias: String?,
-    @field:Description val description: String?
+    @Title val title: String,
+    @Title val alias: String?,
+    @Description val description: String?
 )
 
 data class ChannelEditingRequest(
