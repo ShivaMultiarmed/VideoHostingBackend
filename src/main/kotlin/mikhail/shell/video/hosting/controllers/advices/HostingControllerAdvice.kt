@@ -15,10 +15,10 @@ import org.springframework.web.method.annotation.HandlerMethodValidationExceptio
 
 @RestControllerAdvice
 class HostingControllerAdvice {
-//    @ExceptionHandler(ValidationException::class)
-//    fun handleValidationException(e: ValidationException): ResponseEntity<Error> {
-//        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.error)
-//    }
+    @ExceptionHandler(ValidationException::class)
+    fun handleValidationException(e: ValidationException): ResponseEntity<Map<String, Error>> {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.errors)
+    }
 
     @ExceptionHandler(NoSuchElementException::class)
     fun handleNotFoundException(e: NoSuchElementException): ResponseEntity<Unit> {
@@ -63,29 +63,34 @@ class HostingControllerAdvice {
     fun handleValidationErrors(e: MethodArgumentNotValidException): ResponseEntity<Map<String, String>> {
         return ResponseEntity.badRequest().body(
             e.bindingResult.allErrors.associate { error ->
-                (error as FieldError).field to (error.defaultMessage?: UnexpectedError.toString())
+                (error as FieldError).field to (error.defaultMessage ?: UnexpectedError.toString())
             }
         )
     }
 
-//    @ExceptionHandler(HandlerMethodValidationException::class)
-//    fun handleNotValidParts(e: HandlerMethodValidationException): ResponseEntity<Map<String, String>> {
-//        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-//            .body(
-//                mutableMapOf<String, String>().apply {
-//                    e.parameterValidationResults.forEach { validationResult ->
-//                        val parameterName = validationResult.methodParameter.parameterName
-//                        if (parameterName != null) {
-//                            validationResult.resolvableErrors.forEach { error ->
-//                                if (error.defaultMessage != null) {
-//                                    this[parameterName] = error.defaultMessage!!
-//                                }
-//                            }
-//                        }
-//                    }
-//                }
-//            )
-//    }
+    @ExceptionHandler(HandlerMethodValidationException::class)
+    fun handleNotValidParts(e: HandlerMethodValidationException): ResponseEntity<Map<String, String>> {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(
+                mutableMapOf<String, String>().apply {
+                    e.parameterValidationResults.forEach { validationResult ->
+                        validationResult.resolvableErrors.forEach { error ->
+                            when (error) {
+                                is FieldError -> {
+                                    this[error.field] = error.defaultMessage ?: UnexpectedError.toString()
+                                }
+                                else -> {
+                                    val parameterName = validationResult.methodParameter.parameterName
+                                    if (parameterName != null && error.defaultMessage != null) {
+                                        this[parameterName] = error.defaultMessage!!
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            )
+    }
 //
 //    @ExceptionHandler(ConstraintViolationException::class)
 //    fun handleConstraintViolationException(e: ConstraintViolationException): ResponseEntity<Map<String, String>> {

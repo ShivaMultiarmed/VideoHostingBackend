@@ -16,7 +16,7 @@ class UniquenessViolationException: RuntimeException()
 
 class ExpiredException: RuntimeException()
 
-class ValidationException(errors: Map<String, Error>): RuntimeException()
+class ValidationException(val errors: Map<String, Error>): RuntimeException()
 
 class CompoundError<T: Error>(): Error {
     @JsonProperty("errors") private val _errors: MutableList<T> = mutableListOf()

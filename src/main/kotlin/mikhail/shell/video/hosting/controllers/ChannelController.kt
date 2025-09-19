@@ -57,14 +57,14 @@ class ChannelController @Autowired constructor(
     @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun createChannel(
         @RequestPart("channel") @Valid channel: ChannelCreationRequest,
-        @RequestPart("logo") @Image logo: MultipartFile?,
-        @RequestPart("header") @Image header: MultipartFile?,
+        @RequestPart("logo", required = false) @Image logo: MultipartFile?,
+        @RequestPart("header", required = false) @Image header: MultipartFile?,
         @AuthenticationPrincipal userId: Long,
     ): ChannelDto {
         return channelService.createChannel(
             channel = Channel(
                 ownerId = userId,
-                title = channel.title,
+                title = channel.title!!,
                 alias = channel.alias,
                 description = channel.description
             ),
@@ -84,7 +84,7 @@ class ChannelController @Autowired constructor(
             channel = Channel(
                 channelId = channel.channelId,
                 ownerId = userId,
-                title = channel.title,
+                title = channel.title!!,
                 alias = channel.alias,
                 description = channel.description
             ),
@@ -198,17 +198,17 @@ class ChannelController @Autowired constructor(
 }
 
 data class ChannelCreationRequest(
-    @Title val title: String,
-    @Title val alias: String?,
-    @Description val description: String?
+    @field:Title val title: String?,
+    @field:Alias val alias: String? = null,
+    @field:Description val description: String? = null
 )
 
 data class ChannelEditingRequest(
-    @field:LongId val channelId: Long,
-    @field:Title val title: String,
-    @field:Title val alias: String?,
-    val editLogoAction: EditAction,
-    val editHeaderAction: EditAction,
+    @field:LongId val channelId: Long?,
+    @field:Title val title: String?,
+    @field:Alias val alias: String?,
+    val editLogoAction: EditAction = EditAction.KEEP,
+    val editHeaderAction: EditAction = EditAction.KEEP,
     @field:Description
     val description: String?
 )

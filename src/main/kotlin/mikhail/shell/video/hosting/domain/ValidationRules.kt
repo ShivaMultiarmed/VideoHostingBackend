@@ -50,7 +50,7 @@ class MaxFileSizeValidator: ConstraintValidator<MaxFileSize, MultipartFile?> {
     }
 
     override fun isValid(p0: MultipartFile?, p1: ConstraintValidatorContext?): Boolean {
-        return p0!= null && !p0.isEmpty && p0.size <= max
+        return p0 == null || !p0.isEmpty && p0.size <= max
     }
 }
 
@@ -66,7 +66,7 @@ annotation class NotEmptyFile(
 class NotEmptyFileValidator: ConstraintValidator<NotEmptyFile, MultipartFile?> {
 
     override fun isValid(p0: MultipartFile?, p1: ConstraintValidatorContext?): Boolean {
-        return p0!= null && !p0.isEmpty
+        return p0 == null || !p0.isEmpty
     }
 }
 
@@ -81,7 +81,7 @@ annotation class FileName(
 
 class FileNameValidator: ConstraintValidator<FileName, MultipartFile?> {
     override fun isValid(p0: MultipartFile?, p1: ConstraintValidatorContext?): Boolean {
-        return p0!= null && p0.originalFilename!!.length <= MAX_TITLE_LENGTH && !p0.originalFilename!!.matches(FILE_NAME_REGEX.toRegex())
+        return p0 == null || p0.originalFilename!!.length <= MAX_TITLE_LENGTH && !p0.originalFilename!!.matches(FILE_NAME_REGEX.toRegex())
     }
 }
 
@@ -103,11 +103,11 @@ class FileTypeValidator: ConstraintValidator<FileType, MultipartFile?> {
     }
 
     override fun isValid(p0: MultipartFile?, p1: ConstraintValidatorContext?): Boolean {
-        return p0!= null && !p0.isEmpty && p0.contentType?.startsWith(mime)?: false
+        return p0 == null || !p0.isEmpty && p0.contentType?.startsWith(mime)?: false
     }
 }
 
-@NotBlank(message = "EMPTY")
+@NotBlankNullable(message = "EMPTY")
 @Size(max = MAX_NAME_LENGTH, message = "LARGE")
 @Constraint(validatedBy = [])
 @Target(
@@ -122,6 +122,7 @@ annotation class Name(
     val payload: Array<KClass<out Payload>> = []
 )
 
+@NotBlank(message = "EMPTY")
 @Email(message = "PATTERN")
 @Size(max = MAX_USERNAME_LENGTH, message = "LARGE")
 @Constraint(validatedBy = [])
@@ -167,7 +168,22 @@ annotation class Title(
     val payload: Array<KClass<out Payload>> = []
 )
 
-@NotBlank(message = "EMPTY")
+@NotBlankNullable(message = "EMPTY")
+@Size(max = MAX_TITLE_LENGTH, message = "LARGE")
+@Constraint(validatedBy = [])
+@Target(
+    AnnotationTarget.FIELD,
+    AnnotationTarget.TYPE,
+    AnnotationTarget.VALUE_PARAMETER,
+    AnnotationTarget.PROPERTY_GETTER
+)
+annotation class Alias(
+    val message: String = "",
+    val groups: Array<KClass<*>> = [],
+    val payload: Array<KClass<out Payload>> = []
+)
+
+@NotBlankNullable(message = "EMPTY")
 @Size(max = MAX_DESCRIPTION_LENGTH, message = "LARGE")
 @Constraint(validatedBy = [])
 @Target(
@@ -244,3 +260,21 @@ annotation class PartSize(
     val payload: Array<KClass<out Payload>> = []
 )
 
+@Constraint(validatedBy = [NotBlankNullableValidator::class])
+@Target(
+    AnnotationTarget.ANNOTATION_CLASS,
+    AnnotationTarget.FIELD,
+    AnnotationTarget.TYPE,
+    AnnotationTarget.VALUE_PARAMETER,
+    AnnotationTarget.PROPERTY_GETTER
+)
+annotation class NotBlankNullable(
+    val message: String = "EMPTY",
+    val groups: Array<KClass<*>> = [],
+    val payload: Array<KClass<out Payload>> = []
+)
+class NotBlankNullableValidator: ConstraintValidator<NotBlankNullable, String?> {
+    override fun isValid(p0: String?, p1: ConstraintValidatorContext?): Boolean {
+        return p0 == null || p0.isNotBlank()
+    }
+}
