@@ -3,6 +3,7 @@ package mikhail.shell.video.hosting.controllers
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import jakarta.validation.Valid
+import jakarta.validation.constraints.NotEmpty
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ValidationRules.FILE_NAME_REGEX
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_VIDEO_SIZE
@@ -37,16 +38,16 @@ class VideoController @Autowired constructor(
     private lateinit var BASE_URL: String
 
     @GetMapping("/{video_id}")
-    fun get(@PathVariable("video_id") @LongId videoId: Long): VideoDto {
-        return videoService.get(videoId).toDto()
+    fun get(@PathVariable("video_id") @LongId videoId: Long?): VideoDto {
+        return videoService.get(videoId!!).toDto()
     }
 
     @GetMapping("/{video_id}/details")
     fun getVideoDetails(
-        @PathVariable("video_id") @LongId videoId: Long,
+        @PathVariable("video_id") @LongId videoId: Long?,
         @AuthenticationPrincipal userId: Long
     ): VideoDetailsDto {
-        val videoDto = videoService.get(videoId = videoId, userId = userId).toDto()
+        val videoDto = videoService.get(videoId = videoId!!, userId = userId).toDto()
         val channelDto = channelService.getForUser(channelId = videoDto.channelId, userId = userId).toDto(
             logo = "$BASE_URL/channels/${videoDto.channelId}/logo",
             header = "$BASE_URL/channels/${videoDto.channelId}/header"
@@ -59,22 +60,22 @@ class VideoController @Autowired constructor(
 
     @PatchMapping("/{video_id}/rate")
     fun rateVideo(
-        @PathVariable("video_id") @LongId videoId: Long,
-        @RequestParam("liking") liking: Liking,
+        @PathVariable("video_id") @LongId videoId: Long?,
+        @RequestParam("liking") @ValidEnum(Liking::class) liking: String?,
         @AuthenticationPrincipal userId: Long
     ): VideoWithUserDto {
-        return videoService.rate(videoId = videoId, userId = userId, liking = liking).toDto()
+        return videoService.rate(videoId = videoId!!, userId = userId, liking = Liking.valueOf(liking!!)).toDto()
     }
 
     @GetMapping("/{video_id}/source")
     fun playVideo(
-        @PathVariable("video_id") @LongId videoId: Long,
+        @PathVariable("video_id") @LongId videoId: Long?,
         request: HttpServletRequest,
         response: HttpServletResponse
     ): ResponseEntity<Any> {
         val sourcesDirectory = File(appPaths.VIDEOS_SOURCES_BASE_PATH)
         val file = findFileByName(sourcesDirectory, videoId.toString())
-        if (file?.exists() != true || !videoService.checkExistence(videoId)) {
+        if (file?.exists() != true || !videoService.checkExistence(videoId!!)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build()
         }
         val rangeHeader = request.getHeader(HttpHeaders.RANGE)
@@ -130,12 +131,12 @@ class VideoController @Autowired constructor(
 
     @GetMapping("/channel/{channel_id}")
     fun provideVideosFromChannel(
-        @PathVariable("channel_id") @LongId channelId: Long,
+        @PathVariable("channel_id") @LongId channelId: Long?,
         @RequestParam("part_size") @PartSize partSize: Int = 10,
         @RequestParam("part_index") @PartIndex partIndex: Long = 0
     ): List<VideoDto> {
         return videoService.getByChannelId(
-            channelId = channelId,
+            channelId = channelId!!,
             partSize = partSize,
             partIndex = partIndex
         ).map {
@@ -145,9 +146,9 @@ class VideoController @Autowired constructor(
 
     @GetMapping("/{video_id}/cover")
     fun provideVideoCover(
-        @PathVariable("video_id") @LongId videoId: Long
+        @PathVariable("video_id") @LongId videoId: Long?
     ): ResponseEntity<Resource> {
-        val image = videoService.getCover(videoId)
+        val image = videoService.getCover(videoId!!)
         return ResponseEntity.status(HttpStatus.OK)
             .contentType(MediaType.parseMediaType("image/${image.file.extension}"))
             .body(image)
@@ -155,12 +156,12 @@ class VideoController @Autowired constructor(
 
     @GetMapping("/search")
     fun search(
-        @RequestParam("query") @Title query: String,
-        @RequestParam("cursor") @LongId cursor: Long?,
+        @RequestParam("query") @Title query: String?,
+        @RequestParam("cursor") @LongIdNullable cursor: Long?,
         @RequestParam("part_size") @PartSize partSize: Int = 10
     ): List<VideoWithChannelDto> {
         return videoService.getByQuery(
-            query = query,
+            query = query!!,
             partSize = partSize,
             cursor = cursor
         ).map {
@@ -181,12 +182,12 @@ class VideoController @Autowired constructor(
         @RequestPart("cover") @Image cover: MultipartFile?,
         @AuthenticationPrincipal userId: Long
     ): ResponseEntity<*> {
-        if (source.size == 0L) {
+        if (source.size == 0L || source.size == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("source" to FileError.EMPTY))
         } else if (source.size > MAX_VIDEO_SIZE) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("source" to FileError.LARGE))
         }
-        if (!source.fileName.matches(FILE_NAME_REGEX.toRegex())) {
+        if (source.fileName == null || !source.fileName.matches(FILE_NAME_REGEX.toRegex())) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("source" to FileError.NAME_NOT_VALID))
         }
         val detectedMimeType = MimetypesFileTypeMap.getDefaultFileTypeMap().getContentType(source.fileName)?: ""
@@ -196,8 +197,8 @@ class VideoController @Autowired constructor(
         return videoService.save(
             userId = userId,
             video = Video(
-                channelId = video.channelId,
-                title = video.title,
+                channelId = video.channelId!!,
+                title = video.title!!,
                 dateTime = Instant.now()
             ),
             cover = cover?.toUploadedFile(),
@@ -208,14 +209,14 @@ class VideoController @Autowired constructor(
 
     @PostMapping("/{video_id}/source", consumes = ["application/octet-stream"])
     fun uploadSource(
-        @PathVariable("video_id") @LongId videoId: Long,
-        @RequestParam("chunk_index") @PartIndex chunkIndex: Long,
+        @PathVariable("video_id") @LongId videoId: Long?,
+        @RequestParam("chunk_index") @PartIndex chunkIndex: Long = 0,
         input: InputStream,
         @AuthenticationPrincipal userId: Long
     ) {
         videoService.saveVideoSource(
             userId = userId,
-            videoId = videoId,
+            videoId = videoId!!,
             chunkIndex = chunkIndex,
             source = input
         )
@@ -223,45 +224,45 @@ class VideoController @Autowired constructor(
 
     @PostMapping("/{video_id}/confirmation")
     fun confirmUpload(
-        @PathVariable("video_id") @LongId videoId: Long,
+        @PathVariable("video_id") @LongId videoId: Long?,
         @AuthenticationPrincipal userId: Long
-    ) = videoService.confirm(userId = userId, videoId = videoId)
+    ) = videoService.confirm(userId = userId, videoId = videoId!!)
 
     @PatchMapping("/{video_id}/views")
-    fun incrementViews(@PathVariable("video_id") @LongId videoId: Long): VideoDto {
-        return videoService.incrementViews(videoId).toDto()
+    fun incrementViews(@PathVariable("video_id") @LongId videoId: Long?): VideoDto {
+        return videoService.incrementViews(videoId!!).toDto()
     }
 
     @PatchMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun editVideo(
         @RequestPart("video") @Valid video: VideoEditingRequest,
-        @RequestPart("cover") @Image cover: MultipartFile?,
+        @RequestPart("cover", required = false) @Image cover: MultipartFile?,
         @AuthenticationPrincipal userId: Long
     ): VideoDto {
         return videoService.edit(
             userId = userId,
             video = Video(
                 videoId = video.videoId,
-                title = video.title,
-                channelId = video.channelId,
+                title = video.title!!,
+                channelId = video.channelId!!,
             ),
-            coverAction = video.coverAction,
+            coverAction = video.coverAction!!,
             cover = cover?.toUploadedFile()
         ).toDto()
     }
 
     @DeleteMapping("/{video_id}")
     fun delete(
-        @PathVariable("video_id") @Image videoId: Long,
+        @PathVariable("video_id") @LongId videoId: Long?,
         @AuthenticationPrincipal userId: Long
     ) {
-        videoService.delete(userId = userId, videoId = videoId)
+        videoService.delete(userId = userId, videoId = videoId!!)
     }
 
     @GetMapping("/recommendations")
     fun getRecommendations(
-        @RequestParam("part_index") @PartIndex partIndex: Long,
-        @RequestParam("part_size") @PartSize partSize: Int,
+        @RequestParam("part_index") @PartIndex partIndex: Long = 0,
+        @RequestParam("part_size") @PartSize partSize: Int = 10,
         @AuthenticationPrincipal userId: Long
     ): List<VideoWithChannelDto> {
         return videoService.getRecommendations(
@@ -292,27 +293,28 @@ class VideoController @Autowired constructor(
 
 data class VideoCreationRequest(
     @field:Title
-    val title: String,
+    val title: String?,
     @field:LongId
-    val channelId: Long,
+    val channelId: Long?,
     @field:Description
     val description: String?
 )
 
 data class VideoMetaData(
-    val fileName: String,
-    val mimeType: String,
-    val size: Long
+    val fileName: String?,
+    val mimeType: String?,
+    val size: Long?
 )
 
 data class VideoEditingRequest(
     @field:LongId
-    val videoId: Long,
+    val videoId: Long?,
     @field:Title
-    val title: String,
+    val title: String?,
     @field:LongId
-    val channelId: Long,
-    val coverAction: EditAction,
+    val channelId: Long?,
+    @field:NotEmpty(message = "EMPTY")
+    val coverAction: EditAction?,
     @field:Description
     val description: String?
 )

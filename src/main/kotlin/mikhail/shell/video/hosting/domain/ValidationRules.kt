@@ -12,6 +12,7 @@ import mikhail.shell.video.hosting.domain.ValidationRules.MAX_NAME_LENGTH
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_TITLE_LENGTH
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_USERNAME_LENGTH
 import mikhail.shell.video.hosting.domain.ValidationRules.PASSWORD_REGEX
+import mikhail.shell.video.hosting.errors.TextError
 import org.springframework.web.multipart.MultipartFile
 import kotlin.reflect.KClass
 
@@ -32,89 +33,106 @@ object ValidationRules {
     const val TEL_REGEX = "^\\d{8,15}\$"
 }
 
-@Target(AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.TYPE, AnnotationTarget.ANNOTATION_CLASS)
+@Target(
+    AnnotationTarget.VALUE_PARAMETER,
+    AnnotationTarget.ANNOTATION_CLASS
+)
 @Retention(AnnotationRetention.RUNTIME)
 @Constraint(validatedBy = [MaxFileSizeValidator::class])
 annotation class MaxFileSize(
     val max: Long,
-    val message: String = "",
+    val message: String = "LARGE",
     val groups: Array<KClass<*>> = [],
     val payload: Array<KClass<out Payload>> = []
 )
-
-class MaxFileSizeValidator: ConstraintValidator<MaxFileSize, MultipartFile?> {
+class MaxFileSizeValidator: ConstraintValidator<MaxFileSize, MultipartFile> {
     private var max: Long = 0
-
-    override fun initialize(constraintAnnotation: MaxFileSize?) {
-        max = constraintAnnotation?.max?: max
+    override fun initialize(constraintAnnotation: MaxFileSize) {
+        max = constraintAnnotation.max
     }
-
-    override fun isValid(p0: MultipartFile?, p1: ConstraintValidatorContext?): Boolean {
-        return p0 == null || !p0.isEmpty && p0.size <= max
+    override fun isValid(p0: MultipartFile, p1: ConstraintValidatorContext): Boolean {
+        return p0.size <= max
     }
 }
 
-@Target(AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.TYPE, AnnotationTarget.ANNOTATION_CLASS)
+@Target(
+    AnnotationTarget.VALUE_PARAMETER,
+    AnnotationTarget.ANNOTATION_CLASS
+)
 @Retention(AnnotationRetention.RUNTIME)
 @Constraint(validatedBy = [NotEmptyFileValidator::class])
 annotation class NotEmptyFile(
-    val message: String = "",
+    val message: String = "EMPTY",
     val groups: Array<KClass<*>> = [],
     val payload: Array<KClass<out Payload>> = []
 )
-
-class NotEmptyFileValidator: ConstraintValidator<NotEmptyFile, MultipartFile?> {
-
-    override fun isValid(p0: MultipartFile?, p1: ConstraintValidatorContext?): Boolean {
-        return p0 == null || !p0.isEmpty
+class NotEmptyFileValidator: ConstraintValidator<NotEmptyFile, MultipartFile> {
+    override fun isValid(p0: MultipartFile, p1: ConstraintValidatorContext): Boolean {
+        return !p0.isEmpty
     }
 }
 
-@Target(AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.TYPE, AnnotationTarget.ANNOTATION_CLASS)
+@Target(
+    AnnotationTarget.VALUE_PARAMETER,
+    AnnotationTarget.ANNOTATION_CLASS
+)
 @Retention(AnnotationRetention.RUNTIME)
 @Constraint(validatedBy = [FileNameValidator::class])
 annotation class FileName(
-    val message: String = "",
+    val message: String = "NAME_NOT_VALID",
     val groups: Array<KClass<*>> = [],
     val payload: Array<KClass<out Payload>> = []
 )
-
-class FileNameValidator: ConstraintValidator<FileName, MultipartFile?> {
-    override fun isValid(p0: MultipartFile?, p1: ConstraintValidatorContext?): Boolean {
-        return p0 == null || p0.originalFilename!!.length <= MAX_TITLE_LENGTH && !p0.originalFilename!!.matches(FILE_NAME_REGEX.toRegex())
+class FileNameValidator: ConstraintValidator<FileName, MultipartFile> {
+    override fun isValid(p0: MultipartFile, p1: ConstraintValidatorContext): Boolean {
+        return p0.originalFilename!!.length <= MAX_TITLE_LENGTH && p0.originalFilename!!.matches(FILE_NAME_REGEX.toRegex())
     }
 }
 
-@Target(AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.TYPE, AnnotationTarget.ANNOTATION_CLASS)
+@Target(
+    AnnotationTarget.VALUE_PARAMETER,
+    AnnotationTarget.ANNOTATION_CLASS
+)
 @Retention(AnnotationRetention.RUNTIME)
 @Constraint(validatedBy = [FileTypeValidator::class])
 annotation class FileType(
     val mime: String,
+    val message: String = "NOT_SUPPORTED",
+    val groups: Array<KClass<*>> = [],
+    val payload: Array<KClass<out Payload>> = []
+)
+class FileTypeValidator: ConstraintValidator<FileType, MultipartFile> {
+    private var mime: String = ""
+    override fun initialize(constraintAnnotation: FileType) {
+        mime = constraintAnnotation.mime
+    }
+    override fun isValid(p0: MultipartFile, p1: ConstraintValidatorContext?): Boolean {
+        return !p0.isEmpty && p0.contentType?.startsWith(mime)?: false
+    }
+}
+
+@FileName
+@NotEmptyFile
+@MaxFileSize(max = MAX_IMAGE_SIZE)
+@FileType(mime = "image")
+@Constraint(validatedBy = [])
+@Target(
+    AnnotationTarget.VALUE_PARAMETER,
+    AnnotationTarget.ANNOTATION_CLASS
+)
+annotation class Image(
     val message: String = "",
     val groups: Array<KClass<*>> = [],
     val payload: Array<KClass<out Payload>> = []
 )
 
-class FileTypeValidator: ConstraintValidator<FileType, MultipartFile?> {
-    private var mime: String = ""
-
-    override fun initialize(constraintAnnotation: FileType?) {
-        mime = constraintAnnotation?.mime?: mime
-    }
-
-    override fun isValid(p0: MultipartFile?, p1: ConstraintValidatorContext?): Boolean {
-        return p0 == null || !p0.isEmpty && p0.contentType?.startsWith(mime)?: false
-    }
-}
 
 @NotBlankNullable(message = "EMPTY")
 @Size(max = MAX_NAME_LENGTH, message = "LARGE")
 @Constraint(validatedBy = [])
 @Target(
     AnnotationTarget.FIELD,
-    AnnotationTarget.TYPE,
-    AnnotationTarget.VALUE_PARAMETER,
-    AnnotationTarget.PROPERTY_GETTER
+    AnnotationTarget.VALUE_PARAMETER
 )
 annotation class Name(
     val message: String = "",
@@ -128,9 +146,7 @@ annotation class Name(
 @Constraint(validatedBy = [])
 @Target(
     AnnotationTarget.FIELD,
-    AnnotationTarget.TYPE,
-    AnnotationTarget.VALUE_PARAMETER,
-    AnnotationTarget.PROPERTY_GETTER
+    AnnotationTarget.VALUE_PARAMETER
 )
 annotation class UserName(
     val message: String = "",
@@ -143,9 +159,7 @@ annotation class UserName(
 @Constraint(validatedBy = [])
 @Target(
     AnnotationTarget.FIELD,
-    AnnotationTarget.TYPE,
-    AnnotationTarget.VALUE_PARAMETER,
-    AnnotationTarget.PROPERTY_GETTER
+    AnnotationTarget.VALUE_PARAMETER
 )
 annotation class Password(
     val message: String = "",
@@ -158,9 +172,7 @@ annotation class Password(
 @Constraint(validatedBy = [])
 @Target(
     AnnotationTarget.FIELD,
-    AnnotationTarget.TYPE,
-    AnnotationTarget.VALUE_PARAMETER,
-    AnnotationTarget.PROPERTY_GETTER
+    AnnotationTarget.VALUE_PARAMETER
 )
 annotation class Title(
     val message: String = "",
@@ -173,9 +185,7 @@ annotation class Title(
 @Constraint(validatedBy = [])
 @Target(
     AnnotationTarget.FIELD,
-    AnnotationTarget.TYPE,
-    AnnotationTarget.VALUE_PARAMETER,
-    AnnotationTarget.PROPERTY_GETTER
+    AnnotationTarget.VALUE_PARAMETER
 )
 annotation class Alias(
     val message: String = "",
@@ -188,11 +198,23 @@ annotation class Alias(
 @Constraint(validatedBy = [])
 @Target(
     AnnotationTarget.FIELD,
-    AnnotationTarget.TYPE,
-    AnnotationTarget.VALUE_PARAMETER,
-    AnnotationTarget.PROPERTY_GETTER
+    AnnotationTarget.VALUE_PARAMETER
 )
 annotation class Description(
+    val message: String = "",
+    val groups: Array<KClass<*>> = [],
+    val payload: Array<KClass<out Payload>> = []
+)
+
+@NotNull(message = "EMPTY")
+@Positive(message = "LOW")
+@Max(value = Long.MAX_VALUE, message = "HIGH")
+@Constraint(validatedBy = [])
+@Target(
+    AnnotationTarget.FIELD,
+    AnnotationTarget.VALUE_PARAMETER
+)
+annotation class LongId(
     val message: String = "",
     val groups: Array<KClass<*>> = [],
     val payload: Array<KClass<out Payload>> = []
@@ -203,41 +225,20 @@ annotation class Description(
 @Constraint(validatedBy = [])
 @Target(
     AnnotationTarget.FIELD,
-    AnnotationTarget.TYPE,
-    AnnotationTarget.VALUE_PARAMETER,
-    AnnotationTarget.PROPERTY_GETTER
+    AnnotationTarget.VALUE_PARAMETER
 )
-annotation class LongId(
+annotation class LongIdNullable(
     val message: String = "",
     val groups: Array<KClass<*>> = [],
     val payload: Array<KClass<out Payload>> = []
 )
 
-@FileName(message = "NAME_NOT_VALID")
-@NotEmptyFile(message = "EMPTY")
-@MaxFileSize(max = MAX_IMAGE_SIZE, message = "LARGE")
-@FileType(mime = "image", message = "NOT_SUPPORTED")
-@Constraint(validatedBy = [])
-@Target(
-    AnnotationTarget.FIELD,
-    AnnotationTarget.TYPE,
-    AnnotationTarget.VALUE_PARAMETER,
-    AnnotationTarget.PROPERTY_GETTER
-)
-annotation class Image(
-    val message: String = "",
-    val groups: Array<KClass<*>> = [],
-    val payload: Array<KClass<out Payload>> = []
-)
-
-@Min(value = 0, message = "LOW")
+@PositiveOrZero(message = "LOW")
 @Max(value = Long.MAX_VALUE, message = "HIGH")
 @Constraint(validatedBy = [])
 @Target(
     AnnotationTarget.FIELD,
-    AnnotationTarget.TYPE,
-    AnnotationTarget.VALUE_PARAMETER,
-    AnnotationTarget.PROPERTY_GETTER
+    AnnotationTarget.VALUE_PARAMETER
 )
 annotation class PartIndex(
     val message: String = "",
@@ -250,9 +251,7 @@ annotation class PartIndex(
 @Constraint(validatedBy = [])
 @Target(
     AnnotationTarget.FIELD,
-    AnnotationTarget.TYPE,
-    AnnotationTarget.VALUE_PARAMETER,
-    AnnotationTarget.PROPERTY_GETTER
+    AnnotationTarget.VALUE_PARAMETER
 )
 annotation class PartSize(
     val message: String = "",
@@ -264,9 +263,7 @@ annotation class PartSize(
 @Target(
     AnnotationTarget.ANNOTATION_CLASS,
     AnnotationTarget.FIELD,
-    AnnotationTarget.TYPE,
-    AnnotationTarget.VALUE_PARAMETER,
-    AnnotationTarget.PROPERTY_GETTER
+    AnnotationTarget.VALUE_PARAMETER
 )
 annotation class NotBlankNullable(
     val message: String = "EMPTY",
@@ -276,5 +273,30 @@ annotation class NotBlankNullable(
 class NotBlankNullableValidator: ConstraintValidator<NotBlankNullable, String?> {
     override fun isValid(p0: String?, p1: ConstraintValidatorContext?): Boolean {
         return p0 == null || p0.isNotBlank()
+    }
+}
+
+@Target(
+    AnnotationTarget.FIELD,
+    AnnotationTarget.VALUE_PARAMETER
+)
+@Retention(AnnotationRetention.RUNTIME)
+@Constraint(validatedBy = [EnumValidator::class])
+annotation class ValidEnum(
+    val enumClass: KClass<out Enum<*>>,
+    val message: String = "PATTERN",
+    val groups: Array<KClass<*>> = [],
+    val payload: Array<KClass<out Payload>> = []
+)
+
+class EnumValidator : ConstraintValidator<ValidEnum, String?> {
+    private lateinit var acceptedValues: Set<String>
+
+    override fun initialize(annotation: ValidEnum) {
+        acceptedValues = annotation.enumClass.java.enumConstants.map { it.name }.toSet()
+    }
+
+    override fun isValid(value: String?, context: ConstraintValidatorContext): Boolean {
+        return acceptedValues.contains(value)
     }
 }

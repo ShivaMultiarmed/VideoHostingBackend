@@ -276,7 +276,7 @@ class VideoServiceWithDB @Autowired constructor(
                             Gson().fromJson(it, VideoMetaData::class.java)
                         }
                 }
-        val extension = metaData.fileName.parseExtension()
+        val extension = metaData.fileName!!.parseExtension()
         val file = Path(appPaths.VIDEOS_SOURCES_BASE_PATH, "$videoId.$extension").toFile()
         file.outputStream().use { output ->
             tempPath.toFile().listFiles { _, name ->

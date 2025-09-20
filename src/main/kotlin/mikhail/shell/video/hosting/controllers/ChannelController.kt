@@ -26,29 +26,29 @@ class ChannelController @Autowired constructor(
     private lateinit var BASE_URL: String
 
     @GetMapping("/{channel_id}")
-    fun get(@PathVariable("channel_id") @LongId channelId: Long): ChannelDto {
-        return channelService.getChannel(channelId).toDto()
+    fun get(@PathVariable("channel_id") @LongId channelId: Long?): ChannelDto {
+        return channelService.getChannel(channelId!!).toDto()
     }
 
     @GetMapping("/{channel_id}/details")
     fun getDetails(
-        @PathVariable("channel_id") @LongId channelId: Long,
+        @PathVariable("channel_id") @LongId channelId: Long?,
         @AuthenticationPrincipal userId: Long
     ): ChannelWithUserDto {
-        return channelService.getForUser(channelId = channelId, userId = userId).toDto()
+        return channelService.getForUser(channelId = channelId!!, userId = userId).toDto()
     }
 
     @GetMapping("/{channel_id}/header")
-    fun getHeader(@PathVariable("channel_id") @LongId channelId: Long): ResponseEntity<Resource> {
-        val image = channelService.getHeader(channelId)
+    fun getHeader(@PathVariable("channel_id") @LongId channelId: Long?): ResponseEntity<Resource> {
+        val image = channelService.getHeader(channelId!!)
         return ResponseEntity.status(HttpStatus.OK)
             .contentType(MediaType.parseMediaType("image/${image.file.extension}"))
             .body(image)
     }
 
     @GetMapping("/{channel_id}/logo")
-    fun getLogo(@PathVariable("channel_id") @LongId channelId: Long): ResponseEntity<Resource> {
-        val image = channelService.getLogo(channelId)
+    fun getLogo(@PathVariable("channel_id") @LongId channelId: Long?): ResponseEntity<Resource> {
+        val image = channelService.getLogo(channelId!!)
         return ResponseEntity.status(HttpStatus.OK)
                 .contentType(MediaType.parseMediaType("image/${image.file.extension}"))
                 .body(image)
@@ -76,8 +76,8 @@ class ChannelController @Autowired constructor(
     @PatchMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun editChannel(
         @RequestPart("channel") @Valid channel: ChannelEditingRequest,
-        @RequestPart("logo") @Image logo: MultipartFile?,
-        @RequestPart("header") @Image header: MultipartFile?,
+        @RequestPart("logo", required = false) @Image logo: MultipartFile?,
+        @RequestPart("header", required = false) @Image header: MultipartFile?,
         @AuthenticationPrincipal userId: Long
     ): ChannelDto {
         return channelService.editChannel(
@@ -89,20 +89,20 @@ class ChannelController @Autowired constructor(
                 description = channel.description
             ),
             header = header?.toUploadedFile(),
-            headerAction = channel.editHeaderAction,
+            headerAction = channel.editHeaderAction!!,
             logo = logo?.toUploadedFile(),
-            logoAction = channel.editHeaderAction,
+            logoAction = channel.editLogoAction!!,
         ).toDto()
     }
 
     @GetMapping("/owner/{user_id}")
     fun getOwnedChannels(
-        @PathVariable("user_id") @LongId userId: Long,
-        @RequestParam("part_index") @PartIndex partIndex: Long,
-        @RequestParam("part_size") @PartSize partSize: Int
+        @PathVariable("user_id") @LongId userId: Long?,
+        @RequestParam("part_index") @PartIndex partIndex: Long = 0,
+        @RequestParam("part_size") @PartSize partSize: Int = 10
     ): List<ChannelDto> {
         return channelService.getChannelsByOwnerId(
-            userId = userId,
+            userId = userId!!,
             partIndex = partIndex,
             partSize = partSize
         ).map { it.toDto() }
@@ -110,8 +110,8 @@ class ChannelController @Autowired constructor(
 
     @GetMapping("/subscriptions")
     fun getSubscriptions(
-        @RequestParam("part_index") @PartIndex partIndex: Long,
-        @RequestParam("part_size") @PartSize partSize: Int,
+        @RequestParam("part_index") @PartIndex partIndex: Long = 0,
+        @RequestParam("part_size") @PartSize partSize: Int = 10,
         @AuthenticationPrincipal userId: Long
     ): List<ChannelDto> {
         return channelService.getSubscriptions(
@@ -123,49 +123,49 @@ class ChannelController @Autowired constructor(
 
     @PatchMapping("/{channel_id}/subscription")
     fun subscribe(
-        @PathVariable("channel_id") @LongId channelId: Long,
-        @RequestParam("subscription") subscription: Subscription,
-        @RequestParam("fcm_token") @NotBlank fcmToken: String,
+        @PathVariable("channel_id") @LongId channelId: Long?,
+        @RequestParam("subscription") @ValidEnum(Subscription::class) subscription: String?,
+        @RequestParam("fcm_token") @NotBlank(message = "EMPTY") fcmToken: String?,
         @AuthenticationPrincipal userId: Long,
     ): ChannelWithUserDto {
         return channelService.changeSubscriptionState(
             subscriberId = userId,
-            channelId = channelId,
-            subscription = subscription,
-            token = fcmToken
+            channelId = channelId!!,
+            subscription = Subscription.valueOf(subscription!!),
+            token = fcmToken!!
         ).toDto()
     }
 
     @PostMapping("/notifications/subscription")
     fun resubscribeToFCM(
-        @RequestParam("fcm_token") @NotBlank token: String,
+        @RequestParam("fcm_token") @NotBlank(message = "EMPTY") token: String?,
         @AuthenticationPrincipal userId: Long
     ) {
-        channelService.subscribeToNotifications(userId = userId, token = token)
+        channelService.subscribeToNotifications(userId = userId, token = token!!)
     }
 
     @DeleteMapping("/notifications/subscription")
     fun unsubscribeFromFCM(
-        @RequestParam("fcm_token") @NotBlank token: String,
+        @RequestParam("fcm_token") @NotBlank(message = "EMPTY") token: String?,
         @AuthenticationPrincipal userId: Long
     ) {
-        channelService.unsubscribeFromNotifications(userId = userId, token = token)
+        channelService.unsubscribeFromNotifications(userId = userId, token = token!!)
     }
 
     @DeleteMapping("/{channel_id}")
     fun remove(
-        @PathVariable("channel_id") @LongId channelId: Long,
+        @PathVariable("channel_id") @LongId channelId: Long?,
         @AuthenticationPrincipal userId: Long
     ) {
-        channelService.removeChannel(userId = userId, channelId = channelId)
+        channelService.removeChannel(userId = userId, channelId = channelId!!)
     }
 
     @GetMapping("/existence/title")
     fun existsByTitle(
-        @RequestParam("channel_id") @LongId channelId: Long?,
-        @RequestParam("title") @Title title: String
+        @RequestParam("channel_id") @LongIdNullable channelId: Long?,
+        @RequestParam("title") @Title title: String?
     ): ResponseEntity<Unit> {
-        val exists = channelService.existsByTitle(channelId, title)
+        val exists = channelService.existsByTitle(channelId, title!!)
         return if (channelId != null && exists || channelId == null && !exists) {
             ResponseEntity.status(HttpStatus.OK).build()
         } else {
@@ -175,14 +175,17 @@ class ChannelController @Autowired constructor(
 
     @GetMapping("/existence/alias")
     fun existsByAlias(
-        @RequestParam("channel_id") @LongId channelId: Long?,
-        @RequestParam("alias") @Title alias: String
-    ): ResponseEntity<Unit> {
+        @RequestParam("channel_id") @LongIdNullable channelId: Long?,
+        @RequestParam("alias") @Alias alias: String?
+    ): ResponseEntity<*> {
+        if (alias == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("alias" to "EMPTY"))
+        }
         val exists = channelService.existsByAlias(channelId, alias)
         return if (channelId != null && exists || channelId == null && !exists) {
-            ResponseEntity.status(HttpStatus.OK).build()
+            ResponseEntity.status(HttpStatus.OK).body(Unit)
         } else {
-            ResponseEntity.status(HttpStatus.CONFLICT).build()
+            ResponseEntity.status(HttpStatus.CONFLICT).body(Unit)
         }
     }
 
@@ -198,17 +201,25 @@ class ChannelController @Autowired constructor(
 }
 
 data class ChannelCreationRequest(
-    @field:Title val title: String?,
-    @field:Alias val alias: String? = null,
-    @field:Description val description: String? = null
+    @field:Title
+    val title: String?,
+    @field:Alias
+    val alias: String?,
+    @field:Description
+    val description: String?
 )
 
 data class ChannelEditingRequest(
-    @field:LongId val channelId: Long?,
-    @field:Title val title: String?,
-    @field:Alias val alias: String?,
-    val editLogoAction: EditAction = EditAction.KEEP,
-    val editHeaderAction: EditAction = EditAction.KEEP,
+    @field:LongId
+    val channelId: Long?,
+    @field:Title
+    val title: String?,
+    @field:Alias
+    val alias: String?,
+    @field:NotEmpty(message = "EMPTY")
+    val editLogoAction: EditAction?,
+    @field:NotEmpty(message = "EMPTY")
+    val editHeaderAction: EditAction?,
     @field:Description
     val description: String?
 )

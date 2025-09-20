@@ -22,10 +22,10 @@ data class VideoWithUser(
     val channelId: Long,
     val title: String,
     val dateTime: Instant? = null,
-    val views: Long,
-    val likes: Long,
-    val dislikes: Long,
-    val liking: Liking
+    val views: Long = 0,
+    val likes: Long = 0,
+    val dislikes: Long = 0,
+    val liking: Liking = Liking.NONE
 )
 
 infix fun Video.with(liking: Liking) = VideoWithUser(

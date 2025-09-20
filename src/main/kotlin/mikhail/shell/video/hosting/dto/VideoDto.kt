@@ -47,16 +47,15 @@ data class VideoWithChannelDto(
     val channel: ChannelDto
 )
 
-
 data class VideoWithUserDto(
     val videoId: Long? = null,
     val channelId: Long,
     val title: String,
     val dateTime: Instant? = null,
-    val views: Long,
-    val likes: Long,
-    val liking: Liking,
-    val dislikes: Long,
+    val views: Long = 0,
+    val likes: Long = 0,
+    val liking: Liking = Liking.NONE,
+    val dislikes: Long = 0,
     val sourceUrl: String? = null,
     val coverUrl: String? = null
 )
