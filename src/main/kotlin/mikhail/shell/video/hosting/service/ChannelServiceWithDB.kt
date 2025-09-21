@@ -18,6 +18,9 @@ import org.springframework.core.io.Resource
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import java.io.File
+import kotlin.io.path.Path
+import kotlin.io.path.createDirectory
+import kotlin.io.path.notExists
 
 @Service
 class ChannelServiceWithDB @Autowired constructor(
@@ -66,42 +69,76 @@ class ChannelServiceWithDB @Autowired constructor(
         }
         val createdChannel = channelRepository.save(channel.toEntity()).toDomain()
         header?.let {
+            val basePath = Path(appPaths.CHANNELS_BASE_PATH, createdChannel.channelId!!.toString())
+            if (basePath.notExists()) {
+                basePath.createDirectory()
+            }
             uploadImage(
                 uploadedFile = it,
-                targetFile = "${appPaths.CHANNEL_HEADERS_BASE_PATH}/${createdChannel.channelId}.jpg",
-                width = 512,
-                height = 128
+                targetFile = "$basePath/large.jpg",
+                width = 1800,
+                height = 200
+            )
+            uploadImage(
+                uploadedFile = it,
+                targetFile = "$basePath/medium.jpg",
+                width = 1000,
+                height = 120
+            )
+            uploadImage(
+                uploadedFile = it,
+                targetFile = "$basePath/small.jpg",
+                width = 350,
+                height = 60
             )
         }
         logo?.let {
+            val basePath = Path(appPaths.CHANNELS_BASE_PATH, createdChannel.channelId!!.toString())
+            if (basePath.notExists()) {
+                basePath.createDirectory()
+            }
             uploadImage(
                 uploadedFile = it,
-                targetFile = "${appPaths.CHANNEL_LOGOS_BASE_PATH}/${createdChannel.channelId}.jpg",
+                targetFile = "$basePath/small.jpg",
+                width = 32,
+                height = 32
+            )
+            uploadImage(
+                uploadedFile = it,
+                targetFile = "$basePath/medium.jpg",
                 width = 128,
                 height = 128
+            )
+            uploadImage(
+                uploadedFile = it,
+                targetFile = "$basePath/large.jpg",
+                width = 512,
+                height = 512
             )
         }
         return createdChannel
     }
 
-    override fun getLogo(channelId: Long): Resource {
-        return FileSystemResource(
-            findFileByName(appPaths.CHANNEL_LOGOS_BASE_PATH, channelId.toString())
-            .takeUnless { !channelRepository.existsById(channelId) || it?.exists() != true }
-            ?: throw NoSuchElementException()
-        )
+    override fun getLogo(channelId: Long, size: ImageSize): Resource {
+        val file = File("${appPaths.CHANNELS_BASE_PATH}/$channelId/logo/${size.name.lowercase()}.jpg")
+        if (!channelRepository.existsById(channelId) || !file.exists()) {
+            throw NoSuchElementException()
+        } else {
+            return FileSystemResource(file)
+        }
     }
 
     override fun getChannelsByOwnerId(userId: Long): List<Channel> {
         return channelRepository.findByOwnerId(userId).map { it.toDomain() }
     }
 
-    override fun getHeader(channelId: Long): Resource {
-        return FileSystemResource(
-            findFileByName(appPaths.CHANNEL_HEADERS_BASE_PATH, channelId.toString())
-            .takeUnless { !channelRepository.existsById(channelId) || it?.exists() != true }
-            ?: throw NoSuchElementException()
-        )
+    override fun getHeader(channelId: Long, size: ImageSize): Resource {
+        val file = File("${appPaths.CHANNELS_BASE_PATH}/$channelId/header/${size.name.lowercase()}.jpg")
+        if (!channelRepository.existsById(channelId) || !file.exists()) {
+            throw NoSuchElementException()
+        } else {
+            return FileSystemResource(file)
+        }
     }
 
     override fun getChannelsByOwnerId(

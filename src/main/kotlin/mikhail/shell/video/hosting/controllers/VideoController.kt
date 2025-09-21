@@ -48,10 +48,7 @@ class VideoController @Autowired constructor(
         @AuthenticationPrincipal userId: Long
     ): VideoDetailsDto {
         val videoDto = videoService.get(videoId = videoId!!, userId = userId).toDto()
-        val channelDto = channelService.getForUser(channelId = videoDto.channelId, userId = userId).toDto(
-            logo = "$BASE_URL/channels/${videoDto.channelId}/logo",
-            header = "$BASE_URL/channels/${videoDto.channelId}/header"
-        )
+        val channelDto = channelService.getForUser(channelId = videoDto.channelId, userId = userId).toDto()
         return VideoDetailsDto(
             video = videoDto,
             channel = channelDto
@@ -167,10 +164,7 @@ class VideoController @Autowired constructor(
         ).map {
             VideoWithChannelDto(
                 video = it.video.toDto(),
-                channel = it.channel.toDto(
-                    logo = "$BASE_URL/channels/${it.channel.channelId}/avatar",
-                    header = "$BASE_URL/channels/${it.channel.channelId}/cover"
-                )
+                channel = it.channel.toDto()
             )
         }
     }
@@ -272,10 +266,7 @@ class VideoController @Autowired constructor(
         ).map {
             VideoWithChannelDto(
                 video = it.video.toDto(),
-                channel = it.channel.toDto(
-                    logo = "$BASE_URL/channels/${it.channel.channelId}/avatar",
-                    header = "$BASE_URL/channels/${it.channel.channelId}/cover"
-                )
+                channel = it.channel.toDto()
             )
         }
     }

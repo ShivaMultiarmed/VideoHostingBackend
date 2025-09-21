@@ -1,5 +1,3 @@
-import org.gradle.internal.declarativedsl.parsing.main
-
 plugins {
 	kotlin("jvm") version "1.9.25"
 	kotlin("plugin.spring") version "1.9.25"
@@ -10,7 +8,7 @@ plugins {
 }
 
 application {
-	mainClass.set("mikhail.shell.video.hosting.ApplicationKt")
+	mainClass = "mikhail.shell.video.hosting.ApplicationKt"
 }
 
 group = "mikhail.shell"
@@ -21,7 +19,7 @@ java {
 		languageVersion = JavaLanguageVersion.of(17)
 	}
 	sourceCompatibility = JavaVersion.VERSION_17
-    	targetCompatibility = JavaVersion.VERSION_17
+	targetCompatibility = JavaVersion.VERSION_17
 }
 
 configurations {

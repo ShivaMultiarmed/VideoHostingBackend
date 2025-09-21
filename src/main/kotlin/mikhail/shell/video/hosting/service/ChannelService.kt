@@ -34,8 +34,8 @@ interface ChannelService {
     fun getChannel(channelId: Long): Channel
     fun checkOwner(userId: Long, channelId: Long): Boolean
     fun existsById(channelId: Long): Boolean
-    fun getLogo(channelId: Long): Resource
-    fun getHeader(channelId: Long): Resource
+    fun getLogo(channelId: Long, size: ImageSize): Resource
+    fun getHeader(channelId: Long, size: ImageSize): Resource
     fun editChannel(
         channel: Channel,
         header: UploadedFile?,

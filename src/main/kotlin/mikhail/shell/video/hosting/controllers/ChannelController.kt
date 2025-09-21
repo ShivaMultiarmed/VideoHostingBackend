@@ -39,16 +39,22 @@ class ChannelController @Autowired constructor(
     }
 
     @GetMapping("/{channel_id}/header")
-    fun getHeader(@PathVariable("channel_id") @LongId channelId: Long?): ResponseEntity<Resource> {
-        val image = channelService.getHeader(channelId!!)
+    fun getHeader(
+        @PathVariable("channel_id") @LongId channelId: Long?,
+        @RequestParam("size") @ValidEnum(ImageSize::class) size: String?
+    ): ResponseEntity<Resource> {
+        val image = channelService.getHeader(channelId!!, ImageSize.valueOf(size!!))
         return ResponseEntity.status(HttpStatus.OK)
             .contentType(MediaType.parseMediaType("image/${image.file.extension}"))
             .body(image)
     }
 
     @GetMapping("/{channel_id}/logo")
-    fun getLogo(@PathVariable("channel_id") @LongId channelId: Long?): ResponseEntity<Resource> {
-        val image = channelService.getLogo(channelId!!)
+    fun getLogo(
+        @PathVariable("channel_id") @LongId channelId: Long?,
+        @RequestParam("size") @ValidEnum(ImageSize::class) size: String?
+    ): ResponseEntity<Resource> {
+        val image = channelService.getLogo(channelId!!, ImageSize.valueOf(size!!))
         return ResponseEntity.status(HttpStatus.OK)
                 .contentType(MediaType.parseMediaType("image/${image.file.extension}"))
                 .body(image)
@@ -188,16 +194,6 @@ class ChannelController @Autowired constructor(
             ResponseEntity.status(HttpStatus.CONFLICT).body(Unit)
         }
     }
-
-    private fun Channel.toDto(): ChannelDto = toDto(
-        logo = "$BASE_URL/channels/$channelId/logo",
-        header = "$BASE_URL/channels/$channelId/header"
-    )
-
-    private fun ChannelWithUser.toDto() = toDto(
-        logo = "$BASE_URL/channels/$channelId/logo",
-        header = "$BASE_URL/channels/$channelId/header"
-    )
 }
 
 data class ChannelCreationRequest(
