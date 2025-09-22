@@ -79,19 +79,19 @@ class ChannelServiceWithDB @Autowired constructor(
             }
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$basePath/large.${it.name.parseExtension()}",
+                targetFile = "$basePath/large.png",
                 width = 1800,
                 height = 200
             )
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$basePath/medium.${it.name.parseExtension()}",
+                targetFile = "$basePath/medium.png",
                 width = 1000,
                 height = 120
             )
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$basePath/small.${it.name.parseExtension()}",
+                targetFile = "$basePath/small.png",
                 width = 350,
                 height = 60
             )
@@ -103,19 +103,19 @@ class ChannelServiceWithDB @Autowired constructor(
             }
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$basePath/small.${it.name.parseExtension()}",
+                targetFile = "$basePath/small.png",
                 width = 64,
                 height = 64
             )
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$basePath/medium.${it.name.parseExtension()}",
+                targetFile = "$basePath/medium.png",
                 width = 128,
                 height = 128
             )
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$basePath/large.${it.name.parseExtension()}",
+                targetFile = "$basePath/large.png",
                 width = 512,
                 height = 512
             )
@@ -124,8 +124,8 @@ class ChannelServiceWithDB @Autowired constructor(
     }
 
     override fun getLogo(channelId: Long, size: ImageSize): Resource {
-        val file = findFileByName("${appPaths.CHANNELS_BASE_PATH}/$channelId/logo/", size.name.lowercase())
-        if (!channelRepository.existsById(channelId) || file?.exists() != true) {
+        val file = Path(appPaths.CHANNELS_BASE_PATH, channelId.toString(), "logo", size.name.lowercase() + ".jpg").toFile()
+        if (!channelRepository.existsById(channelId) || !file.exists()) {
             throw NoSuchElementException()
         } else {
             return FileSystemResource(file)
@@ -137,8 +137,8 @@ class ChannelServiceWithDB @Autowired constructor(
     }
 
     override fun getHeader(channelId: Long, size: ImageSize): Resource {
-        val file = findFileByName("${appPaths.CHANNELS_BASE_PATH}/$channelId/header/", size.name.lowercase())
-        if (!channelRepository.existsById(channelId) || file?.exists() != true) {
+        val file = Path(appPaths.CHANNELS_BASE_PATH, channelId.toString(), "header", size.name.lowercase() + ".jpg").toFile()
+        if (!channelRepository.existsById(channelId) || !file.exists()) {
             throw NoSuchElementException()
         } else {
             return FileSystemResource(file)
