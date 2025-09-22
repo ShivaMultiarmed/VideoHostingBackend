@@ -17,7 +17,11 @@ import org.springframework.core.io.FileSystemResource
 import org.springframework.core.io.Resource
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
+import org.springframework.util.MimeType
+import org.springframework.util.MimeTypeUtils
 import java.io.File
+import java.net.URLConnection
+import javax.activation.MimetypesFileTypeMap
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectory
 import kotlin.io.path.notExists
@@ -75,19 +79,19 @@ class ChannelServiceWithDB @Autowired constructor(
             }
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$basePath/large.jpg",
+                targetFile = "$basePath/large.${it.name.parseExtension()}",
                 width = 1800,
                 height = 200
             )
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$basePath/medium.jpg",
+                targetFile = "$basePath/medium.${it.name.parseExtension()}",
                 width = 1000,
                 height = 120
             )
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$basePath/small.jpg",
+                targetFile = "$basePath/small.${it.name.parseExtension()}",
                 width = 350,
                 height = 60
             )
@@ -99,19 +103,19 @@ class ChannelServiceWithDB @Autowired constructor(
             }
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$basePath/small.jpg",
-                width = 32,
-                height = 32
+                targetFile = "$basePath/small.${it.name.parseExtension()}",
+                width = 64,
+                height = 64
             )
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$basePath/medium.jpg",
+                targetFile = "$basePath/medium.${it.name.parseExtension()}",
                 width = 128,
                 height = 128
             )
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$basePath/large.jpg",
+                targetFile = "$basePath/large.${it.name.parseExtension()}",
                 width = 512,
                 height = 512
             )
@@ -120,8 +124,8 @@ class ChannelServiceWithDB @Autowired constructor(
     }
 
     override fun getLogo(channelId: Long, size: ImageSize): Resource {
-        val file = File("${appPaths.CHANNELS_BASE_PATH}/$channelId/logo/${size.name.lowercase()}.jpg")
-        if (!channelRepository.existsById(channelId) || !file.exists()) {
+        val file = findFileByName("${appPaths.CHANNELS_BASE_PATH}/$channelId/logo/", size.name.lowercase())
+        if (!channelRepository.existsById(channelId) || file?.exists() != true) {
             throw NoSuchElementException()
         } else {
             return FileSystemResource(file)
@@ -133,8 +137,8 @@ class ChannelServiceWithDB @Autowired constructor(
     }
 
     override fun getHeader(channelId: Long, size: ImageSize): Resource {
-        val file = File("${appPaths.CHANNELS_BASE_PATH}/$channelId/header/${size.name.lowercase()}.jpg")
-        if (!channelRepository.existsById(channelId) || !file.exists()) {
+        val file = findFileByName("${appPaths.CHANNELS_BASE_PATH}/$channelId/header/", size.name.lowercase())
+        if (!channelRepository.existsById(channelId) || file?.exists() != true) {
             throw NoSuchElementException()
         } else {
             return FileSystemResource(file)
