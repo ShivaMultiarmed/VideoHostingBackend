@@ -6,5 +6,5 @@ import org.springframework.web.multipart.MultipartFile
 fun MultipartFile.toUploadedFile() = UploadedFile(
     name = originalFilename?: "unnamed",
     mimeType = contentType?: "application/octet-stream",
-    inputStream = inputStream
+    bytes = inputStream.use { it.readBytes() }
 )

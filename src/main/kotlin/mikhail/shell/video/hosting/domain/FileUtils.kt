@@ -15,9 +15,11 @@ fun findFileByName(directory: String, fileName: String): File? {
 fun findFileByName(directory: File, fileName: String): File? {
     return directory.listFiles { _, name -> name.parseFileName() == fileName }?.firstOrNull()
 }
+
 fun String.parseExtension(): String {
     return substringAfterLast(".", "")
 }
+
 fun String.parseFileName(): String {
     return substringBeforeLast(".")
 }
@@ -26,7 +28,7 @@ fun uploadImage(
     uploadedFile: UploadedFile,
     targetFile: String,
     width: Int = 500,
-    height: Int = 280
+    height: Int = 280,
 ) = uploadImage(
     uploadedFile = uploadedFile,
     targetFile = File(targetFile),
@@ -38,15 +40,13 @@ fun uploadImage(
     uploadedFile: UploadedFile,
     targetFile: File,
     width: Int = 500,
-    height: Int = 280
+    height: Int = 280,
 ): Boolean {
     return try {
-        uploadedFile.inputStream.use {
-            val inputImage = ImageIO.read(it)
-            val outputImage = inputImage.crop(width, height)
-            targetFile.outputStream().use {
-                ImageIO.write(outputImage, targetFile.extension, it)
-            }
+        val inputImage = ImageIO.read(uploadedFile.bytes.inputStream())
+        val outputImage = inputImage.crop(width, height)
+        targetFile.outputStream().use {
+            ImageIO.write(outputImage, targetFile.extension, it)
         }
         true
     } catch (e: Exception) {
@@ -57,7 +57,7 @@ fun uploadImage(
 
 fun BufferedImage.crop(
     width: Int = this.width,
-    height: Int = this.height
+    height: Int = this.height,
 ): BufferedImage {
     val actualRatio = this.width.toFloat() / this.height
     val targetRatio = width.toFloat() / height

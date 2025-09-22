@@ -43,7 +43,7 @@ class ChannelController @Autowired constructor(
         @PathVariable("channel_id") @LongId channelId: Long?,
         @RequestParam("size") @ValidEnum(ImageSize::class) size: String?
     ): ResponseEntity<Resource> {
-        val image = channelService.getHeader(channelId!!, ImageSize.valueOf(size!!))
+        val image = channelService.getHeader(channelId!!, ImageSize.valueOf(size!!.uppercase()))
         return ResponseEntity.status(HttpStatus.OK)
             .contentType(MediaType.parseMediaType("image/${image.file.extension}"))
             .body(image)
@@ -54,7 +54,7 @@ class ChannelController @Autowired constructor(
         @PathVariable("channel_id") @LongId channelId: Long?,
         @RequestParam("size") @ValidEnum(ImageSize::class) size: String?
     ): ResponseEntity<Resource> {
-        val image = channelService.getLogo(channelId!!, ImageSize.valueOf(size!!))
+        val image = channelService.getLogo(channelId!!, ImageSize.valueOf(size!!.uppercase()))
         return ResponseEntity.status(HttpStatus.OK)
                 .contentType(MediaType.parseMediaType("image/${image.file.extension}"))
                 .body(image)

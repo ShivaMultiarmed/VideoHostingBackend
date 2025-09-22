@@ -72,50 +72,54 @@ class ChannelServiceWithDB @Autowired constructor(
             throw ValidationException(errors)
         }
         val createdChannel = channelRepository.save(channel.toEntity()).toDomain()
+        val channelPath = Path(appPaths.CHANNELS_BASE_PATH, createdChannel.channelId!!.toString())
+        if (channelPath.notExists()) {
+            channelPath.createDirectory()
+        }
         header?.let {
-            val basePath = Path(appPaths.CHANNELS_BASE_PATH, createdChannel.channelId!!.toString())
-            if (basePath.notExists()) {
-                basePath.createDirectory()
+            val headerPath = channelPath.resolve("header")
+            if (headerPath.notExists()) {
+                headerPath.createDirectory()
             }
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$basePath/large.png",
+                targetFile = "$headerPath/large.png",
                 width = 1800,
                 height = 200
             )
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$basePath/medium.png",
+                targetFile = "$headerPath/medium.png",
                 width = 1000,
                 height = 120
             )
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$basePath/small.png",
+                targetFile = "$headerPath/small.png",
                 width = 350,
                 height = 60
             )
         }
         logo?.let {
-            val basePath = Path(appPaths.CHANNELS_BASE_PATH, createdChannel.channelId!!.toString())
-            if (basePath.notExists()) {
-                basePath.createDirectory()
+            val logoPath = channelPath.resolve("logo")
+            if (logoPath.notExists()) {
+                logoPath.createDirectory()
             }
             uploadImage(
-                uploadedFile = it,
-                targetFile = "$basePath/small.png",
+                uploadedFile = it.copy(),
+                targetFile = "$logoPath/small.png",
                 width = 64,
                 height = 64
             )
             uploadImage(
-                uploadedFile = it,
-                targetFile = "$basePath/medium.png",
+                uploadedFile = it.copy(),
+                targetFile = "$logoPath/medium.png",
                 width = 128,
                 height = 128
             )
             uploadImage(
-                uploadedFile = it,
-                targetFile = "$basePath/large.png",
+                uploadedFile = it.copy(),
+                targetFile = "$logoPath/large.png",
                 width = 512,
                 height = 512
             )
@@ -124,7 +128,7 @@ class ChannelServiceWithDB @Autowired constructor(
     }
 
     override fun getLogo(channelId: Long, size: ImageSize): Resource {
-        val file = Path(appPaths.CHANNELS_BASE_PATH, channelId.toString(), "logo", size.name.lowercase() + ".jpg").toFile()
+        val file = Path(appPaths.CHANNELS_BASE_PATH, channelId.toString(), "logo", size.name.lowercase() + ".png").toFile()
         if (!channelRepository.existsById(channelId) || !file.exists()) {
             throw NoSuchElementException()
         } else {
@@ -137,7 +141,7 @@ class ChannelServiceWithDB @Autowired constructor(
     }
 
     override fun getHeader(channelId: Long, size: ImageSize): Resource {
-        val file = Path(appPaths.CHANNELS_BASE_PATH, channelId.toString(), "header", size.name.lowercase() + ".jpg").toFile()
+        val file = Path(appPaths.CHANNELS_BASE_PATH, channelId.toString(), "header", size.name.lowercase() + ".png").toFile()
         if (!channelRepository.existsById(channelId) || !file.exists()) {
             throw NoSuchElementException()
         } else {
