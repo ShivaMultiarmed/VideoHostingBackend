@@ -95,9 +95,9 @@ class ChannelController @Autowired constructor(
                 description = channel.description
             ),
             header = header?.toUploadedFile(),
-            headerAction = channel.editHeaderAction!!,
+            headerAction = EditAction.valueOf(channel.editHeaderAction!!.uppercase()),
             logo = logo?.toUploadedFile(),
-            logoAction = channel.editLogoAction!!,
+            logoAction = EditAction.valueOf(channel.editLogoAction!!.uppercase()),
         ).toDto()
     }
 
@@ -137,7 +137,7 @@ class ChannelController @Autowired constructor(
         return channelService.changeSubscriptionState(
             subscriberId = userId,
             channelId = channelId!!,
-            subscription = Subscription.valueOf(subscription!!),
+            subscription = Subscription.valueOf(subscription!!.uppercase()),
             token = fcmToken!!
         ).toDto()
     }
@@ -212,10 +212,10 @@ data class ChannelEditingRequest(
     val title: String?,
     @field:Alias
     val alias: String?,
-    @field:NotEmpty(message = "EMPTY")
-    val editLogoAction: EditAction?,
-    @field:NotEmpty(message = "EMPTY")
-    val editHeaderAction: EditAction?,
+    @field:ValidEnum(EditAction::class)
+    val editLogoAction: String?,
+    @field:ValidEnum(EditAction::class)
+    val editHeaderAction: String?,
     @field:Description
     val description: String?
 )
