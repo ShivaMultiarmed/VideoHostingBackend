@@ -1,12 +1,8 @@
 package mikhail.shell.video.hosting.controllers.advices
 
-import com.fasterxml.jackson.databind.PropertyNamingStrategy
-import jakarta.validation.ConstraintViolationException
 import mikhail.shell.video.hosting.errors.*
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.validation.BindException
-import org.springframework.validation.BindingResult
 import org.springframework.validation.FieldError
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -14,7 +10,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.method.annotation.HandlerMethodValidationException
 
 @RestControllerAdvice
-class HostingControllerAdvice {
+class MainControllerAdvice {
     @ExceptionHandler(ValidationException::class)
     fun handleValidationException(e: ValidationException): ResponseEntity<Map<String, Error>> {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.errors)
@@ -77,12 +73,12 @@ class HostingControllerAdvice {
                         validationResult.resolvableErrors.forEach { error ->
                             when (error) {
                                 is FieldError -> {
-                                    this[error.field] = error.defaultMessage ?: UnexpectedError.toString()
+                                    this[error.field + "_error"] = error.defaultMessage ?: UnexpectedError.toString()
                                 }
                                 else -> {
                                     val parameterName = validationResult.methodParameter.parameterName
                                     if (parameterName != null && error.defaultMessage != null) {
-                                        this[parameterName] = error.defaultMessage!!
+                                        this[parameterName + "_error"] = error.defaultMessage!!
                                     }
                                 }
                             }
@@ -91,19 +87,10 @@ class HostingControllerAdvice {
                 }
             )
     }
-//
-//    @ExceptionHandler(ConstraintViolationException::class)
-//    fun handleConstraintViolationException(e: ConstraintViolationException): ResponseEntity<Map<String, String>> {
-//        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
-//            e.constraintViolations.associate { violation ->
-//                violation.propertyPath.last().name to violation.message
-//            }
-//        )
-//    }
 
-    @ExceptionHandler(Exception::class)
-    fun handleExceptions(e: Exception): ResponseEntity<Unit> {
-        e.printStackTrace()
-        return ResponseEntity.internalServerError().build()
-    }
+//    @ExceptionHandler(Exception::class)
+//    fun handleExceptions(e: Exception): ResponseEntity<Unit> {
+//        e.printStackTrace()
+//        return ResponseEntity.internalServerError().build()
+//    }
 }

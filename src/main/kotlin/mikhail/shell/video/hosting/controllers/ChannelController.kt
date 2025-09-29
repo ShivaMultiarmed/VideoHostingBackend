@@ -74,8 +74,8 @@ class ChannelController @Autowired constructor(
                 alias = channel.alias,
                 description = channel.description
             ),
-            logo = logo?.toUploadedFile(),
-            header = header?.toUploadedFile()
+            header = header?.toUploadedFile(),
+            logo = logo?.toUploadedFile()
         ).toDto()
     }
 

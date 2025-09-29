@@ -4,12 +4,19 @@ import net.coobird.thumbnailator.Thumbnails
 import net.coobird.thumbnailator.geometry.Positions
 import java.awt.image.BufferedImage
 import java.io.File
+import java.nio.file.Path
 import java.nio.file.Paths
 import javax.imageio.ImageIO
+import kotlin.io.path.Path
+import kotlin.io.path.pathString
 import kotlin.math.min
 
+fun findFileByName(directory: Path, fileName: String): File? {
+    return findFileByName(directory.pathString, fileName)
+}
+
 fun findFileByName(directory: String, fileName: String): File? {
-    return findFileByName(Paths.get(directory).toFile(), fileName)
+    return findFileByName(Path(directory).toFile(), fileName)
 }
 
 fun findFileByName(directory: File, fileName: String): File? {

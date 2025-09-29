@@ -22,9 +22,7 @@ import org.springframework.util.MimeTypeUtils
 import java.io.File
 import java.net.URLConnection
 import javax.activation.MimetypesFileTypeMap
-import kotlin.io.path.Path
-import kotlin.io.path.createDirectory
-import kotlin.io.path.notExists
+import kotlin.io.path.*
 
 @Service
 class ChannelServiceWithDB @Autowired constructor(
@@ -34,7 +32,7 @@ class ChannelServiceWithDB @Autowired constructor(
     private val videoRepository: VideoRepository,
     private val videoSearchRepository: VideoSearchRepository,
     private val fcm: FirebaseMessaging,
-    private val appPaths: ApplicationPathsInitializer
+    private val appPaths: ApplicationPathsInitializer,
 ) : ChannelService {
 
     override fun get(channelId: Long): Channel {
@@ -128,7 +126,8 @@ class ChannelServiceWithDB @Autowired constructor(
     }
 
     override fun getLogo(channelId: Long, size: ImageSize): Resource {
-        val file = Path(appPaths.CHANNELS_BASE_PATH, channelId.toString(), "logo", size.name.lowercase() + ".png").toFile()
+        val file =
+            Path(appPaths.CHANNELS_BASE_PATH, channelId.toString(), "logo", size.name.lowercase() + ".png").toFile()
         if (!channelRepository.existsById(channelId) || !file.exists()) {
             throw NoSuchElementException()
         } else {
@@ -141,7 +140,8 @@ class ChannelServiceWithDB @Autowired constructor(
     }
 
     override fun getHeader(channelId: Long, size: ImageSize): Resource {
-        val file = Path(appPaths.CHANNELS_BASE_PATH, channelId.toString(), "header", size.name.lowercase() + ".png").toFile()
+        val file =
+            Path(appPaths.CHANNELS_BASE_PATH, channelId.toString(), "header", size.name.lowercase() + ".png").toFile()
         if (!channelRepository.existsById(channelId) || !file.exists()) {
             throw NoSuchElementException()
         } else {
@@ -152,7 +152,7 @@ class ChannelServiceWithDB @Autowired constructor(
     override fun getChannelsByOwnerId(
         userId: Long,
         partIndex: Long,
-        partSize: Int
+        partSize: Int,
     ): List<Channel> {
         if (!userRepository.existsById(userId)) {
             throw NoSuchElementException()
@@ -166,7 +166,7 @@ class ChannelServiceWithDB @Autowired constructor(
     override fun getSubscriptions(
         userId: Long,
         partIndex: Long,
-        partSize: Int
+        partSize: Int,
     ): List<Channel> {
         if (!userRepository.existsById(userId)) {
             throw NoSuchElementException()
@@ -182,7 +182,7 @@ class ChannelServiceWithDB @Autowired constructor(
         subscriberId: Long,
         channelId: Long,
         subscription: Subscription,
-        token: String
+        token: String,
     ): ChannelWithUser {
         val channelEntity = channelRepository.findById(channelId).orElseThrow()
         var newSubscribersNumber = channelEntity.subscribers
@@ -205,12 +205,13 @@ class ChannelServiceWithDB @Autowired constructor(
         return savedChannel.toDomain() with subscription
     }
 
+    @OptIn(ExperimentalPathApi::class)
     override fun editChannel(
         channel: Channel,
         header: UploadedFile?,
         headerAction: EditAction,
         logo: UploadedFile?,
-        logoAction: EditAction
+        logoAction: EditAction,
     ): Channel {
         val currentChannelEntity = channelRepository
             .findById(channel.channelId!!)
@@ -235,29 +236,63 @@ class ChannelServiceWithDB @Autowired constructor(
                 description = channel.description
             )
         ).toDomain()
-        if (headerAction != EditAction.KEEP) {
-            findFileByName(appPaths.CHANNEL_HEADERS_BASE_PATH, channel.channelId.toString())?.delete()
+        val channelPath = Path(appPaths.CHANNELS_BASE_PATH, editedChannel.channelId!!.toString())
+        if (channelPath.notExists()) {
+            channelPath.createDirectory()
         }
-        if (headerAction == EditAction.UPDATE) {
-            header?.let { uploadedFile ->
+        val headerPath = channelPath.resolve("header")
+        if (headerAction == EditAction.REMOVE) {
+            headerPath.deleteRecursively()
+        } else if (headerAction == EditAction.UPDATE) {
+            header?.let {
+                if (headerPath.notExists()) {
+                    headerPath.createDirectory()
+                }
                 uploadImage(
-                    uploadedFile = uploadedFile,
-                    targetFile = "${appPaths.CHANNEL_HEADERS_BASE_PATH}/${editedChannel.channelId}.jpg",
-                    width = 512,
-                    height = 128
+                    uploadedFile = it,
+                    targetFile = "$headerPath/large.png",
+                    width = 1800,
+                    height = 200
+                )
+                uploadImage(
+                    uploadedFile = it,
+                    targetFile = "$headerPath/medium.png",
+                    width = 1000,
+                    height = 120
+                )
+                uploadImage(
+                    uploadedFile = it,
+                    targetFile = "$headerPath/small.png",
+                    width = 350,
+                    height = 60
                 )
             }
         }
-        if (logoAction != EditAction.KEEP) {
-            findFileByName(appPaths.CHANNEL_LOGOS_BASE_PATH, channel.channelId.toString())?.delete()
-        }
-        if (logoAction == EditAction.UPDATE) {
-            logo?.let { uploadedFile ->
+        val logoPath = channelPath.resolve("logo")
+        if (logoAction == EditAction.REMOVE) {
+            logoPath.deleteRecursively()
+        } else if (logoAction == EditAction.UPDATE) {
+            logo?.let {
+                if (logoPath.notExists()) {
+                    logoPath.createDirectory()
+                }
                 uploadImage(
-                    uploadedFile = uploadedFile,
-                    targetFile = "${appPaths.CHANNEL_LOGOS_BASE_PATH}/${editedChannel.channelId}.jpg",
-                    width = 512,
+                    uploadedFile = it.copy(),
+                    targetFile = "$logoPath/small.png",
+                    width = 64,
+                    height = 64
+                )
+                uploadImage(
+                    uploadedFile = it.copy(),
+                    targetFile = "$logoPath/medium.png",
+                    width = 128,
                     height = 128
+                )
+                uploadImage(
+                    uploadedFile = it.copy(),
+                    targetFile = "$logoPath/large.png",
+                    width = 512,
+                    height = 512
                 )
             }
         }
