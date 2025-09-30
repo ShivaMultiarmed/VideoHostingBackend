@@ -12,8 +12,14 @@ import org.springframework.web.method.annotation.HandlerMethodValidationExceptio
 @RestControllerAdvice
 class MainControllerAdvice {
     @ExceptionHandler(ValidationException::class)
-    fun handleValidationException(e: ValidationException): ResponseEntity<Map<String, Error>> {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.errors)
+    fun handleValidationException(e: ValidationException): ResponseEntity<Map<String, String>> {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+            e.errors.map {
+                val key = it.key.camelToSnakeCase()
+                val value = if (it.value is Enum<*>) (it.value as Enum<*>).name.lowercase() else it.toString()
+                key to value
+            }.toMap()
+        )
     }
 
     @ExceptionHandler(NoSuchElementException::class)
@@ -59,7 +65,9 @@ class MainControllerAdvice {
     fun handleValidationErrors(e: MethodArgumentNotValidException): ResponseEntity<Map<String, String>> {
         return ResponseEntity.badRequest().body(
             e.bindingResult.allErrors.associate { error ->
-                (error as FieldError).field + "Error" to (error.defaultMessage ?: UnexpectedError.toString())
+                val key = ((error as FieldError).field + "Error").camelToSnakeCase()
+                val value = (error.defaultMessage ?: UnexpectedError.toString()).lowercase()
+                key to value
             }
         )
     }
@@ -73,12 +81,12 @@ class MainControllerAdvice {
                         validationResult.resolvableErrors.forEach { error ->
                             when (error) {
                                 is FieldError -> {
-                                    this[error.field + "Error"] = error.defaultMessage ?: UnexpectedError.toString()
+                                    this[(error.field + "Error").camelToSnakeCase()] = (error.defaultMessage ?: UnexpectedError.toString()).lowercase()
                                 }
                                 else -> {
                                     val parameterName = validationResult.methodParameter.parameterName
                                     if (parameterName != null && error.defaultMessage != null) {
-                                        this[parameterName + "Error"] = error.defaultMessage!!
+                                        this[(parameterName + "Error").camelToSnakeCase()] = error.defaultMessage!!.lowercase()
                                     }
                                 }
                             }
@@ -93,4 +101,10 @@ class MainControllerAdvice {
 //        e.printStackTrace()
 //        return ResponseEntity.internalServerError().build()
 //    }
+}
+
+fun String.camelToSnakeCase(): String {
+    return replace(Regex("[A-Z]")) {
+        "_" + it.value.lowercase()
+    }
 }
