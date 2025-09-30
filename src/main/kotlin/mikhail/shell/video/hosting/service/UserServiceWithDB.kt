@@ -29,7 +29,7 @@ class UserServiceWithDB @Autowired constructor(
         }
         val errors = mutableMapOf<String, Error>()
         if (userRepository.existsByNick(user.nick)) {
-            errors["nick"] = TextError.EXISTS
+            errors["nickError"] = TextError.EXISTS
         }
         if (errors.isNotEmpty()) {
             throw ValidationException(errors)

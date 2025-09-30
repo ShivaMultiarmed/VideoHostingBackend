@@ -61,10 +61,10 @@ class ChannelServiceWithDB @Autowired constructor(
     override fun createChannel(channel: Channel, logo: UploadedFile?, header: UploadedFile?): Channel {
         val errors = mutableMapOf<String, Error>()
         if (channelRepository.existsByTitle(channel.title)) {
-            errors["title"] = TextError.EXISTS
+            errors["titleError"] = TextError.EXISTS
         }
         if (channel.alias != null && channelRepository.existsByAlias(channel.alias)) {
-            errors["alias"] = TextError.EXISTS
+            errors["aliasError"] = TextError.EXISTS
         }
         if (errors.isNotEmpty()) {
             throw ValidationException(errors)
@@ -221,10 +221,10 @@ class ChannelServiceWithDB @Autowired constructor(
         }
         val errors = mutableMapOf<String, Error>()
         if (channelRepository.existsByTitle(channel.title) && currentChannelEntity.title != channel.title) {
-            errors["title"] = TextError.EXISTS
+            errors["titleError"] = TextError.EXISTS
         }
         if (channel.alias != null && channelRepository.existsByAlias(channel.alias) && currentChannelEntity.alias != channel.alias) {
-            errors["alias"] = TextError.EXISTS
+            errors["aliasError"] = TextError.EXISTS
         }
         if (errors.isNotEmpty()) {
             throw ValidationException(errors)

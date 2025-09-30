@@ -95,9 +95,9 @@ class ChannelController @Autowired constructor(
                 description = channel.description
             ),
             header = header?.toUploadedFile(),
-            headerAction = EditAction.valueOf(channel.editHeaderAction!!.uppercase()),
+            headerAction = EditAction.valueOf(channel.headerAction!!.uppercase()),
             logo = logo?.toUploadedFile(),
-            logoAction = EditAction.valueOf(channel.editLogoAction!!.uppercase()),
+            logoAction = EditAction.valueOf(channel.logoAction!!.uppercase()),
         ).toDto()
     }
 
@@ -171,8 +171,7 @@ class ChannelController @Autowired constructor(
         @RequestParam("channel_id") @LongIdNullable channelId: Long?,
         @RequestParam("title") @Title title: String?
     ): ResponseEntity<Unit> {
-        val exists = channelService.existsByTitle(channelId, title!!)
-        return if (channelId != null && exists || channelId == null && !exists) {
+        return if (channelId != null && (channelService.existsByTitle(channelId, title!!) || !channelService.existsByTitle(null, title)) || channelId == null && !channelService.existsByTitle(null, title!!)) {
             ResponseEntity.status(HttpStatus.OK).build()
         } else {
             ResponseEntity.status(HttpStatus.CONFLICT).build()
@@ -187,8 +186,7 @@ class ChannelController @Autowired constructor(
         if (alias == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("alias" to "EMPTY"))
         }
-        val exists = channelService.existsByAlias(channelId, alias)
-        return if (channelId != null && exists || channelId == null && !exists) {
+        return if (channelId != null && (channelService.existsByAlias(channelId, alias) || !channelService.existsByAlias(null, alias)) || channelId == null && !channelService.existsByAlias(null, alias)) {
             ResponseEntity.status(HttpStatus.OK).body(Unit)
         } else {
             ResponseEntity.status(HttpStatus.CONFLICT).body(Unit)
@@ -213,9 +211,9 @@ data class ChannelEditingRequest(
     @field:Alias
     val alias: String?,
     @field:ValidEnum(EditAction::class)
-    val editLogoAction: String?,
+    val logoAction: String?,
     @field:ValidEnum(EditAction::class)
-    val editHeaderAction: String?,
+    val headerAction: String?,
     @field:Description
     val description: String?
 )

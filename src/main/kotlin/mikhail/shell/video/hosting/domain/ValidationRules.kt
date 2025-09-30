@@ -45,13 +45,13 @@ annotation class MaxFileSize(
     val groups: Array<KClass<*>> = [],
     val payload: Array<KClass<out Payload>> = []
 )
-class MaxFileSizeValidator: ConstraintValidator<MaxFileSize, MultipartFile> {
+class MaxFileSizeValidator: ConstraintValidator<MaxFileSize, MultipartFile?> {
     private var max: Long = 0
     override fun initialize(constraintAnnotation: MaxFileSize) {
         max = constraintAnnotation.max
     }
-    override fun isValid(p0: MultipartFile, p1: ConstraintValidatorContext): Boolean {
-        return p0.size <= max
+    override fun isValid(p0: MultipartFile?, p1: ConstraintValidatorContext): Boolean {
+        return p0 == null || p0.size <= max
     }
 }
 
@@ -66,9 +66,9 @@ annotation class NotEmptyFile(
     val groups: Array<KClass<*>> = [],
     val payload: Array<KClass<out Payload>> = []
 )
-class NotEmptyFileValidator: ConstraintValidator<NotEmptyFile, MultipartFile> {
-    override fun isValid(p0: MultipartFile, p1: ConstraintValidatorContext): Boolean {
-        return !p0.isEmpty
+class NotEmptyFileValidator: ConstraintValidator<NotEmptyFile, MultipartFile?> {
+    override fun isValid(p0: MultipartFile?, p1: ConstraintValidatorContext): Boolean {
+        return p0 == null || !p0.isEmpty
     }
 }
 
@@ -83,9 +83,9 @@ annotation class FileName(
     val groups: Array<KClass<*>> = [],
     val payload: Array<KClass<out Payload>> = []
 )
-class FileNameValidator: ConstraintValidator<FileName, MultipartFile> {
-    override fun isValid(p0: MultipartFile, p1: ConstraintValidatorContext): Boolean {
-        return p0.originalFilename!!.length <= MAX_TITLE_LENGTH && p0.originalFilename!!.matches(FILE_NAME_REGEX.toRegex())
+class FileNameValidator: ConstraintValidator<FileName, MultipartFile?> {
+    override fun isValid(p0: MultipartFile?, p1: ConstraintValidatorContext): Boolean {
+        return p0 == null || p0.originalFilename!!.length <= MAX_TITLE_LENGTH && p0.originalFilename!!.matches(FILE_NAME_REGEX.toRegex())
     }
 }
 
@@ -101,13 +101,13 @@ annotation class FileType(
     val groups: Array<KClass<*>> = [],
     val payload: Array<KClass<out Payload>> = []
 )
-class FileTypeValidator: ConstraintValidator<FileType, MultipartFile> {
+class FileTypeValidator: ConstraintValidator<FileType, MultipartFile?> {
     private var mime: String = ""
     override fun initialize(constraintAnnotation: FileType) {
         mime = constraintAnnotation.mime
     }
-    override fun isValid(p0: MultipartFile, p1: ConstraintValidatorContext?): Boolean {
-        return !p0.isEmpty && p0.contentType?.startsWith(mime)?: false
+    override fun isValid(p0: MultipartFile?, p1: ConstraintValidatorContext?): Boolean {
+        return p0 == null || !p0.isEmpty && p0.contentType?.startsWith(mime)?: false
     }
 }
 
