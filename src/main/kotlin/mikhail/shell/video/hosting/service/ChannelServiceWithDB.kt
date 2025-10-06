@@ -213,9 +213,7 @@ class ChannelServiceWithDB @Autowired constructor(
         logo: UploadedFile?,
         logoAction: EditAction,
     ): Channel {
-        val currentChannelEntity = channelRepository
-            .findById(channel.channelId!!)
-            .orElseThrow()
+        val currentChannelEntity = channelRepository.findById(channel.channelId!!).orElseThrow()
         if (!channelRepository.existsByOwnerIdAndChannelId(channel.ownerId, channel.channelId)) {
             throw IllegalAccessException()
         }

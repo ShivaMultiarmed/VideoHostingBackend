@@ -147,6 +147,19 @@ annotation class Nick(
     AnnotationTarget.FIELD,
     AnnotationTarget.VALUE_PARAMETER
 )
+annotation class NickNullable(
+    val message: String = "",
+    val groups: Array<KClass<*>> = [],
+    val payload: Array<KClass<out Payload>> = []
+)
+
+@NotBlankNullable(message = "EMPTY")
+@Size(max = MAX_NAME_LENGTH, message = "LARGE")
+@Constraint(validatedBy = [])
+@Target(
+    AnnotationTarget.FIELD,
+    AnnotationTarget.VALUE_PARAMETER
+)
 annotation class Name(
     val message: String = "",
     val groups: Array<KClass<*>> = [],
@@ -188,6 +201,19 @@ annotation class Password(
     AnnotationTarget.VALUE_PARAMETER
 )
 annotation class Title(
+    val message: String = "",
+    val groups: Array<KClass<*>> = [],
+    val payload: Array<KClass<out Payload>> = []
+)
+
+@NotBlankNullable(message = "EMPTY")
+@Size(max = MAX_TITLE_LENGTH, message = "LARGE")
+@Constraint(validatedBy = [])
+@Target(
+    AnnotationTarget.FIELD,
+    AnnotationTarget.VALUE_PARAMETER
+)
+annotation class TitleNullable(
     val message: String = "",
     val groups: Array<KClass<*>> = [],
     val payload: Array<KClass<out Payload>> = []

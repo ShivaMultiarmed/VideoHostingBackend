@@ -31,6 +31,22 @@ class UserController @Autowired constructor(
         return userService.get(userId).toDto()
     }
 
+    @GetMapping("/existence")
+    fun exists(
+        @RequestParam("user_id", required = false) @LongIdNullable userId: Long?,
+        @RequestParam("nick", required = false) @NickNullable nick: String?
+    ): ResponseEntity<Unit> {
+        val params = mapOf("nick" to nick).filter { it.value != null }
+        if (params.size != 1) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build()
+        }
+        return if (userId != null && (userService.existsByNick(userId, nick!!) || !userService.existsByNick(null, nick)) || userId == null && !userService.existsByNick(null, nick!!)) {
+            ResponseEntity.status(HttpStatus.OK).build()
+        } else {
+            ResponseEntity.status(HttpStatus.CONFLICT).build()
+        }
+    }
+
     @PatchMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun edit(
         @RequestPart("user") @Valid user: UserEditingRequest,

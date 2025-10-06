@@ -10,5 +10,5 @@ interface UserService {
     fun edit(user: User, avatarAction: EditAction, avatar: UploadedFile?): User
     fun remove(userId: Long)
     fun getAvatar(userId: Long): Resource
-    fun checkExistence(userId: Long): Boolean
+    fun existsByNick(userId: Long?, nick: String): Boolean
 }

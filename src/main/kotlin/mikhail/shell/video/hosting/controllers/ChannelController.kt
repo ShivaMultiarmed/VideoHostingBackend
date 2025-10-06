@@ -166,30 +166,29 @@ class ChannelController @Autowired constructor(
         channelService.removeChannel(userId = userId, channelId = channelId!!)
     }
 
-    @GetMapping("/existence/title")
-    fun existsByTitle(
+    @GetMapping("/existence")
+    fun exists(
         @RequestParam("channel_id") @LongIdNullable channelId: Long?,
-        @RequestParam("title") @Title title: String?
+        @RequestParam("title", required = false) @TitleNullable title: String?,
+        @RequestParam("alias", required = false) @Alias alias: String?
     ): ResponseEntity<Unit> {
-        return if (channelId != null && (channelService.existsByTitle(channelId, title!!) || !channelService.existsByTitle(null, title)) || channelId == null && !channelService.existsByTitle(null, title!!)) {
-            ResponseEntity.status(HttpStatus.OK).build()
-        } else {
-            ResponseEntity.status(HttpStatus.CONFLICT).build()
+        val params = mapOf("title" to title, "alias" to alias).filter { it.value != null }
+        if (params.size != 1) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build()
         }
-    }
-
-    @GetMapping("/existence/alias")
-    fun existsByAlias(
-        @RequestParam("channel_id") @LongIdNullable channelId: Long?,
-        @RequestParam("alias") @Alias alias: String?
-    ): ResponseEntity<*> {
-        if (alias == null) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("alias" to "EMPTY"))
-        }
-        return if (channelId != null && (channelService.existsByAlias(channelId, alias) || !channelService.existsByAlias(null, alias)) || channelId == null && !channelService.existsByAlias(null, alias)) {
-            ResponseEntity.status(HttpStatus.OK).body(Unit)
+        val key = params.entries.first().key
+        return if (key == "title") {
+            if (channelId != null && (channelService.existsByTitle(channelId, title!!) || !channelService.existsByTitle(null, title)) || channelId == null && !channelService.existsByTitle(null, title!!)) {
+                ResponseEntity.status(HttpStatus.OK).build()
+            } else {
+                ResponseEntity.status(HttpStatus.CONFLICT).build()
+            }
         } else {
-            ResponseEntity.status(HttpStatus.CONFLICT).body(Unit)
+            if (channelId != null && (channelService.existsByAlias(channelId, alias!!) || !channelService.existsByAlias(null, alias)) || channelId == null && !channelService.existsByAlias(null, alias!!)) {
+                ResponseEntity.status(HttpStatus.OK).body(Unit)
+            } else {
+                ResponseEntity.status(HttpStatus.CONFLICT).body(Unit)
+            }
         }
     }
 }
