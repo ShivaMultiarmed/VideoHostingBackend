@@ -40,8 +40,8 @@ class UserController @Autowired constructor(
         return userService.edit(
             user = User(
                 userId = userId,
+                nick = user.nick!!,
                 name = user.name,
-                nick = user.nick,
                 bio = user.bio,
                 tel = user.tel,
                 email = user.email
@@ -83,8 +83,8 @@ data class UserCreatingRequest(
 )
 
 data class UserEditingRequest(
-    @field:Name
-    val nick: String,
+    @field:Nick
+    val nick: String?,
     @field:Name
     val name: String?,
     @field:Description
@@ -93,5 +93,6 @@ data class UserEditingRequest(
     val tel: String?,
     @field:Email(message = "PATTERN")
     val email: String?,
-    val avatarAction: EditAction,
+    @field:ValidEnum(enumClass = EditAction::class)
+    val avatarAction: EditAction
 )

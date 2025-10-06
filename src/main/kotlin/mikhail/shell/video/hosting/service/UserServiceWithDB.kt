@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.io.FileSystemResource
 import org.springframework.core.io.Resource
 import org.springframework.stereotype.Service
+import kotlin.io.path.*
 
 @Service
 class UserServiceWithDB @Autowired constructor(
@@ -23,28 +24,48 @@ class UserServiceWithDB @Autowired constructor(
         return userRepository.findById(userId).orElseThrow().toDomain()
     }
 
+    @OptIn(ExperimentalPathApi::class)
     override fun edit(user: User, avatarAction: EditAction, avatar: UploadedFile?): User {
         if (!userRepository.existsById(user.userId!!)) {
             throw NoSuchElementException()
         }
         val errors = mutableMapOf<String, Error>()
-        if (userRepository.existsByNick(user.nick)) {
+        if (userRepository.existsByNick(user.nick) && !userRepository.existsByUserIdAndNick(user.userId, user.nick)) {
             errors["nickError"] = TextError.EXISTS
         }
         if (errors.isNotEmpty()) {
             throw ValidationException(errors)
         }
         val editedUserEntity = userRepository.save(user.toEntity())
-        if (avatarAction != EditAction.KEEP) {
-            findFileByName(appPaths.USER_AVATARS_BASE_PATH, user.userId.toString())?.delete()
+        val userPath = Path(appPaths.USERS_BASE_PATH, user.userId.toString())
+        if (userPath.notExists()) {
+            userPath.createDirectory()
         }
-        if (avatarAction == EditAction.UPDATE) {
+        val avatarPath = userPath.resolve("avatar")
+        if (avatarAction == EditAction.REMOVE) {
+            avatarPath.deleteRecursively()
+        } else if (avatarAction == EditAction.UPDATE) {
             avatar?.let {
+                if (avatarPath.notExists()) {
+                    avatarPath.createDirectory()
+                }
                 uploadImage(
                     uploadedFile = it,
-                    targetFile = "${appPaths.USER_AVATARS_BASE_PATH}/${user.userId}.jpg",
-                    width = 480,
-                    height = 480
+                    targetFile = "$avatarPath/large.png",
+                    width = 512,
+                    height = 512
+                )
+                uploadImage(
+                    uploadedFile = it,
+                    targetFile = "$avatarPath/medium.png",
+                    width = 128,
+                    height = 128
+                )
+                uploadImage(
+                    uploadedFile = it,
+                    targetFile = "$avatarPath/small.png",
+                    width = 64,
+                    height = 64
                 )
             }
         }

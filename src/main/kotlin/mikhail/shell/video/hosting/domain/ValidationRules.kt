@@ -127,6 +127,19 @@ annotation class Image(
 )
 
 
+@NotBlank(message = "EMPTY")
+@Size(max = MAX_NAME_LENGTH, message = "LARGE")
+@Constraint(validatedBy = [])
+@Target(
+    AnnotationTarget.FIELD,
+    AnnotationTarget.VALUE_PARAMETER
+)
+annotation class Nick(
+    val message: String = "",
+    val groups: Array<KClass<*>> = [],
+    val payload: Array<KClass<out Payload>> = []
+)
+
 @NotBlankNullable(message = "EMPTY")
 @Size(max = MAX_NAME_LENGTH, message = "LARGE")
 @Constraint(validatedBy = [])

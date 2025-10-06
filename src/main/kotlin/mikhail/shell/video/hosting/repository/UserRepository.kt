@@ -7,4 +7,5 @@ import java.util.*
 @Repository
 interface UserRepository: JpaRepository<UserEntity, Long> {
     fun existsByNick(nick: String): Boolean
+    fun existsByUserIdAndNick(userId: Long, nick: String): Boolean
 }
