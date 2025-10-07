@@ -10,17 +10,15 @@ data class UserDto(
     val userId: Long? = null,
     val name: String? = null,
     val nick: String,
-    val avatar: String? = null,
     val bio: String? = null,
     val tel: String? = null,
     val email: String? = null
 )
 
-fun User.toDto(avatar: String? = null) = UserDto(
+fun User.toDto() = UserDto(
     userId = userId,
     name = name,
     nick = nick,
-    avatar = avatar,
     bio = bio,
     tel = tel,
     email = email

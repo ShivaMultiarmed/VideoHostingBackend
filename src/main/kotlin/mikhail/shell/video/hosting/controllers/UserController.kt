@@ -3,7 +3,6 @@ package mikhail.shell.video.hosting.controllers
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.Pattern
-import jakarta.validation.constraints.Positive
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ValidationRules.TEL_REGEX
 import mikhail.shell.video.hosting.dto.UserDto
@@ -26,6 +25,7 @@ class UserController @Autowired constructor(
 ) {
     @Value("\${video-hosting.server.base-url}")
     private lateinit var BASE_URL: String
+
     @GetMapping("/{user_id}")
     fun get(@PathVariable("user_id") @LongId userId: Long): UserDto {
         return userService.get(userId).toDto()
@@ -33,17 +33,28 @@ class UserController @Autowired constructor(
 
     @GetMapping("/existence")
     fun exists(
-        @RequestParam("user_id", required = false) @LongIdNullable userId: Long?,
-        @RequestParam("nick", required = false) @NickNullable nick: String?
+        @RequestParam("purpose") @ValidEnum(NickCheckPurpose::class) purpose: String?,
+        @RequestParam("nick") @Nick nick: String?,
+        @AuthenticationPrincipal userId: Long?
     ): ResponseEntity<Unit> {
-        val params = mapOf("nick" to nick).filter { it.value != null }
-        if (params.size != 1) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build()
-        }
-        return if (userId != null && (userService.existsByNick(userId, nick!!) || !userService.existsByNick(null, nick)) || userId == null && !userService.existsByNick(null, nick!!)) {
-            ResponseEntity.status(HttpStatus.OK).build()
-        } else {
-            ResponseEntity.status(HttpStatus.CONFLICT).build()
+        return when(NickCheckPurpose.valueOf(purpose!!.uppercase())) {
+            NickCheckPurpose.SIGN_UP -> {
+                if (!userService.existsByNick(nick = nick!!)) {
+                    ResponseEntity.status(HttpStatus.OK).build()
+                } else {
+                    ResponseEntity.status(HttpStatus.CONFLICT).build()
+                }
+            }
+            NickCheckPurpose.EDIT -> {
+                if (userId == null) {
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
+                }
+                if (userService.existsByNick(userId, nick!!) || !userService.existsByNick(null, nick)) {
+                    ResponseEntity.status(HttpStatus.OK).build()
+                } else {
+                    ResponseEntity.status(HttpStatus.CONFLICT).build()
+                }
+            }
         }
     }
 
@@ -62,7 +73,7 @@ class UserController @Autowired constructor(
                 tel = user.tel,
                 email = user.email
             ),
-            avatarAction = user.avatarAction,
+            avatarAction = EditAction.valueOf(user.avatarAction!!.uppercase()),
             avatar = avatar?.toUploadedFile()
         ).toDto()
     }
@@ -73,16 +84,15 @@ class UserController @Autowired constructor(
     }
 
     @GetMapping("/{user_id}/avatar")
-    fun getAvatar(@PathVariable("user_id") @LongId userId: Long): ResponseEntity<Resource> {
-        val image = userService.getAvatar(userId)
+    fun getAvatar(
+        @PathVariable("user_id") @LongId userId: Long,
+        @RequestParam("size") @ValidEnum(ImageSize::class) size: String?
+    ): ResponseEntity<Resource> {
+        val image = userService.getAvatar(userId, ImageSize.valueOf(size!!.uppercase()))
         return ResponseEntity.status(HttpStatus.OK)
             .contentType(MediaType.parseMediaType("image/${image.file.extension}"))
             .body(image)
     }
-
-    private fun User.toDto() = toDto(
-        avatar = "$BASE_URL/users/$userId/avatar"
-    )
 }
 
 data class UserCreatingRequest(
@@ -110,5 +120,5 @@ data class UserEditingRequest(
     @field:Email(message = "PATTERN")
     val email: String?,
     @field:ValidEnum(enumClass = EditAction::class)
-    val avatarAction: EditAction
+    val avatarAction: String?
 )

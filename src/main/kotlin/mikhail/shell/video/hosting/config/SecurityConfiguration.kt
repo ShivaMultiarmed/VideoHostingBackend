@@ -28,6 +28,7 @@ class SecurityConfiguration(
             }.authorizeHttpRequests {
                 it.requestMatchers(
                     "/api/v2/auth/**",
+                    "/api/v2/users/existence**",
                     "/docs/**",
                     "/css/**",
                     "/.well-known/assetlinks.json",

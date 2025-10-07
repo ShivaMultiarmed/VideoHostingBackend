@@ -46,9 +46,7 @@ class CommentController @Autowired constructor(
                 text = request.text,
                 dateTime = Instant.now()
             )
-        ).toDto(
-            avatar = "$BASE_URL/users/$userId/avatar"
-        )
+        ).toDto()
     }
 
     @PatchMapping
@@ -63,9 +61,7 @@ class CommentController @Autowired constructor(
                 text = request.text,
                 videoId = commentService.get(request.commentId).videoId
             )
-        ).toDto(
-            avatar = "$BASE_URL/users/$userId/avatar"
-        )
+        ).toDto()
     }
 
     @GetMapping("/videos/{video_id}")
@@ -80,9 +76,7 @@ class CommentController @Autowired constructor(
             before = before,
             partSize = partSize
         ).map {
-            it.toDto(
-                avatar = "$BASE_URL/users/${it.user.userId}/avatar"
-            )
+            it.toDto()
         }
     }
 

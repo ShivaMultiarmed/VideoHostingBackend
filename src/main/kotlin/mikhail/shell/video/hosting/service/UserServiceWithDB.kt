@@ -94,11 +94,12 @@ class UserServiceWithDB @Autowired constructor(
         userRepository.deleteById(userId)
     }
 
-    override fun getAvatar(userId: Long): Resource {
-        return FileSystemResource(
-            findFileByName(appPaths.USER_AVATARS_BASE_PATH, userId.toString())
-                .takeUnless { !userRepository.existsById(userId) || it?.exists() != true }
-                ?: throw NoSuchElementException()
-        )
+    override fun getAvatar(userId: Long, size: ImageSize): Resource {
+        val file = Path(appPaths.USERS_BASE_PATH, userId.toString(), "avatar", size.name.lowercase() + ".png").toFile()
+        if (!userRepository.existsById(userId) || !file.exists()) {
+            throw NoSuchElementException()
+        } else {
+            return FileSystemResource(file)
+        }
     }
 }
