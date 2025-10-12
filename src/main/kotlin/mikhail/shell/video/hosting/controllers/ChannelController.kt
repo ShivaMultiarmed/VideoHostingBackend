@@ -68,18 +68,18 @@ class ChannelController @Autowired constructor(
         @AuthenticationPrincipal userId: Long,
     ): ChannelDto {
         return channelService.createChannel(
-            channel = Channel(
+            channel = ChannelCreationModel(
                 ownerId = userId,
                 title = channel.title!!,
                 alias = channel.alias,
-                description = channel.description
-            ),
-            header = header?.toUploadedFile(),
-            logo = logo?.toUploadedFile()
+                description = channel.description,
+                header = header?.toUploadedFile(),
+                logo = logo?.toUploadedFile()
+            )
         ).toDto()
     }
 
-    @PatchMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    @PutMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun editChannel(
         @RequestPart("channel") @Valid channel: ChannelEditingRequest,
         @RequestPart("logo", required = false) @Image logo: MultipartFile?,
@@ -87,17 +87,17 @@ class ChannelController @Autowired constructor(
         @AuthenticationPrincipal userId: Long
     ): ChannelDto {
         return channelService.editChannel(
-            channel = Channel(
-                channelId = channel.channelId,
+            channel = ChannelEditingModel(
+                channelId = channel.channelId!!,
                 ownerId = userId,
                 title = channel.title!!,
                 alias = channel.alias,
-                description = channel.description
-            ),
-            header = header?.toUploadedFile(),
-            headerAction = EditAction.valueOf(channel.headerAction!!.uppercase()),
-            logo = logo?.toUploadedFile(),
-            logoAction = EditAction.valueOf(channel.logoAction!!.uppercase()),
+                description = channel.description,
+                header = header?.toUploadedFile(),
+                headerAction = EditAction.valueOf(channel.headerAction!!.uppercase()),
+                logo = logo?.toUploadedFile(),
+                logoAction = EditAction.valueOf(channel.logoAction!!.uppercase())
+            )
         ).toDto()
     }
 

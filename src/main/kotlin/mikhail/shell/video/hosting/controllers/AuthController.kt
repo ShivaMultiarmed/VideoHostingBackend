@@ -49,19 +49,20 @@ class AuthController(
     @PostMapping("/signup/password/confirmation")
     fun confirmSignUpWithPassword(
         request: HttpServletRequest,
-        @RequestBody @Valid signUpRequest: SignUpRequest
+        @RequestBody @Valid user: UserCreatingRequest
     ) {
-        authService.confirmSignUpWithPassword(
-            token = request.getHeader(HttpHeaders.AUTHORIZATION).removePrefix("Bearer "),
-            password = signUpRequest.password,
-            user = User(
-                nick = signUpRequest.userCreatingRequest.nick,
-                name = signUpRequest.userCreatingRequest.name,
-                bio = signUpRequest.userCreatingRequest.bio,
-                tel = signUpRequest.userCreatingRequest.tel,
-                email = signUpRequest.userCreatingRequest.nick,
-            )
-        )
+        TODO()
+//        authService.confirmSignUpWithPassword(
+//            token = request.getHeader(HttpHeaders.AUTHORIZATION).removePrefix("Bearer "),
+//            password = user.password!!,
+//            user = User(
+//                nick = user.nick!!,
+//                name = user.name,
+//                bio = user.bio,
+//                tel = user.tel,
+//                email = user.email,
+//            )
+//        )
     }
 
     @PostMapping("/reset/password/request")

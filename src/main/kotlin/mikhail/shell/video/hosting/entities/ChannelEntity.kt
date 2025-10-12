@@ -18,7 +18,7 @@ data class ChannelEntity(
 )
 
 fun ChannelEntity.toDomain() = Channel(
-    channelId = channelId,
+    channelId = channelId!!,
     ownerId = ownerId,
     title = title,
     alias = alias,

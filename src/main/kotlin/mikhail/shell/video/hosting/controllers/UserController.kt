@@ -58,23 +58,23 @@ class UserController @Autowired constructor(
         }
     }
 
-    @PatchMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    @PutMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun edit(
         @RequestPart("user") @Valid user: UserEditingRequest,
         @RequestPart("avatar") @Image avatar: MultipartFile?,
         @AuthenticationPrincipal userId: Long
     ): UserDto {
         return userService.edit(
-            user = User(
+            user = UserEditingModel(
                 userId = userId,
                 nick = user.nick!!,
                 name = user.name,
                 bio = user.bio,
                 tel = user.tel,
-                email = user.email
-            ),
-            avatarAction = EditAction.valueOf(user.avatarAction!!.uppercase()),
-            avatar = avatar?.toUploadedFile()
+                email = user.email,
+                avatar = avatar?.toUploadedFile(),
+                avatarAction = EditAction.valueOf(user.avatarAction!!.uppercase())
+            )
         ).toDto()
     }
 
@@ -96,10 +96,12 @@ class UserController @Autowired constructor(
 }
 
 data class UserCreatingRequest(
-    @field:Name
-    val nick: String,
+    @field:Nick
+    val nick: String?,
     @field:Name
     val name: String?,
+    @field:Password
+    val password: String?,
     @field:Description
     val bio: String?,
     @field:Pattern(regexp = TEL_REGEX, message = "PATTERN")

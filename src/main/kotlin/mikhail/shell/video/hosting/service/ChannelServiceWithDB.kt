@@ -2,6 +2,7 @@ package mikhail.shell.video.hosting.service
 
 import com.google.firebase.messaging.FirebaseMessaging
 import jakarta.transaction.Transactional
+import mikhail.shell.video.hosting.controllers.ChannelCreationRequest
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.Subscription.NOT_SUBSCRIBED
 import mikhail.shell.video.hosting.domain.Subscription.SUBSCRIBED
@@ -17,11 +18,7 @@ import org.springframework.core.io.FileSystemResource
 import org.springframework.core.io.Resource
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
-import org.springframework.util.MimeType
-import org.springframework.util.MimeTypeUtils
 import java.io.File
-import java.net.URLConnection
-import javax.activation.MimetypesFileTypeMap
 import kotlin.io.path.*
 
 @Service
@@ -58,7 +55,7 @@ class ChannelServiceWithDB @Autowired constructor(
     }
 
     @Transactional
-    override fun createChannel(channel: Channel, logo: UploadedFile?, header: UploadedFile?): Channel {
+    override fun createChannel(channel: ChannelCreationModel): Channel {
         val errors = mutableMapOf<String, Error>()
         if (channelRepository.existsByTitle(channel.title)) {
             errors["titleError"] = TextError.EXISTS
@@ -69,12 +66,19 @@ class ChannelServiceWithDB @Autowired constructor(
         if (errors.isNotEmpty()) {
             throw ValidationException(errors)
         }
-        val createdChannel = channelRepository.save(channel.toEntity()).toDomain()
-        val channelPath = Path(appPaths.CHANNELS_BASE_PATH, createdChannel.channelId!!.toString())
+        val createdChannel = channelRepository.save(
+            ChannelEntity(
+                ownerId = channel.ownerId,
+                title = channel.title,
+                alias = channel.alias,
+                description = channel.description
+            )
+        ).toDomain()
+        val channelPath = Path(appPaths.CHANNELS_BASE_PATH, createdChannel.channelId.toString())
         if (channelPath.notExists()) {
             channelPath.createDirectory()
         }
-        header?.let {
+        channel.header?.let {
             val headerPath = channelPath.resolve("header")
             if (headerPath.notExists()) {
                 headerPath.createDirectory()
@@ -98,7 +102,7 @@ class ChannelServiceWithDB @Autowired constructor(
                 height = 60
             )
         }
-        logo?.let {
+        channel.logo?.let {
             val logoPath = channelPath.resolve("logo")
             if (logoPath.notExists()) {
                 logoPath.createDirectory()
@@ -207,13 +211,9 @@ class ChannelServiceWithDB @Autowired constructor(
 
     @OptIn(ExperimentalPathApi::class)
     override fun editChannel(
-        channel: Channel,
-        header: UploadedFile?,
-        headerAction: EditAction,
-        logo: UploadedFile?,
-        logoAction: EditAction,
+        channel: ChannelEditingModel,
     ): Channel {
-        val currentChannelEntity = channelRepository.findById(channel.channelId!!).orElseThrow()
+        val currentChannelEntity = channelRepository.findById(channel.channelId).orElseThrow()
         if (!channelRepository.existsByOwnerIdAndChannelId(channel.ownerId, channel.channelId)) {
             throw IllegalAccessException()
         }
@@ -234,15 +234,15 @@ class ChannelServiceWithDB @Autowired constructor(
                 description = channel.description
             )
         ).toDomain()
-        val channelPath = Path(appPaths.CHANNELS_BASE_PATH, editedChannel.channelId!!.toString())
+        val channelPath = Path(appPaths.CHANNELS_BASE_PATH, editedChannel.channelId.toString())
         if (channelPath.notExists()) {
             channelPath.createDirectory()
         }
         val headerPath = channelPath.resolve("header")
-        if (headerAction == EditAction.REMOVE) {
+        if (channel.headerAction == EditAction.REMOVE) {
             headerPath.deleteRecursively()
-        } else if (headerAction == EditAction.UPDATE) {
-            header?.let {
+        } else if (channel.headerAction == EditAction.UPDATE) {
+            channel.header?.let {
                 if (headerPath.notExists()) {
                     headerPath.createDirectory()
                 }
@@ -267,10 +267,10 @@ class ChannelServiceWithDB @Autowired constructor(
             }
         }
         val logoPath = channelPath.resolve("logo")
-        if (logoAction == EditAction.REMOVE) {
+        if (channel.logoAction == EditAction.REMOVE) {
             logoPath.deleteRecursively()
-        } else if (logoAction == EditAction.UPDATE) {
-            logo?.let {
+        } else if (channel.logoAction == EditAction.UPDATE) {
+            channel.logo?.let {
                 if (logoPath.notExists()) {
                     logoPath.createDirectory()
                 }

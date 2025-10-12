@@ -7,12 +7,12 @@ import mikhail.shell.video.hosting.domain.User
 import mikhail.shell.video.hosting.domain.ValidationRules.PASSWORD_REGEX
 
 data class UserDto(
-    val userId: Long? = null,
-    val name: String? = null,
+    val userId: Long,
     val nick: String,
-    val bio: String? = null,
-    val tel: String? = null,
-    val email: String? = null
+    val name: String?,
+    val bio: String?,
+    val tel: String?,
+    val email: String?
 )
 
 fun User.toDto() = UserDto(

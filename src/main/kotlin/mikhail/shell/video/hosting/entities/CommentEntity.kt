@@ -1,6 +1,7 @@
 package mikhail.shell.video.hosting.entities
 
 import jakarta.persistence.*
+import kotlinx.datetime.Clock
 import mikhail.shell.video.hosting.domain.Comment
 import mikhail.shell.video.hosting.domain.CommentWithUser
 import mikhail.shell.video.hosting.repository.UserEntity
@@ -16,7 +17,7 @@ data class CommentEntity(
     val videoId: Long,
     @Column(name = "user_id")
     val userId: Long,
-    val dateTime: Instant? = null,
+    val dateTime: Instant = Instant.now(),
     val text: String
 )
 
@@ -28,7 +29,7 @@ data class CommentWithUserEntity(
     val videoId: Long,
     @Column(name = "user_id")
     val userId: Long,
-    val dateTime: Instant? = null,
+    val dateTime: Instant = Instant.now(),
     val text: String,
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(
@@ -40,12 +41,38 @@ data class CommentWithUserEntity(
     val user: UserEntity
 )
 
-fun Comment.toEntity() = CommentEntity(commentId, videoId, userId, dateTime, text)
-fun CommentEntity.toDomain() = Comment(commentId, videoId, userId, dateTime, text)
+fun Comment.toEntity() = CommentEntity(
+    commentId = commentId,
+    videoId = videoId,
+    userId = userId,
+    dateTime = dateTime,
+    text = text
+)
+fun CommentEntity.toDomain() = Comment(
+    commentId = commentId!!,
+    videoId = videoId,
+    userId = userId,
+    dateTime = dateTime,
+    text = text
+)
 
-fun CommentWithUser.toEntity() = CommentWithUserEntity(comment.commentId, comment.videoId, comment.userId, comment.dateTime, comment.text, user.toEntity())
+fun CommentWithUser.toEntity() = CommentWithUserEntity(
+    commentId = comment.commentId,
+    videoId = comment.videoId,
+    userId = comment.userId,
+    dateTime = comment.dateTime,
+    text = comment.text,
+    user = user.toEntity()
+)
 fun CommentWithUserEntity.toDomain(): CommentWithUser {
-    val comment = Comment(commentId, videoId, userId, dateTime, text)
-    val user = user.toDomain()
-    return CommentWithUser(comment, user)
+    return CommentWithUser(
+        comment = Comment(
+            commentId = commentId!!,
+            videoId = videoId,
+            userId = userId,
+            dateTime = dateTime,
+            text = text
+        ),
+        user = user.toDomain()
+    )
 }

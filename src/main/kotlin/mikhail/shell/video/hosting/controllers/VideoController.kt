@@ -227,7 +227,7 @@ class VideoController @Autowired constructor(
         return videoService.incrementViews(videoId!!).toDto()
     }
 
-    @PatchMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    @PutMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun editVideo(
         @RequestPart("video") @Valid video: VideoEditingRequest,
         @RequestPart("cover", required = false) @Image cover: MultipartFile?,

@@ -5,25 +5,17 @@ import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Positive
-import mikhail.shell.video.hosting.domain.Comment
+import mikhail.shell.video.hosting.domain.CommentCreationModel
+import mikhail.shell.video.hosting.domain.CommentEditingModel
 import mikhail.shell.video.hosting.domain.LongId
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_TEXT_LENGTH
-import mikhail.shell.video.hosting.dto.CommentDto
 import mikhail.shell.video.hosting.dto.CommentWithUserDto
 import mikhail.shell.video.hosting.dto.toDto
 import mikhail.shell.video.hosting.service.CommentService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.security.core.annotation.AuthenticationPrincipal
-import org.springframework.web.bind.annotation.DeleteMapping
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PatchMapping
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 import java.time.Instant
 
 @RestController
@@ -36,30 +28,28 @@ class CommentController @Autowired constructor(
 
     @PostMapping
     fun post(
-        @Valid @RequestBody request: CommentCreationRequest,
+        @Valid @RequestBody comment: CommentCreationRequest,
         @AuthenticationPrincipal userId: Long,
     ): CommentWithUserDto {
         return commentService.post(
-            Comment(
-                videoId = request.videoId,
+            CommentCreationModel(
+                videoId = comment.videoId,
                 userId = userId,
-                text = request.text,
-                dateTime = Instant.now()
+                text = comment.text
             )
         ).toDto()
     }
 
-    @PatchMapping
+    @PutMapping
     fun edit(
-        @Valid @RequestBody request: CommentEditingRequest,
+        @Valid @RequestBody comment: CommentEditingRequest,
         @AuthenticationPrincipal userId: Long,
     ): CommentWithUserDto {
         return commentService.edit(
-            Comment(
-                commentId = request.commentId,
+            comment = CommentEditingModel(
+                commentId = comment.commentId,
                 userId = userId,
-                text = request.text,
-                videoId = commentService.get(request.commentId).videoId
+                text = comment.text
             )
         ).toDto()
     }

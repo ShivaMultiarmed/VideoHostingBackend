@@ -1,13 +1,12 @@
 package mikhail.shell.video.hosting.service
 
 import mikhail.shell.video.hosting.domain.*
+import mikhail.shell.video.hosting.entities.CommentEntity
 import mikhail.shell.video.hosting.entities.toDomain
-import mikhail.shell.video.hosting.entities.toEntity
 import mikhail.shell.video.hosting.repository.CommentRepository
 import mikhail.shell.video.hosting.repository.CommentWithUserRepository
 import mikhail.shell.video.hosting.repository.VideoRepository
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import java.time.Instant
@@ -18,12 +17,18 @@ class CommentServiceWithDB @Autowired constructor(
     private val commentWithUserRepository: CommentWithUserRepository,
     private val videoRepository: VideoRepository
 ) : CommentService {
-    override fun post(comment: Comment): CommentWithUser {
+    override fun post(comment: CommentCreationModel): CommentWithUser {
         if (!videoRepository.existsById(comment.videoId)) {
             throw NoSuchElementException()
         }
-        val postedComment = commentRepository.save(comment.toEntity()).toDomain()
-        return commentWithUserRepository.findById(postedComment.commentId!!).orElseThrow().toDomain()
+        val postedComment = commentRepository.save(
+            CommentEntity(
+                videoId = comment.videoId,
+                userId = comment.userId,
+                text = comment.text
+            )
+        ).toDomain()
+        return commentWithUserRepository.findById(postedComment.commentId).orElseThrow().toDomain()
     }
 
     override fun removeAllByUserId(userId: Long): Boolean {
@@ -47,8 +52,8 @@ class CommentServiceWithDB @Autowired constructor(
         ).map { it.toDomain() }
     }
 
-    override fun edit(comment: Comment): CommentWithUser {
-        val commentEntity = commentRepository.findById(comment.commentId!!).orElseThrow()
+    override fun edit(comment: CommentEditingModel): CommentWithUser {
+        val commentEntity = commentRepository.findById(comment.commentId).orElseThrow()
         if (comment.userId != commentEntity.userId) {
             throw IllegalAccessException()
         }

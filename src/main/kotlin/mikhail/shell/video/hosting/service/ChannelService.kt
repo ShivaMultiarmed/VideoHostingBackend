@@ -7,11 +7,6 @@ interface ChannelService {
     fun get(channelId: Long): Channel
     fun getForUser(channelId: Long, userId: Long): ChannelWithUser
     fun checkIfSubscribed(channelId: Long, userId: Long): Boolean
-    fun createChannel(
-        channel: Channel,
-        logo: UploadedFile?,
-        header: UploadedFile?
-    ): Channel
     fun getChannelsByOwnerId(userId: Long): List<Channel>
     fun getChannelsByOwnerId(
         userId: Long,
@@ -36,14 +31,9 @@ interface ChannelService {
     fun existsById(channelId: Long): Boolean
     fun getLogo(channelId: Long, size: ImageSize): Resource
     fun getHeader(channelId: Long, size: ImageSize): Resource
-    fun editChannel(
-        channel: Channel,
-        header: UploadedFile?,
-        headerAction: EditAction,
-        logo: UploadedFile?,
-        logoAction: EditAction
-    ): Channel
+    fun editChannel(channel: ChannelEditingModel): Channel
     fun removeChannel(userId: Long, channelId: Long)
     fun existsByTitle(channelId: Long? = null, title: String): Boolean
     fun existsByAlias(channelId: Long? = null, alias: String): Boolean
+    fun createChannel(channel: ChannelCreationModel): Channel
 }

@@ -1,10 +1,25 @@
 package mikhail.shell.video.hosting.domain
 
 data class User(
-    val userId: Long? = null,
-    val name: String? = null,
+    val userId: Long,
     val nick: String,
-    val bio: String? = null,
-    val tel: String? = null,
-    val email: String? = null
+    val name: String?,
+    val bio: String?,
+    val tel: String?,
+    val email: String?
+)
+
+data class UserCreatingModel(
+    val nick: String,
+)
+
+data class UserEditingModel(
+    val userId: Long,
+    val nick: String,
+    val name: String?,
+    val bio: String?,
+    val tel: String?,
+    val email: String?,
+    val avatar: UploadedFile?,
+    val avatarAction: EditAction
 )

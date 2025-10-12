@@ -25,8 +25,8 @@ class UserServiceWithDB @Autowired constructor(
     }
 
     @OptIn(ExperimentalPathApi::class)
-    override fun edit(user: User, avatarAction: EditAction, avatar: UploadedFile?): User {
-        if (!userRepository.existsById(user.userId!!)) {
+    override fun edit(user: UserEditingModel): User {
+        if (!userRepository.existsById(user.userId)) {
             throw NoSuchElementException()
         }
         val errors = mutableMapOf<String, Error>()
@@ -36,16 +36,25 @@ class UserServiceWithDB @Autowired constructor(
         if (errors.isNotEmpty()) {
             throw ValidationException(errors)
         }
-        val editedUserEntity = userRepository.save(user.toEntity())
+        val userToEdit = userRepository.findById(user.userId).get()
+        val editedUserEntity = userRepository.save(
+            userToEdit.copy(
+                nick = user.nick,
+                name = user.name,
+                bio = user.bio,
+                tel = user.tel,
+                email = user.email
+            )
+        )
         val userPath = Path(appPaths.USERS_BASE_PATH, user.userId.toString())
         if (userPath.notExists()) {
             userPath.createDirectory()
         }
         val avatarPath = userPath.resolve("avatar")
-        if (avatarAction == EditAction.REMOVE) {
+        if (user.avatarAction == EditAction.REMOVE) {
             avatarPath.deleteRecursively()
-        } else if (avatarAction == EditAction.UPDATE) {
-            avatar?.let {
+        } else if (user.avatarAction == EditAction.UPDATE) {
+            user.avatar?.let {
                 if (avatarPath.notExists()) {
                     avatarPath.createDirectory()
                 }
@@ -85,7 +94,7 @@ class UserServiceWithDB @Autowired constructor(
             throw NoSuchElementException()
         }
         channelService.getChannelsByOwnerId(userId).forEach {
-            channelService.removeChannel(userId, it.channelId!!)
+            channelService.removeChannel(userId, it.channelId)
         }
         commentService.removeAllByUserId(userId)
         val credentialIds = authDetailRepository.findById_UserId(userId).map { it.id }

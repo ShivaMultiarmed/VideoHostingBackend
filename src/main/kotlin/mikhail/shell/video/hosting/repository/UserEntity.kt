@@ -8,12 +8,12 @@ import mikhail.shell.video.hosting.domain.User
 data class UserEntity(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "user_id")
-    val userId: Long? = null,
-    val name: String? = null,
+    val userId: Long?,
     val nick: String,
-    val bio: String? = null,
-    val tel: String? = null,
-    val email: String? = null
+    val name: String?,
+    val bio: String?,
+    val tel: String?,
+    val email: String?
 )
 
 fun User.toEntity() = UserEntity(
@@ -25,7 +25,7 @@ fun User.toEntity() = UserEntity(
     email = email
 )
 fun UserEntity.toDomain() = User(
-    userId = userId,
+    userId = userId!!,
     name = name,
     nick = nick,
     bio = bio,

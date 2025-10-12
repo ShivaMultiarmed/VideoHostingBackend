@@ -1,22 +1,22 @@
 package mikhail.shell.video.hosting.domain
 
 data class Channel(
-    val channelId: Long? = null,
+    val channelId: Long,
     val ownerId: Long,
     val title: String,
-    val alias: String? = null,
-    val description: String? = null,
-    val subscribers: Long = 0
+    val alias: String?,
+    val description: String?,
+    val subscribers: Long
 )
 
 data class ChannelWithUser(
-    val channelId: Long? = null,
+    val channelId: Long,
     val ownerId: Long,
     val title: String,
-    val alias: String? = null,
-    val description: String? = null,
-    val subscribers: Long = 0,
-    val subscription: Subscription = Subscription.NOT_SUBSCRIBED
+    val alias: String?,
+    val description: String?,
+    val subscribers: Long,
+    val subscription: Subscription
 )
 
 infix fun Channel.with(subscription: Subscription) = ChannelWithUser(
@@ -27,4 +27,25 @@ infix fun Channel.with(subscription: Subscription) = ChannelWithUser(
     description = description,
     subscribers = subscribers,
     subscription = subscription
+)
+
+data class ChannelCreationModel(
+    val ownerId: Long,
+    val title: String,
+    val alias: String?,
+    val description: String?,
+    val header: UploadedFile?,
+    val logo: UploadedFile?
+)
+
+data class ChannelEditingModel(
+    val channelId: Long,
+    val ownerId: Long,
+    val title: String,
+    val alias: String?,
+    val description: String?,
+    val header: UploadedFile?,
+    val headerAction: EditAction,
+    val logo: UploadedFile?,
+    val logoAction: EditAction
 )

@@ -5,16 +5,14 @@ import mikhail.shell.video.hosting.domain.Comment
 import mikhail.shell.video.hosting.domain.CommentWithUser
 import java.time.Instant
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
 data class CommentDto(
-    val commentId: Long? = null,
+    val commentId: Long,
     val videoId: Long,
     val userId: Long,
-    val dateTime: Instant? = null,
+    val dateTime: Instant,
     val text: String
 )
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
 data class CommentWithUserDto(
     val comment: CommentDto,
     val user: UserDto
