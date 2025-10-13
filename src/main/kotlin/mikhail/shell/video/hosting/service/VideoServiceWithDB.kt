@@ -1,10 +1,14 @@
 package mikhail.shell.video.hosting.service
 
-import co.elastic.clients.elasticsearch._types.ScoreSort
+import co.elastic.clients.elasticsearch._types.Script
+import co.elastic.clients.elasticsearch._types.ScriptSort
+import co.elastic.clients.elasticsearch._types.ScriptSortType
 import co.elastic.clients.elasticsearch._types.SortOptions
-import co.elastic.clients.elasticsearch._types.SortOptionsBuilders
 import co.elastic.clients.elasticsearch._types.SortOrder
-import co.elastic.clients.elasticsearch._types.query_dsl.*
+import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery
+import co.elastic.clients.elasticsearch._types.query_dsl.Query
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders
+import co.elastic.clients.json.JsonData
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.Message
 import com.google.gson.Gson
@@ -21,12 +25,8 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.io.FileSystemResource
 import org.springframework.core.io.Resource
 import org.springframework.data.domain.PageRequest
-import org.springframework.data.domain.Sort
-import org.springframework.data.elasticsearch.client.elc.ElasticsearchTemplate
 import org.springframework.data.elasticsearch.client.elc.NativeQuery
-import org.springframework.data.elasticsearch.client.elc.NativeQueryBuilder
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations
-import org.springframework.data.elasticsearch.core.query.Query
 import org.springframework.data.elasticsearch.core.search
 import org.springframework.stereotype.Service
 import java.io.File
@@ -135,65 +135,130 @@ class VideoServiceWithDB @Autowired constructor(
         ).map { it.toDomain() }
     }
 
+//    override fun getByQuery(
+//        query: String,
+//        partSize: Int,
+//        cursor: Long?,
+//    ): List<VideoWithChannel> {
+//        val (viewWeight, likeWeight, dislikeWeight) = listOf(0.1, 0.3, -0.3)
+//        val elasticQuery = QueryBuilders.multiMatch {
+//            it.query(query)
+//            it.fields("title", "description")
+//        }
+//        val scoreFunction: (String, Double) -> FunctionScore = { field, weight ->
+//            FunctionScore.Builder()
+//                .fieldValueFactor(
+//                    FieldValueFactorScoreFunction.Builder()
+//                        .field(field)
+//                        .factor(weight)
+//                        .build()
+//                ).build()
+//        }
+//        val scoredQuery = FunctionScoreQuery.of {
+//            it.query(elasticQuery)
+//            it.functions(
+//                mutableListOf(
+//                    scoreFunction("views", viewWeight),
+//                    scoreFunction("likes", likeWeight),
+//                    scoreFunction("dislikes", dislikeWeight)
+//                )
+//            )
+//        }.query()!!
+//        val nativeSearchQuery: Query = NativeQuery.builder()
+//            .withQuery(scoredQuery)
+//            .withSort(
+//                SortOptions.Builder()
+//                    .score(
+//                        SortOptionsBuilders.score()
+//                            .order(SortOrder.Desc)
+//                            .build()
+//                    ).build()
+//            ).withSort(
+//                SortOptions.Builder()
+//                    .field(
+//                        SortOptionsBuilders.field {
+//                            it.field("videoId")
+//                            it.order(SortOrder.Asc)
+//                        }.field()
+//                    ).build()
+//            ).let {
+//                if (cursor != null) {
+//                    val lastScore = videoRepository.findById(cursor).orElseThrow().let {
+//                        it.views * viewWeight + it.likes * likeWeight + it.dislikes
+//                    }
+//                    it.withSearchAfter(
+//                        mutableListOf<Any>(cursor)
+//                    )
+//                } else it
+//            }.withPageable(
+//                PageRequest.of(0, partSize)
+//            ).build()
+//        val videoIds = elasticSearchOperations.search<VideoDocument>(nativeSearchQuery).map { it.content.videoId }.toList()
+//        return videoWithChannelsRepository.findAllById(videoIds).map { it.toDomain() }
+//    }
+
     override fun getByQuery(
         query: String,
         partSize: Int,
         cursor: Long?,
     ): List<VideoWithChannel> {
-        val elasticQuery = QueryBuilders.multiMatch {
-            it.query(query)
-            it.fields("title", "description")
-        }
-        val scoreFunction: (String, Double) -> FunctionScore = { field, weight ->
-            FunctionScore.Builder()
-                .fieldValueFactor(
-                    FieldValueFactorScoreFunction.Builder()
-                        .field(field)
-                        .factor(weight)
-                        .build()
-                ).build()
-        }
-        val scoredQuery = FunctionScoreQuery.of {
-            it.query(elasticQuery)
-            it.functions(
-                mutableListOf(
-                    scoreFunction("views", recommendationWeights.views),
-                    scoreFunction("likes", recommendationWeights.likes),
-                    scoreFunction("dislikes", recommendationWeights.dislikes)
+        val sortingScript = Script.Builder()
+            .lang("painless")
+            .source(
+                """
+                    return params.views * doc['views'].value 
+                     + params.likes * doc['likes'].value 
+                     + params.dislikes * doc['dislikes'].value;
+                """.trimIndent()
+            )
+            .params(
+                mapOf(
+                    //"dateTime" to JsonData.of(recommendationWeights.dateTime),
+                    "views" to JsonData.of(recommendationWeights.views),
+                    "likes" to JsonData.of(recommendationWeights.likes),
+                    "dislikes" to JsonData.of(recommendationWeights.dislikes)
                 )
             )
-        }.query()!!
-        val nativeSearchQuery: Query = NativeQuery.builder()
-            .withQuery(scoredQuery)
+            .build()
+        val sortOptions = ScriptSort.Builder()
+            .script(sortingScript)
+            .order(SortOrder.Desc)
+            .type(ScriptSortType.Number)
+            .build()
+            ._toSortOptions()
+        val queryBuilder = QueryBuilders.bool {
+            it.should {
+                it.match {
+                    it.field("title").query(query)
+                }
+            }
+            it.should {
+                it.match {
+                    it.field("description").query(query)
+                }
+            }
+        }
+        val nativeQuery = NativeQuery.builder()
+            .withQuery(queryBuilder)
+            .withSort(sortOptions)
             .withSort(
                 SortOptions.Builder()
-                    .score(
-                        SortOptionsBuilders.score()
-                            .order(SortOrder.Desc)
-                            .build()
-                    ).build()
-            ).withSort(
-                SortOptions.Builder()
-                    .field(
-                        SortOptionsBuilders.field {
-                            it.field("videoId")
-                            it.order(SortOrder.Asc)
-                        }.field()
-                    ).build()
-            ).let {
+                    .field {
+                        it.field("videoId").order(SortOrder.Asc)
+                    }.build()
+            )
+            .let {
                 if (cursor != null) {
                     val lastScore = videoRepository.findById(cursor).orElseThrow().let {
                         it.views * recommendationWeights.views + it.likes * recommendationWeights.likes + it.dislikes * recommendationWeights.dislikes
                     }
-                    it.withSearchAfter(
-                        mutableListOf<Any>(lastScore, cursor)
-                    )
+                    it.withSearchAfter(listOf(lastScore, cursor))
                 } else it
-            }.withPageable(
-                PageRequest.of(0, partSize)
-            ).build()
-        val videoIds = elasticSearchOperations.search<VideoDocument>(nativeSearchQuery).map { it.content.videoId }.toList()
-        return videoWithChannelsRepository.findAllById(videoIds).map { it.toDomain() }
+            }
+            .withPageable(PageRequest.of(0, partSize))
+            .build()
+        val ids = elasticSearchOperations.search<VideoDocument>(nativeQuery).map { it.content.videoId }
+        return videoWithChannelsRepository.findAllById(ids).map { it.toDomain() }
     }
 
     override fun save(
