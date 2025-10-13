@@ -19,19 +19,19 @@ data class VideoEntity(
     val channelId: Long,
     val title: String,
     @Column(name = "date_time")
-    val dateTime: Instant? = null,
+    val dateTime: Instant,
     val views: Long = 0,
     val likes: Long = 0,
     val dislikes: Long = 0,
     @Enumerated(value = EnumType.STRING)
-    val state: VideoState
+    val state: VideoState = VideoState.CREATED
 )
 
 fun VideoEntity.toDomain() = Video(
-    videoId = videoId,
+    videoId = videoId!!,
     channelId = channelId,
     title = title,
-    dateTime = dateTime!!,
+    dateTime = dateTime,
     views = views,
     likes = likes,
     dislikes = dislikes
@@ -55,7 +55,7 @@ data class VideoWithChannelEntity(
     @Column(name = "channel_id") val channelId: Long,
     val title: String,
     @Column(name = "date_time")
-    val dateTime: Instant?,
+    val dateTime: Instant,
     val views: Long,
     val likes: Long,
     val dislikes: Long,
@@ -73,10 +73,10 @@ data class VideoWithChannelEntity(
 
 fun VideoWithChannelEntity.toDomain() = VideoWithChannel(
     video = Video(
-        videoId = videoId,
+        videoId = videoId!!,
         channelId = channelId,
         title = title,
-        dateTime = dateTime!!,
+        dateTime = dateTime,
         views = views,
         likes = likes,
         dislikes = dislikes
@@ -89,7 +89,7 @@ fun VideoWithChannel.toEntity(
     videoId = video.videoId,
     channelId = video.channelId,
     title = video.title,
-    dateTime = video.dateTime!!,
+    dateTime = video.dateTime,
     views = video.views,
     likes = video.likes,
     dislikes = video.dislikes,

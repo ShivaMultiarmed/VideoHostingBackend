@@ -1,17 +1,17 @@
 package mikhail.shell.video.hosting.service
 
-import co.elastic.clients.elasticsearch._types.Script
-import co.elastic.clients.elasticsearch._types.ScriptSort
-import co.elastic.clients.elasticsearch._types.ScriptSortType
+import co.elastic.clients.elasticsearch._types.ScoreSort
+import co.elastic.clients.elasticsearch._types.SortOptions
+import co.elastic.clients.elasticsearch._types.SortOptionsBuilders
 import co.elastic.clients.elasticsearch._types.SortOrder
-import co.elastic.clients.elasticsearch._types.query_dsl.Query
-import co.elastic.clients.json.JsonData
+import co.elastic.clients.elasticsearch._types.query_dsl.*
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.Message
 import com.google.gson.Gson
 import jakarta.transaction.Transactional
 import mikhail.shell.video.hosting.controllers.VideoMetaData
 import mikhail.shell.video.hosting.domain.*
+import mikhail.shell.video.hosting.elastic.documents.VideoDocument
 import mikhail.shell.video.hosting.elastic.documents.toDocument
 import mikhail.shell.video.hosting.elastic.repository.VideoSearchRepository
 import mikhail.shell.video.hosting.entities.*
@@ -21,8 +21,12 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.io.FileSystemResource
 import org.springframework.core.io.Resource
 import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Sort
+import org.springframework.data.elasticsearch.client.elc.ElasticsearchTemplate
 import org.springframework.data.elasticsearch.client.elc.NativeQuery
+import org.springframework.data.elasticsearch.client.elc.NativeQueryBuilder
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations
+import org.springframework.data.elasticsearch.core.query.Query
 import org.springframework.data.elasticsearch.core.search
 import org.springframework.stereotype.Service
 import java.io.File
@@ -44,7 +48,7 @@ class VideoServiceWithDB @Autowired constructor(
     private val userLikeVideoRepository: UserLikeVideoRepository,
     private val channelRepository: ChannelRepository,
     private val fcm: FirebaseMessaging,
-    private val appPaths: ApplicationPathsInitializer
+    private val appPaths: ApplicationPathsInitializer,
 ) : VideoService {
 
     override fun get(videoId: Long): Video {
@@ -117,7 +121,7 @@ class VideoServiceWithDB @Autowired constructor(
     override fun getByChannelId(
         channelId: Long,
         partSize: Int,
-        partIndex: Long
+        partIndex: Long,
     ): List<Video> {
         if (!channelRepository.existsById(channelId)) {
             throw NoSuchElementException()
@@ -134,72 +138,68 @@ class VideoServiceWithDB @Autowired constructor(
     override fun getByQuery(
         query: String,
         partSize: Int,
-        cursor: Long?
+        cursor: Long?,
     ): List<VideoWithChannel> {
-        val sortingScriptStringified = """
-            def secs = doc['dateTime'].value.toInstant().toEpochMilli() / 1000;
-            return params.dateTime * secs
-             + params.views * doc['views'].value 
-             + params.likes * doc['likes'].value 
-             + params.dislikes * doc['dislikes'].value;
-        """.trimIndent()
-        val sortingScript = Script.Builder()
-            .lang("painless")
-            .source(sortingScriptStringified)
-            .params(
-                mapOf(
-                    "dateTime" to JsonData.of(recommendationWeights.dateTime),
-                    "views" to JsonData.of(recommendationWeights.views),
-                    "likes" to JsonData.of(recommendationWeights.likes),
-                    "dislikes" to JsonData.of(recommendationWeights.dislikes)
+        val elasticQuery = QueryBuilders.multiMatch {
+            it.query(query)
+            it.fields("title", "description")
+        }
+        val scoreFunction: (String, Double) -> FunctionScore = { field, weight ->
+            FunctionScore.Builder()
+                .fieldValueFactor(
+                    FieldValueFactorScoreFunction.Builder()
+                        .field(field)
+                        .factor(weight)
+                        .build()
+                ).build()
+        }
+        val scoredQuery = FunctionScoreQuery.of {
+            it.query(elasticQuery)
+            it.functions(
+                mutableListOf(
+                    scoreFunction("views", recommendationWeights.views),
+                    scoreFunction("likes", recommendationWeights.likes),
+                    scoreFunction("dislikes", recommendationWeights.dislikes)
                 )
             )
-            .build()
-        val scriptSortBuilder = ScriptSort.Builder()
-            .script(sortingScript)
-            .order(SortOrder.Desc)
-            .type(ScriptSortType.Number)
-            .build()
-            ._toSortOptions()
-        val searchQuery = NativeQuery.builder()
-            .withQuery(
-                Query.of {
-                    it.bool { aMatch ->
-                        aMatch.should {
-                            it.match {
-                                it.field("title").query(query)
-                            }
-                        }
-                        aMatch.should {
-                            it.match {
-                                it.field("description").query(query)
-                            }
-                        }
+        }.query()!!
+        val nativeSearchQuery: Query = NativeQuery.builder()
+            .withQuery(scoredQuery)
+            .withSort(
+                SortOptions.Builder()
+                    .score(
+                        SortOptionsBuilders.score()
+                            .order(SortOrder.Desc)
+                            .build()
+                    ).build()
+            ).withSort(
+                SortOptions.Builder()
+                    .field(
+                        SortOptionsBuilders.field {
+                            it.field("videoId")
+                            it.order(SortOrder.Asc)
+                        }.field()
+                    ).build()
+            ).let {
+                if (cursor != null) {
+                    val lastScore = videoRepository.findById(cursor).orElseThrow().let {
+                        it.views * recommendationWeights.views + it.likes * recommendationWeights.likes + it.dislikes * recommendationWeights.dislikes
                     }
-                }
-            )
-            .let {
-                if (cursor != null) it.withQuery(
-                    Query.of{
-                        it.range {
-                            it.number {
-                                it.field("videoId").lt(cursor.toDouble())
-                            }
-                        }
-                    }
-                ) else it
-            }
-            .withSort(scriptSortBuilder)
-            .withPageable(PageRequest.of(0, partSize))
-            .build()
-        val ids = elasticSearchOperations.search<VideoEntity>(searchQuery).map { it.content.videoId }
-        return videoWithChannelsRepository.findAllById(ids).map { it.toDomain() }
+                    it.withSearchAfter(
+                        mutableListOf<Any>(lastScore, cursor)
+                    )
+                } else it
+            }.withPageable(
+                PageRequest.of(0, partSize)
+            ).build()
+        val videoIds = elasticSearchOperations.search<VideoDocument>(nativeSearchQuery).map { it.content.videoId }.toList()
+        return videoWithChannelsRepository.findAllById(videoIds).map { it.toDomain() }
     }
 
     override fun save(
         userId: Long,
         video: Video,
-        cover: UploadedFile?
+        cover: UploadedFile?,
     ): Video {
         if (!channelRepository.existsByOwnerIdAndChannelId(userId = userId, channelId = video.channelId)) {
             throw IllegalAccessException()
@@ -376,10 +376,10 @@ class VideoServiceWithDB @Autowired constructor(
         userId: Long,
         video: Video,
         coverAction: EditAction,
-        cover: UploadedFile?
+        cover: UploadedFile?,
     ): Video {
         val videoEntity = videoRepository
-            .findById(video.videoId!!)
+            .findById(video.videoId)
             .orElseThrow()
             .copy(title = video.title)
         if (!videoWithChannelsRepository.existsByChannel_OwnerIdAndVideoId(userId = userId, videoId = video.videoId)) {

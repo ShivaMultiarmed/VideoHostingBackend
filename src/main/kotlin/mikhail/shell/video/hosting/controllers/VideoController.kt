@@ -188,17 +188,18 @@ class VideoController @Autowired constructor(
         if (!detectedMimeType.startsWith("video") || detectedMimeType != source.mimeType) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("source" to FileError.NOT_SUPPORTED))
         }
-        return videoService.save(
-            userId = userId,
-            video = Video(
-                channelId = video.channelId!!,
-                title = video.title!!,
-                dateTime = Instant.now()
-            ),
-            cover = cover?.toUploadedFile(),
-        ).toDto().let {
-            ResponseEntity.status(HttpStatus.OK).body(it)
-        }
+        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build<Any>()
+//        return videoService.save(
+//            userId = userId,
+//            video = Video(
+//                channelId = video.channelId!!,
+//                title = video.title!!,
+//                dateTime = Instant.now()
+//            ),
+//            cover = cover?.toUploadedFile(),
+//        ).toDto().let {
+//            ResponseEntity.status(HttpStatus.OK).body(it)
+//        }
     }
 
     @PostMapping("/{video_id}/source", consumes = ["application/octet-stream"])
@@ -227,23 +228,23 @@ class VideoController @Autowired constructor(
         return videoService.incrementViews(videoId!!).toDto()
     }
 
-    @PutMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-    fun editVideo(
-        @RequestPart("video") @Valid video: VideoEditingRequest,
-        @RequestPart("cover", required = false) @Image cover: MultipartFile?,
-        @AuthenticationPrincipal userId: Long
-    ): VideoDto {
-        return videoService.edit(
-            userId = userId,
-            video = Video(
-                videoId = video.videoId,
-                title = video.title!!,
-                channelId = video.channelId!!,
-            ),
-            coverAction = video.coverAction!!,
-            cover = cover?.toUploadedFile()
-        ).toDto()
-    }
+//    @PutMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+//    fun editVideo(
+//        @RequestPart("video") @Valid video: VideoEditingRequest,
+//        @RequestPart("cover", required = false) @Image cover: MultipartFile?,
+//        @AuthenticationPrincipal userId: Long
+//    ): VideoDto {
+//        return videoService.edit(
+//            userId = userId,
+//            video = Video(
+//                videoId = video.videoId,
+//                title = video.title!!,
+//                channelId = video.channelId!!,
+//            ),
+//            coverAction = video.coverAction!!,
+//            cover = cover?.toUploadedFile()
+//        ).toDto()
+//    }
 
     @DeleteMapping("/{video_id}")
     fun delete(
@@ -271,15 +272,10 @@ class VideoController @Autowired constructor(
         }
     }
 
-    private fun Video.toDto() = toDto(
-        sourceUrl = "$BASE_URL/videos/${videoId}/source",
-        coverUrl = "$BASE_URL/videos/${videoId}/cover"
-    )
-
-    private fun VideoWithUser.toDto() = toDto(
-        sourceUrl = "$BASE_URL/videos/${videoId}/source",
-        coverUrl = "$BASE_URL/videos/${videoId}/cover"
-    )
+    @PostMapping("/search/sync")
+    fun syncSearchIndex() {
+        videoService.sync()
+    }
 }
 
 data class VideoCreationRequest(

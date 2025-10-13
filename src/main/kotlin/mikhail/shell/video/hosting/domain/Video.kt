@@ -3,13 +3,13 @@ package mikhail.shell.video.hosting.domain
 import java.time.Instant
 
 data class Video(
-    val videoId: Long? = null,
+    val videoId: Long,
     val channelId: Long,
     val title: String,
-    val dateTime: Instant? = null,
-    val views: Long = 0,
-    val likes: Long = 0,
-    val dislikes: Long = 0
+    val dateTime: Instant,
+    val views: Long,
+    val likes: Long,
+    val dislikes: Long
 )
 
 class VideoWithChannel(
@@ -18,14 +18,14 @@ class VideoWithChannel(
 )
 
 data class VideoWithUser(
-    val videoId: Long? = null,
+    val videoId: Long,
     val channelId: Long,
     val title: String,
-    val dateTime: Instant? = null,
-    val views: Long = 0,
-    val likes: Long = 0,
-    val dislikes: Long = 0,
-    val liking: Liking = Liking.NONE
+    val dateTime: Instant,
+    val views: Long,
+    val likes: Long,
+    val dislikes: Long,
+    val liking: Liking
 )
 
 infix fun Video.with(liking: Liking) = VideoWithUser(
@@ -37,4 +37,10 @@ infix fun Video.with(liking: Liking) = VideoWithUser(
     likes = likes,
     dislikes = dislikes,
     liking = liking
+)
+
+data class VideoCreationModel(
+    val channelId: Long,
+    val title: String,
+    val description: String?
 )

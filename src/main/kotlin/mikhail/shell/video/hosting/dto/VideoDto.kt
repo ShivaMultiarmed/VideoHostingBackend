@@ -6,30 +6,23 @@ import mikhail.shell.video.hosting.domain.VideoWithUser
 import java.time.Instant
 
 data class VideoDto(
-    val videoId: Long? = null,
+    val videoId: Long,
     val channelId: Long,
     val title: String,
-    val dateTime: Instant? = null,
-    val views: Long = 0,
-    val likes: Long = 0,
-    val dislikes: Long = 0,
-    val sourceUrl: String? = null,
-    val coverUrl: String? = null
+    val dateTime: Instant,
+    val views: Long,
+    val likes: Long,
+    val dislikes: Long
 )
 
-fun Video.toDto(
-    sourceUrl: String? = null,
-    coverUrl: String? = null
-) = VideoDto(
+fun Video.toDto() = VideoDto(
     videoId = videoId,
     channelId = channelId,
     title = title,
     dateTime = dateTime,
     views = views,
     likes = likes,
-    dislikes = dislikes,
-    sourceUrl = sourceUrl,
-    coverUrl = coverUrl
+    dislikes = dislikes
 )
 
 fun VideoDto.toDomain() = Video(
@@ -48,32 +41,23 @@ data class VideoWithChannelDto(
 )
 
 data class VideoWithUserDto(
-    val videoId: Long? = null,
+    val videoId: Long,
     val channelId: Long,
     val title: String,
-    val dateTime: Instant? = null,
-    val views: Long = 0,
-    val likes: Long = 0,
-    val liking: Liking = Liking.NONE,
-    val dislikes: Long = 0,
-    val sourceUrl: String? = null,
-    val coverUrl: String? = null
+    val dateTime: Instant,
+    val views: Long,
+    val likes: Long,
+    val liking: Liking,
+    val dislikes: Long
 )
 
-fun VideoWithUser.toDto(
-    sourceUrl: String? = null,
-    coverUrl: String? = null
-): VideoWithUserDto {
-    return VideoWithUserDto(
-        videoId = videoId,
-        channelId = channelId,
-        title = title,
-        dateTime = dateTime,
-        views = views,
-        likes = likes,
-        liking = liking,
-        dislikes = dislikes,
-        sourceUrl = sourceUrl,
-        coverUrl = coverUrl
-    )
-}
+fun VideoWithUser.toDto() = VideoWithUserDto(
+    videoId = videoId,
+    channelId = channelId,
+    title = title,
+    dateTime = dateTime,
+    views = views,
+    likes = likes,
+    liking = liking,
+    dislikes = dislikes
+)
