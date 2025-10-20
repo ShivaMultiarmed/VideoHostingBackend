@@ -8,9 +8,8 @@ import org.springframework.stereotype.Repository
 
 @Repository
 interface VideoRepository: JpaRepository<VideoEntity, Long> {
-    fun findByChannelIdAndStateOrderByDateTimeDesc(
+    fun findByChannelIdOrderByDateTimeDesc(
         channelId: Long,
-        videoState: VideoState = VideoState.UPLOADED,
         pageable: Pageable
     ): List<VideoEntity>
     fun findByChannelId(

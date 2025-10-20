@@ -24,7 +24,6 @@ import org.springframework.web.multipart.MultipartFile
 import java.io.File
 import java.io.InputStream
 import java.io.RandomAccessFile
-import java.time.Instant
 import javax.activation.MimetypesFileTypeMap
 
 @RestController
@@ -188,40 +187,51 @@ class VideoController @Autowired constructor(
         if (!detectedMimeType.startsWith("video") || detectedMimeType != source.mimeType) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("source" to FileError.NOT_SUPPORTED))
         }
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build<Any>()
-//        return videoService.save(
-//            userId = userId,
-//            video = Video(
-//                channelId = video.channelId!!,
-//                title = video.title!!,
-//                dateTime = Instant.now()
-//            ),
-//            cover = cover?.toUploadedFile(),
-//        ).toDto().let {
-//            ResponseEntity.status(HttpStatus.OK).body(it)
-//        }
+        return videoService.save(
+            userId = userId,
+            video = VideoCreationModel(
+                channelId = video.channelId!!,
+                title = video.title!!,
+                description = video.description,
+                cover = cover?.toUploadedFile(),
+                source = source
+            )
+        ).let {
+            ResponseEntity.status(HttpStatus.OK).body(it)
+        }
     }
 
-    @PostMapping("/{video_id}/source", consumes = ["application/octet-stream"])
+    @PostMapping("/{upload_id}/source", consumes = ["application/octet-stream"])
     fun uploadSource(
-        @PathVariable("video_id") @LongId videoId: Long?,
-        @RequestParam("chunk_index") @PartIndex chunkIndex: Long = 0,
+        @PathVariable("upload_id") @LongId videoId: Long?,
+        @RequestHeader("Content-Range") contentRange: String,
         input: InputStream,
         @AuthenticationPrincipal userId: Long
     ) {
+        val groups = """(\d+)-(\d+)/(\d+)\$""".toRegex()
+            .matchEntire(contentRange)
+            ?.groupValues
+        if (groups == null || groups.size != 4) { // including full match
+            throw IllegalArgumentException()
+        }
+        val (start, end, total) = groups.map { it.toLong() }.slice(1 .. 3)
+        if (start > end || total <= 0 || start < 0) {
+            throw IllegalArgumentException()
+        }
         videoService.saveVideoSource(
             userId = userId,
-            videoId = videoId!!,
-            chunkIndex = chunkIndex,
+            uploadId = videoId!!,
+            start = start,
+            end = end,
             source = input
         )
     }
 
-    @PostMapping("/{video_id}/confirmation")
+    @PostMapping("/{upload_id}/confirmation")
     fun confirmUpload(
-        @PathVariable("video_id") @LongId videoId: Long?,
+        @PathVariable("upload_id") @LongId uploadId: Long?,
         @AuthenticationPrincipal userId: Long
-    ) = videoService.confirm(userId = userId, videoId = videoId!!)
+    ) = videoService.confirm(userId = userId, uploadId = uploadId!!).toDto()
 
     @PatchMapping("/{video_id}/views")
     fun incrementViews(@PathVariable("video_id") @LongId videoId: Long?): VideoDto {

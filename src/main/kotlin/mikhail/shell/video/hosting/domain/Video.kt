@@ -1,5 +1,6 @@
 package mikhail.shell.video.hosting.domain
 
+import mikhail.shell.video.hosting.controllers.VideoMetaData
 import java.time.Instant
 
 data class Video(
@@ -42,5 +43,7 @@ infix fun Video.with(liking: Liking) = VideoWithUser(
 data class VideoCreationModel(
     val channelId: Long,
     val title: String,
-    val description: String?
+    val description: String?,
+    val cover: UploadedFile?,
+    val source: VideoMetaData
 )

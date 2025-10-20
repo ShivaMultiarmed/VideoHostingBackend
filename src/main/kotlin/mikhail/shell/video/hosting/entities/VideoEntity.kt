@@ -22,9 +22,7 @@ data class VideoEntity(
     val dateTime: Instant,
     val views: Long = 0,
     val likes: Long = 0,
-    val dislikes: Long = 0,
-    @Enumerated(value = EnumType.STRING)
-    val state: VideoState = VideoState.CREATED
+    val dislikes: Long = 0
 )
 
 fun VideoEntity.toDomain() = Video(
@@ -36,15 +34,14 @@ fun VideoEntity.toDomain() = Video(
     likes = likes,
     dislikes = dislikes
 )
-fun Video.toEntity(state: VideoState = VideoState.CREATED) = VideoEntity(
+fun Video.toEntity() = VideoEntity(
     videoId = videoId,
     channelId = channelId,
     title = title,
     dateTime = dateTime,
     views = views,
     likes = likes,
-    dislikes = dislikes,
-    state = state
+    dislikes = dislikes
 )
 
 @Entity
@@ -59,8 +56,6 @@ data class VideoWithChannelEntity(
     val views: Long,
     val likes: Long,
     val dislikes: Long,
-    @Enumerated(value = EnumType.STRING)
-    val state: VideoState,
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(
         name = "channel_id",
@@ -83,9 +78,7 @@ fun VideoWithChannelEntity.toDomain() = VideoWithChannel(
     ),
     channel = channel.toDomain()
 )
-fun VideoWithChannel.toEntity(
-    state: VideoState
-) = VideoWithChannelEntity(
+fun VideoWithChannel.toEntity() = VideoWithChannelEntity(
     videoId = video.videoId,
     channelId = video.channelId,
     title = video.title,
@@ -93,6 +86,18 @@ fun VideoWithChannel.toEntity(
     views = video.views,
     likes = video.likes,
     dislikes = video.dislikes,
-    state = state,
     channel = channel.toEntity()
+)
+
+@Entity
+@Table(name = "pending_videos")
+data class PendingVideoEntity(
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    val uploadId: Long? = null,
+    val channelId: Long,
+    val title: String,
+    val dateTime: Instant,
+    val fileName: String,
+    val mimeType: String,
+    val size: Long
 )

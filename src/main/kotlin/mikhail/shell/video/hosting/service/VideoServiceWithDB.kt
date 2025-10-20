@@ -5,13 +5,10 @@ import co.elastic.clients.elasticsearch._types.ScriptSort
 import co.elastic.clients.elasticsearch._types.ScriptSortType
 import co.elastic.clients.elasticsearch._types.SortOptions
 import co.elastic.clients.elasticsearch._types.SortOrder
-import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery
-import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders
 import co.elastic.clients.json.JsonData
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.Message
-import com.google.gson.Gson
 import jakarta.transaction.Transactional
 import mikhail.shell.video.hosting.controllers.VideoMetaData
 import mikhail.shell.video.hosting.domain.*
@@ -33,13 +30,16 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.nio.file.Paths
+import java.time.Instant
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectory
 import kotlin.io.path.notExists
+import kotlin.io.path.outputStream
 
 @Service
 class VideoServiceWithDB @Autowired constructor(
     private val recommendationWeights: RecommendationWeights,
+    private val pendingVideosRepository: PendingVideosRepository,
     private val videoRepository: VideoRepository,
     private val videoWithChannelsRepository: VideoWithChannelsRepository,
     private val videoSearchRepository: VideoSearchRepository,
@@ -126,7 +126,7 @@ class VideoServiceWithDB @Autowired constructor(
         if (!channelRepository.existsById(channelId)) {
             throw NoSuchElementException()
         }
-        return videoRepository.findByChannelIdAndStateOrderByDateTimeDesc(
+        return videoRepository.findByChannelIdOrderByDateTimeDesc(
             channelId = channelId,
             pageable = PageRequest.of(
                 partIndex.toInt(),
@@ -263,108 +263,130 @@ class VideoServiceWithDB @Autowired constructor(
 
     override fun save(
         userId: Long,
-        video: Video,
-        cover: UploadedFile?,
-    ): Video {
-        if (!channelRepository.existsByOwnerIdAndChannelId(userId = userId, channelId = video.channelId)) {
+        video: VideoCreationModel,
+    ): Long {
+        if (!channelRepository.existsByOwnerIdAndChannelId(userId, video.channelId)) {
             throw IllegalAccessException()
         }
-        val savedVideoEntity = videoRepository.save(video.toEntity())
-        videoSearchRepository.save(savedVideoEntity.toDocument())
-        cover?.let {
+        val pendingVideoEntity = pendingVideosRepository.save(
+            PendingVideoEntity(
+                channelId = video.channelId,
+                title = video.title,
+                dateTime = Instant.now(),
+                fileName = video.source.fileName!!,
+                mimeType = video.source.mimeType!!,
+                size = video.source.size!!
+            )
+        )
+        val tmpPath = Path(appPaths.TEMP_VIDEOS_BASE_PATH, pendingVideoEntity.uploadId!!.toString()).createDirectory()
+        video.cover?.let {
+            if (tmpPath.notExists()) {
+                tmpPath.createDirectory()
+            }
+            val coverPath = tmpPath.resolve("cover")
+            // TODO adjust image sizes for each case
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$appPaths.VIDEOS_COVERS_BASE_PATH/${savedVideoEntity.videoId}.jpg",
-                width = 500,
-                height = 280
+                targetFile = "$coverPath/large.png",
+                width = 1800,
+                height = 200
+            )
+            uploadImage(
+                uploadedFile = it,
+                targetFile = "$coverPath/medium.png",
+                width = 1000,
+                height = 120
+            )
+            uploadImage(
+                uploadedFile = it,
+                targetFile = "$coverPath/small.png",
+                width = 350,
+                height = 60
             )
         }
-        return savedVideoEntity.toDomain()
+        return pendingVideoEntity.uploadId!!
     }
 
-    override fun saveVideoSource(userId: Long, videoId: Long, chunkIndex: Long, source: InputStream): Boolean {
-        if (!videoRepository.existsById(videoId)) {
-            throw NoSuchElementException()
-        }
-        if (!videoWithChannelsRepository.existsByChannel_OwnerIdAndVideoId(userId, videoId)) {
+    override fun saveVideoSource(
+        userId: Long,
+        uploadId: Long,
+        start: Long,
+        end: Long,
+        source: InputStream,
+    ): Boolean {
+        val channelId = pendingVideosRepository.findById(uploadId).orElseThrow().channelId
+        if (!channelRepository.existsByOwnerIdAndChannelId(userId, channelId)) {
             throw IllegalAccessException()
         }
-        val path = Paths.get(appPaths.TEMP_VIDEO_SOURCE_BASE_PATH, videoId.toString())
-        if (path.notExists()) {
-            path.createDirectory()
-        }
+        val path = Path(appPaths.TEMP_VIDEOS_BASE_PATH, uploadId.toString()).createDirectory()
         return saveFile(
             input = source,
-            path = "$path/$chunkIndex.tmp"
+            path = "$path/$uploadId/source/$start-$end.tmp"
         )
     }
 
-    override fun confirm(userId: Long, videoId: Long) {
-        val videoEntity = videoRepository
-            .findById(videoId)
-            .orElseThrow()
-            .copy(state = VideoState.UPLOADED)
-        if (
-            !channelRepository.existsByOwnerIdAndChannelId(
-                userId = userId,
-                channelId = videoEntity.channelId
-            )
-        ) {
+    override fun confirm(
+        userId: Long,
+        uploadId: Long,
+    ): Video {
+        val pending = pendingVideosRepository.findById(uploadId).orElseThrow()
+        if (!channelRepository.existsByOwnerIdAndChannelId(userId, pending.channelId)) {
             throw IllegalAccessException()
         }
-        videoRepository.save(videoEntity)
+        val videoEntity = videoRepository.save(
+            VideoEntity(
+                channelId = pending.channelId,
+                title = pending.title,
+                dateTime = pending.dateTime
+            )
+        )
         videoSearchRepository.save(videoEntity.toDocument())
-        assembleFile(videoId)
-        val videoWithChannel = videoWithChannelsRepository.findById(videoId).get()
+        assembleVideoSource(videoEntity.videoId!!, pending.uploadId!!)
+        val videoWithChannel = videoWithChannelsRepository.findById(videoEntity.videoId!!).get()
         val message = Message.builder()
             .setTopic("$CHANNELS_TOPICS_PREFIX.${videoWithChannel.channelId}")
             .putAllData(
                 mapOf(
-                    "channelTitle" to videoWithChannel.channel.title,
-                    "videoTitle" to videoWithChannel.title,
-                    "videoId" to videoWithChannel.videoId.toString()
+                    "channel_title" to videoWithChannel.channel.title,
+                    "video_title" to videoWithChannel.title,
+                    "video_id" to videoWithChannel.videoId.toString()
                 )
             ).build()
         fcm.send(message)
+        return videoEntity.toDomain()
     }
 
-    private fun assembleFile(videoId: Long) {
-        val tempPath = Path(appPaths.TEMP_VIDEO_SOURCE_BASE_PATH, videoId.toString())
-        val metaData =
-            (tempPath.resolve(Path(videoId.toString())))
-                .toFile()
-                .inputStream()
-                .use {
-                    it.readBytes()
-                        .decodeToString()
-                        .let {
-                            Gson().fromJson(it, VideoMetaData::class.java)
-                        }
-                }
+    private fun assembleVideoSource(videoId: Long, uploadId: Long) {
+        val tmpPath = Path(appPaths.TEMP_VIDEOS_BASE_PATH, uploadId.toString(), "source")
+        val metaData = pendingVideosRepository.findById(uploadId).orElseThrow().let {
+            VideoMetaData(
+                fileName = it.fileName,
+                mimeType = it.mimeType,
+                size = it.size
+            )
+        }
         val extension = metaData.fileName!!.parseExtension()
-        val file = Path(appPaths.VIDEOS_SOURCES_BASE_PATH, "$videoId.$extension").toFile()
+        val file = Path(appPaths.VIDEOS_BASE_PATH, videoId.toString(), "source", "original.$extension")
         file.outputStream().use { output ->
-            tempPath.toFile().listFiles { _, name ->
-                name.endsWith(".tmp")
-            }
-                ?.sortedBy { it.name }
-                ?.forEach {
+            tmpPath
+                .toFile()
+                .listFiles { _, name ->
+                    name.endsWith(".tmp")
+                }?.sortedBy {
+                    it.name
+                }?.forEach {
                     it.inputStream().use { input ->
-                        val buffer = ByteArray(IO_BUFFER_SIZE)
-                        var bytesRead: Int
-                        while (input.read(buffer).also { bytesRead = it } != -1) {
-                            output.write(buffer, 0, bytesRead)
-                        }
+                        input.copyTo(output)
                     }
                 }
         }
     }
 
-    override fun checkOwner(userId: Long, videoId: Long): Boolean {
-        return videoWithChannelsRepository.existsByChannel_OwnerIdAndVideoId(userId, videoId)
-    }
-
-    override fun getRecommendations(userId: Long, partIndex: Long, partSize: Int): List<VideoWithChannel> {
+    override fun getRecommendations(
+        userId: Long,
+        partIndex: Long,
+        partSize: Int,
+    ): List<VideoWithChannel> {
         if (!userRepository.existsById(userId)) {
             throw NoSuchElementException()
         }

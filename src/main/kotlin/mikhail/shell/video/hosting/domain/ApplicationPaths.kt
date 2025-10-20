@@ -16,5 +16,5 @@ class ApplicationPathsInitializer(
     val USERS_BASE_PATH = "$STORAGE_BASE_PATH/users"
     val USER_AVATARS_BASE_PATH = "$USERS_BASE_PATH/avatars"
     val TEMP_PATH = "$STORAGE_BASE_PATH/tmp"
-    val TEMP_VIDEO_SOURCE_BASE_PATH = "$TEMP_PATH/videos/sources"
+    val TEMP_VIDEOS_BASE_PATH = "$TEMP_PATH/videos"
 }

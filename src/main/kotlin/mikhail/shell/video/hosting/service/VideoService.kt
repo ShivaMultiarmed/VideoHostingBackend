@@ -14,12 +14,11 @@ interface VideoService {
     fun incrementViews(videoId: Long): Video
     fun delete(userId: Long, videoId: Long)
     fun edit(userId: Long, video: Video, coverAction: EditAction, cover: UploadedFile?): Video
-    fun checkOwner(userId: Long, videoId: Long): Boolean
     fun getRecommendations(userId: Long, partIndex: Long, partSize: Int): List<VideoWithChannel>
     fun checkExistence(videoId: Long): Boolean
     fun sync()
     fun getCover(videoId: Long): Resource
-    fun save(userId: Long, video: Video, cover: UploadedFile?): Video
-    fun saveVideoSource(userId: Long, videoId: Long, chunkIndex: Long, source: InputStream): Boolean
-    fun confirm(userId: Long, videoId: Long)
+    fun save(userId: Long, video: VideoCreationModel): Long
+    fun saveVideoSource(userId: Long, uploadId: Long, start: Long, end: Long, source: InputStream): Boolean
+    fun confirm(userId: Long, uploadId: Long): Video
 }
