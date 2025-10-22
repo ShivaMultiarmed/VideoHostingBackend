@@ -4,6 +4,7 @@ import jakarta.persistence.*
 import mikhail.shell.video.hosting.domain.Video
 import mikhail.shell.video.hosting.domain.VideoWithChannel
 import java.time.Instant
+import java.util.UUID
 
 enum class VideoState {
     CREATED, UPLOADED
@@ -18,6 +19,7 @@ data class VideoEntity(
     @Column(name = "channel_id")
     val channelId: Long,
     val title: String,
+    val description: String?,
     @Column(name = "date_time")
     val dateTime: Instant,
     val views: Long = 0,
@@ -29,6 +31,7 @@ fun VideoEntity.toDomain() = Video(
     videoId = videoId!!,
     channelId = channelId,
     title = title,
+    description = description,
     dateTime = dateTime,
     views = views,
     likes = likes,
@@ -38,6 +41,7 @@ fun Video.toEntity() = VideoEntity(
     videoId = videoId,
     channelId = channelId,
     title = title,
+    description = description,
     dateTime = dateTime,
     views = views,
     likes = likes,
@@ -51,6 +55,7 @@ data class VideoWithChannelEntity(
     @Column(name = "video_id") val videoId: Long? = null,
     @Column(name = "channel_id") val channelId: Long,
     val title: String,
+    val description: String?,
     @Column(name = "date_time")
     val dateTime: Instant,
     val views: Long,
@@ -71,6 +76,7 @@ fun VideoWithChannelEntity.toDomain() = VideoWithChannel(
         videoId = videoId!!,
         channelId = channelId,
         title = title,
+        description = description,
         dateTime = dateTime,
         views = views,
         likes = likes,
@@ -82,6 +88,7 @@ fun VideoWithChannel.toEntity() = VideoWithChannelEntity(
     videoId = video.videoId,
     channelId = video.channelId,
     title = video.title,
+    description = video.description,
     dateTime = video.dateTime,
     views = video.views,
     likes = video.likes,
@@ -92,10 +99,12 @@ fun VideoWithChannel.toEntity() = VideoWithChannelEntity(
 @Entity
 @Table(name = "pending_videos")
 data class PendingVideoEntity(
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    val uploadId: Long? = null,
+    @Id
+    @Column(columnDefinition = "BINARY(16)")
+    val uploadId: UUID = UUID.randomUUID(),
     val channelId: Long,
     val title: String,
+    val description: String?,
     val dateTime: Instant,
     val fileName: String,
     val mimeType: String,

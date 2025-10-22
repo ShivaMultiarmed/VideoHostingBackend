@@ -4,6 +4,7 @@ import net.coobird.thumbnailator.Thumbnails
 import net.coobird.thumbnailator.geometry.Positions
 import java.awt.image.BufferedImage
 import java.io.File
+import java.io.InputStream
 import java.nio.file.Path
 import java.nio.file.Paths
 import javax.imageio.ImageIO
@@ -34,8 +35,8 @@ fun String.parseFileName(): String {
 fun uploadImage(
     uploadedFile: UploadedFile,
     targetFile: String,
-    width: Int = 500,
-    height: Int = 280,
+    width: Int = -1,
+    height: Int = -1,
 ) = uploadImage(
     uploadedFile = uploadedFile,
     targetFile = File(targetFile),
@@ -44,14 +45,32 @@ fun uploadImage(
 )
 
 fun uploadImage(
-    uploadedFile: UploadedFile,
+    uploadedFile: File,
+    targetFile: String,
+    width: Int = -1,
+    height: Int = -1,
+) = uploadImage(
+    uploadedFile = uploadedFile.inputStream(),
+    targetFile = File(targetFile),
+    width = width,
+    height = height
+)
+
+fun uploadImage(
+    uploadedFile: InputStream,
     targetFile: File,
-    width: Int = 500,
-    height: Int = 280,
+    width: Int = -1,
+    height: Int = -1
 ): Boolean {
     return try {
-        val inputImage = ImageIO.read(uploadedFile.bytes.inputStream())
-        val outputImage = inputImage.crop(width, height)
+        val inputImage = ImageIO.read(uploadedFile)
+        val outputImage = when {
+            width == -1 && height == -1 -> inputImage
+            else -> inputImage.crop(
+                width = if (width > 0) width else inputImage.width,
+                height = if (height > 0) height else inputImage.height
+            )
+        }
         targetFile.outputStream().use {
             ImageIO.write(outputImage, targetFile.extension, it)
         }
@@ -61,6 +80,18 @@ fun uploadImage(
         false
     }
 }
+
+fun uploadImage(
+    uploadedFile: UploadedFile,
+    targetFile: File,
+    width: Int = -1,
+    height: Int = -1,
+) = uploadImage(
+    uploadedFile = uploadedFile.bytes.inputStream(),
+    targetFile = targetFile,
+    width = width,
+    height = height
+)
 
 fun BufferedImage.crop(
     width: Int = this.width,

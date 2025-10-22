@@ -14,32 +14,32 @@ data class VideoDocument(
     @Id val videoId: Long,
     val channelId: Long,
     val title: String,
+    val description: String?,
     @Field(type = FieldType.Date, format = [DateFormat.epoch_millis])
     val dateTime: Instant,
     val views: Long,
     val likes: Long,
-    val dislikes: Long,
-    val state: VideoState
+    val dislikes: Long
 )
 
 fun VideoEntity.toDocument() = VideoDocument(
     videoId = videoId!!,
     channelId = channelId,
     title = title,
+    description = description,
     dateTime = dateTime,
     views = views,
     likes = likes,
-    dislikes = dislikes,
-    state = state
+    dislikes = dislikes
 )
 
 fun VideoDocument.toEntity() = VideoEntity(
     videoId = videoId,
     channelId = channelId,
     title = title,
+    description = description,
     dateTime = dateTime,
     views = views,
     likes = likes,
-    dislikes = dislikes,
-    state = state
+    dislikes = dislikes
 )

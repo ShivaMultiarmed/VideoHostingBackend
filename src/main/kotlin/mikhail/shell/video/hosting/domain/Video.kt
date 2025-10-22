@@ -7,6 +7,7 @@ data class Video(
     val videoId: Long,
     val channelId: Long,
     val title: String,
+    val description: String?,
     val dateTime: Instant,
     val views: Long,
     val likes: Long,

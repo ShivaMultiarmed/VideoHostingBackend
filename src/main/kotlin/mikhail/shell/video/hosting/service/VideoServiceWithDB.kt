@@ -31,10 +31,8 @@ import java.io.FileOutputStream
 import java.io.InputStream
 import java.nio.file.Paths
 import java.time.Instant
-import kotlin.io.path.Path
-import kotlin.io.path.createDirectory
-import kotlin.io.path.notExists
-import kotlin.io.path.outputStream
+import java.util.UUID
+import kotlin.io.path.*
 
 @Service
 class VideoServiceWithDB @Autowired constructor(
@@ -264,7 +262,7 @@ class VideoServiceWithDB @Autowired constructor(
     override fun save(
         userId: Long,
         video: VideoCreationModel,
-    ): Long {
+    ): String {
         if (!channelRepository.existsByOwnerIdAndChannelId(userId, video.channelId)) {
             throw IllegalAccessException()
         }
@@ -272,18 +270,71 @@ class VideoServiceWithDB @Autowired constructor(
             PendingVideoEntity(
                 channelId = video.channelId,
                 title = video.title,
+                description = video.description,
                 dateTime = Instant.now(),
                 fileName = video.source.fileName!!,
                 mimeType = video.source.mimeType!!,
                 size = video.source.size!!
             )
         )
-        val tmpPath = Path(appPaths.TEMP_VIDEOS_BASE_PATH, pendingVideoEntity.uploadId!!.toString()).createDirectory()
+        val tmpPath = Path(appPaths.TEMP_PATH, pendingVideoEntity.uploadId.toString()).createDirectory()
         video.cover?.let {
-            if (tmpPath.notExists()) {
-                tmpPath.createDirectory()
-            }
-            val coverPath = tmpPath.resolve("cover")
+            val extension = "" // TODO
+            val coverPath = tmpPath.resolve("cover.$extension").createFile()
+            uploadImage(
+                uploadedFile = it,
+                targetFile = coverPath.toString()
+            )
+        }
+        return pendingVideoEntity.uploadId.toString()
+    }
+
+    override fun saveVideoSource(
+        userId: Long,
+        uploadId: UUID,
+        start: Long,
+        end: Long,
+        source: InputStream,
+    ) {
+        val channelId = pendingVideosRepository.findById(uploadId).orElseThrow().channelId
+        if (!channelRepository.existsByOwnerIdAndChannelId(userId, channelId)) {
+            throw IllegalAccessException()
+        }
+        val path = Path(appPaths.TEMP_PATH, uploadId.toString())
+        if (path.notExists()) {
+            path.createDirectory()
+        }
+        saveFile(
+            input = source,
+            path = path
+                .resolve("source")
+                .resolve("$start-$end.tmp")
+                .toString()
+        )
+    }
+
+    override fun confirm(
+        userId: Long,
+        uploadId: UUID,
+    ): Video {
+        val pending = pendingVideosRepository.findById(uploadId).orElseThrow()
+        if (!channelRepository.existsByOwnerIdAndChannelId(userId, pending.channelId)) {
+            throw IllegalAccessException()
+        }
+        val videoEntity = videoRepository.save(
+            VideoEntity(
+                channelId = pending.channelId,
+                title = pending.title,
+                description = pending.description,
+                dateTime = pending.dateTime
+            )
+        )
+        videoSearchRepository.save(videoEntity.toDocument())
+        assembleVideoSource(videoEntity.videoId!!, pending.uploadId)
+        val coverTmpPath = Path(appPaths.TEMP_PATH, uploadId.toString())
+        val tmpCover = findFileByName(coverTmpPath, "cover")
+        tmpCover?.let {
+            val coverPath = Path(appPaths.VIDEOS_BASE_PATH, videoEntity.videoId!!.toString(), "cover")
             // TODO adjust image sizes for each case
             uploadImage(
                 uploadedFile = it,
@@ -304,45 +355,7 @@ class VideoServiceWithDB @Autowired constructor(
                 height = 60
             )
         }
-        return pendingVideoEntity.uploadId!!
-    }
-
-    override fun saveVideoSource(
-        userId: Long,
-        uploadId: Long,
-        start: Long,
-        end: Long,
-        source: InputStream,
-    ): Boolean {
-        val channelId = pendingVideosRepository.findById(uploadId).orElseThrow().channelId
-        if (!channelRepository.existsByOwnerIdAndChannelId(userId, channelId)) {
-            throw IllegalAccessException()
-        }
-        val path = Path(appPaths.TEMP_VIDEOS_BASE_PATH, uploadId.toString()).createDirectory()
-        return saveFile(
-            input = source,
-            path = "$path/$uploadId/source/$start-$end.tmp"
-        )
-    }
-
-    override fun confirm(
-        userId: Long,
-        uploadId: Long,
-    ): Video {
-        val pending = pendingVideosRepository.findById(uploadId).orElseThrow()
-        if (!channelRepository.existsByOwnerIdAndChannelId(userId, pending.channelId)) {
-            throw IllegalAccessException()
-        }
-        val videoEntity = videoRepository.save(
-            VideoEntity(
-                channelId = pending.channelId,
-                title = pending.title,
-                dateTime = pending.dateTime
-            )
-        )
-        videoSearchRepository.save(videoEntity.toDocument())
-        assembleVideoSource(videoEntity.videoId!!, pending.uploadId!!)
-        val videoWithChannel = videoWithChannelsRepository.findById(videoEntity.videoId!!).get()
+        val videoWithChannel = videoWithChannelsRepository.findById(videoEntity.videoId!!).orElseThrow()
         val message = Message.builder()
             .setTopic("$CHANNELS_TOPICS_PREFIX.${videoWithChannel.channelId}")
             .putAllData(
@@ -353,11 +366,12 @@ class VideoServiceWithDB @Autowired constructor(
                 )
             ).build()
         fcm.send(message)
+        pendingVideosRepository.delete(pending)
         return videoEntity.toDomain()
     }
 
-    private fun assembleVideoSource(videoId: Long, uploadId: Long) {
-        val tmpPath = Path(appPaths.TEMP_VIDEOS_BASE_PATH, uploadId.toString(), "source")
+    private fun assembleVideoSource(videoId: Long, uploadId: UUID) {
+        val tmpPath = Path(appPaths.TEMP_PATH, uploadId.toString())
         val metaData = pendingVideosRepository.findById(uploadId).orElseThrow().let {
             VideoMetaData(
                 fileName = it.fileName,
@@ -366,9 +380,10 @@ class VideoServiceWithDB @Autowired constructor(
             )
         }
         val extension = metaData.fileName!!.parseExtension()
-        val file = Path(appPaths.VIDEOS_BASE_PATH, videoId.toString(), "source", "original.$extension")
-        file.outputStream().use { output ->
-            tmpPath
+        val tmpSource = tmpPath.resolve("source.$extension").createFile()
+        tmpSource.outputStream().use { output ->
+            val chunksPath = tmpPath.resolve("source")
+            chunksPath
                 .toFile()
                 .listFiles { _, name ->
                     name.endsWith(".tmp")
@@ -380,6 +395,10 @@ class VideoServiceWithDB @Autowired constructor(
                     }
                 }
         }
+        val path = Path(appPaths.VIDEOS_BASE_PATH, videoId.toString()).createDirectory()
+        val sourcePath = path.resolve("source").createDirectory()
+        val source = sourcePath.resolve("original.$extension").createFile()
+        tmpSource.moveTo(source)
     }
 
     override fun getRecommendations(
@@ -413,21 +432,16 @@ class VideoServiceWithDB @Autowired constructor(
             }
     }
 
-    private fun saveFile(input: InputStream, path: String): Boolean {
-        return try {
-            input.use { inStream ->
-                val output = FileOutputStream(File(path), true)
-                output.use { outStream ->
-                    val buffer = ByteArray(IO_BUFFER_SIZE)
-                    var bytesRead: Int
-                    while (inStream.read(buffer).also { bytesRead = it } != -1) {
-                        outStream.write(buffer, 0, bytesRead)
-                    }
+    private fun saveFile(input: InputStream, path: String) {
+        input.use { inStream ->
+            val output = FileOutputStream(File(path), true)
+            output.use { outStream ->
+                val buffer = ByteArray(IO_BUFFER_SIZE)
+                var bytesRead: Int
+                while (inStream.read(buffer).also { bytesRead = it } != -1) {
+                    outStream.write(buffer, 0, bytesRead)
                 }
             }
-            true
-        } catch (e: Exception) {
-            false
         }
     }
 

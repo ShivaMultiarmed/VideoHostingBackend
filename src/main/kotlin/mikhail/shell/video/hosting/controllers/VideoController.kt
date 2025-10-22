@@ -24,7 +24,10 @@ import org.springframework.web.multipart.MultipartFile
 import java.io.File
 import java.io.InputStream
 import java.io.RandomAccessFile
+import java.util.*
 import javax.activation.MimetypesFileTypeMap
+
+typealias ValidUUID = org.hibernate.validator.constraints.UUID
 
 @RestController
 @RequestMapping("/api/v2/videos")
@@ -203,7 +206,7 @@ class VideoController @Autowired constructor(
 
     @PostMapping("/{upload_id}/source", consumes = ["application/octet-stream"])
     fun uploadSource(
-        @PathVariable("upload_id") @LongId videoId: Long?,
+        @PathVariable("upload_id") @ValidUUID uploadId: UUID?,
         @RequestHeader("Content-Range") contentRange: String,
         input: InputStream,
         @AuthenticationPrincipal userId: Long
@@ -220,7 +223,7 @@ class VideoController @Autowired constructor(
         }
         videoService.saveVideoSource(
             userId = userId,
-            uploadId = videoId!!,
+            uploadId = uploadId!!,
             start = start,
             end = end,
             source = input
@@ -229,7 +232,7 @@ class VideoController @Autowired constructor(
 
     @PostMapping("/{upload_id}/confirmation")
     fun confirmUpload(
-        @PathVariable("upload_id") @LongId uploadId: Long?,
+        @PathVariable("upload_id") @ValidUUID uploadId: UUID?,
         @AuthenticationPrincipal userId: Long
     ) = videoService.confirm(userId = userId, uploadId = uploadId!!).toDto()
 

@@ -126,7 +126,6 @@ annotation class Image(
     val payload: Array<KClass<out Payload>> = []
 )
 
-
 @NotBlank(message = "EMPTY")
 @Size(max = MAX_NAME_LENGTH, message = "LARGE")
 @Constraint(validatedBy = [])

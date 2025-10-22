@@ -3,6 +3,7 @@ package mikhail.shell.video.hosting.service
 import mikhail.shell.video.hosting.domain.*
 import org.springframework.core.io.Resource
 import java.io.InputStream
+import java.util.*
 
 interface VideoService {
     fun get(videoId: Long): Video
@@ -18,7 +19,7 @@ interface VideoService {
     fun checkExistence(videoId: Long): Boolean
     fun sync()
     fun getCover(videoId: Long): Resource
-    fun save(userId: Long, video: VideoCreationModel): Long
-    fun saveVideoSource(userId: Long, uploadId: Long, start: Long, end: Long, source: InputStream): Boolean
-    fun confirm(userId: Long, uploadId: Long): Video
+    fun save(userId: Long, video: VideoCreationModel): String
+    fun saveVideoSource(userId: Long, uploadId: UUID, start: Long, end: Long, source: InputStream)
+    fun confirm(userId: Long, uploadId: UUID): Video
 }
