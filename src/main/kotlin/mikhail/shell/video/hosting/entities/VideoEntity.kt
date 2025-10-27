@@ -6,10 +6,6 @@ import mikhail.shell.video.hosting.domain.VideoWithChannel
 import java.time.Instant
 import java.util.UUID
 
-enum class VideoState {
-    CREATED, UPLOADED
-}
-
 @Entity
 @Table(name = "videos")
 data class VideoEntity(
@@ -101,7 +97,7 @@ fun VideoWithChannel.toEntity() = VideoWithChannelEntity(
 data class PendingVideoEntity(
     @Id
     @Column(columnDefinition = "BINARY(16)")
-    val uploadId: UUID = UUID.randomUUID(),
+    val tmpId: UUID = UUID.randomUUID(),
     val channelId: Long,
     val title: String,
     val description: String?,

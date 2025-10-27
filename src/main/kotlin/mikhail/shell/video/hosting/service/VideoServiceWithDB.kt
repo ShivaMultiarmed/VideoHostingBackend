@@ -277,30 +277,30 @@ class VideoServiceWithDB @Autowired constructor(
                 size = video.source.size!!
             )
         )
-        val tmpPath = Path(appPaths.TEMP_PATH, pendingVideoEntity.uploadId.toString()).createDirectory()
+        val tmpPath = Path(appPaths.TEMP_PATH, pendingVideoEntity.tmpId.toString()).createDirectory()
         video.cover?.let {
-            val extension = "" // TODO
+            val extension = video.cover.fileName.parseExtension()
             val coverPath = tmpPath.resolve("cover.$extension").createFile()
             uploadImage(
                 uploadedFile = it,
                 targetFile = coverPath.toString()
             )
         }
-        return pendingVideoEntity.uploadId.toString()
+        return pendingVideoEntity.tmpId.toString()
     }
 
     override fun saveVideoSource(
         userId: Long,
-        uploadId: UUID,
+        tmpId: UUID,
         start: Long,
         end: Long,
         source: InputStream,
     ) {
-        val channelId = pendingVideosRepository.findById(uploadId).orElseThrow().channelId
+        val channelId = pendingVideosRepository.findById(tmpId).orElseThrow().channelId
         if (!channelRepository.existsByOwnerIdAndChannelId(userId, channelId)) {
             throw IllegalAccessException()
         }
-        val path = Path(appPaths.TEMP_PATH, uploadId.toString())
+        val path = Path(appPaths.TEMP_PATH, tmpId.toString())
         if (path.notExists()) {
             path.createDirectory()
         }
@@ -315,9 +315,9 @@ class VideoServiceWithDB @Autowired constructor(
 
     override fun confirm(
         userId: Long,
-        uploadId: UUID,
+        tmpId: UUID,
     ): Video {
-        val pending = pendingVideosRepository.findById(uploadId).orElseThrow()
+        val pending = pendingVideosRepository.findById(tmpId).orElseThrow()
         if (!channelRepository.existsByOwnerIdAndChannelId(userId, pending.channelId)) {
             throw IllegalAccessException()
         }
@@ -330,29 +330,28 @@ class VideoServiceWithDB @Autowired constructor(
             )
         )
         videoSearchRepository.save(videoEntity.toDocument())
-        assembleVideoSource(videoEntity.videoId!!, pending.uploadId)
-        val coverTmpPath = Path(appPaths.TEMP_PATH, uploadId.toString())
+        assembleVideoSource(videoEntity.videoId!!, pending.tmpId)
+        val coverTmpPath = Path(appPaths.TEMP_PATH, tmpId.toString())
         val tmpCover = findFileByName(coverTmpPath, "cover")
         tmpCover?.let {
             val coverPath = Path(appPaths.VIDEOS_BASE_PATH, videoEntity.videoId!!.toString(), "cover")
-            // TODO adjust image sizes for each case
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$coverPath/large.png",
-                width = 1800,
-                height = 200
+                targetFile = "$coverPath/large.${it.extension}",
+                width = 512,
+                height = 290
             )
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$coverPath/medium.png",
-                width = 1000,
-                height = 120
+                targetFile = "$coverPath/medium.${it.extension}",
+                width = 256,
+                height = 144
             )
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$coverPath/small.png",
-                width = 350,
-                height = 60
+                targetFile = "$coverPath/small.${it.extension}",
+                width = 128,
+                height = 72
             )
         }
         val videoWithChannel = videoWithChannelsRepository.findById(videoEntity.videoId!!).orElseThrow()
@@ -466,11 +465,11 @@ class VideoServiceWithDB @Autowired constructor(
     }
 
     override fun getCover(videoId: Long): Resource {
-        return FileSystemResource(
-            findFileByName(appPaths.VIDEOS_COVERS_BASE_PATH, videoId.toString())
-                .takeUnless { !videoRepository.existsById(videoId) || it?.exists() != true }
-                ?: throw NoSuchElementException()
-        )
+        val file = findFileByName(appPaths.VIDEOS_COVERS_BASE_PATH, videoId.toString())
+        if (!videoRepository.existsById(videoId) || file?.exists() != true) {
+            throw NoSuchElementException()
+        }
+        return FileSystemResource(file)
     }
 
     override fun edit(

@@ -20,6 +20,6 @@ interface VideoService {
     fun sync()
     fun getCover(videoId: Long): Resource
     fun save(userId: Long, video: VideoCreationModel): String
-    fun saveVideoSource(userId: Long, uploadId: UUID, start: Long, end: Long, source: InputStream)
-    fun confirm(userId: Long, uploadId: UUID): Video
+    fun saveVideoSource(userId: Long, tmpId: UUID, start: Long, end: Long, source: InputStream)
+    fun confirm(userId: Long, tmpId: UUID): Video
 }

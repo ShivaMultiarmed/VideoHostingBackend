@@ -13,6 +13,7 @@ import mikhail.shell.video.hosting.domain.ValidationRules.MAX_TITLE_LENGTH
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_USERNAME_LENGTH
 import mikhail.shell.video.hosting.domain.ValidationRules.PASSWORD_REGEX
 import mikhail.shell.video.hosting.errors.TextError
+import org.hibernate.validator.constraints.UUID
 import org.springframework.web.multipart.MultipartFile
 import kotlin.reflect.KClass
 
@@ -292,6 +293,22 @@ annotation class PartIndex(
     AnnotationTarget.VALUE_PARAMETER
 )
 annotation class PartSize(
+    val message: String = "",
+    val groups: Array<KClass<*>> = [],
+    val payload: Array<KClass<out Payload>> = []
+)
+
+@NotNull(message = "EMPTY")
+@Pattern(
+    regexp = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+    message = "PATTERN"
+)
+@Constraint(validatedBy = [])
+@Target(
+    AnnotationTarget.FIELD,
+    AnnotationTarget.VALUE_PARAMETER
+)
+annotation class ValidUUID(
     val message: String = "",
     val groups: Array<KClass<*>> = [],
     val payload: Array<KClass<out Payload>> = []

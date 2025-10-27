@@ -25,9 +25,6 @@ import java.io.File
 import java.io.InputStream
 import java.io.RandomAccessFile
 import java.util.*
-import javax.activation.MimetypesFileTypeMap
-
-typealias ValidUUID = org.hibernate.validator.constraints.UUID
 
 @RestController
 @RequestMapping("/api/v2/videos")
@@ -186,8 +183,8 @@ class VideoController @Autowired constructor(
         if (source.fileName == null || !source.fileName.matches(FILE_NAME_REGEX.toRegex())) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("source" to FileError.NAME_NOT_VALID))
         }
-        val detectedMimeType = MimetypesFileTypeMap.getDefaultFileTypeMap().getContentType(source.fileName)?: ""
-        if (!detectedMimeType.startsWith("video") || detectedMimeType != source.mimeType) {
+        //val detectedMimeType = MimetypesFileTypeMap.getDefaultFileTypeMap().getContentType(source.fileName)?: ""
+        if (!source.mimeType!!.startsWith("video")) { // || detectedMimeType != source.mimeType) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("source" to FileError.NOT_SUPPORTED))
         }
         return videoService.save(
@@ -204,14 +201,14 @@ class VideoController @Autowired constructor(
         }
     }
 
-    @PostMapping("/{upload_id}/source", consumes = ["application/octet-stream"])
+    @PostMapping("/{tmp_id}/source", consumes = ["application/octet-stream"])
     fun uploadSource(
-        @PathVariable("upload_id") @ValidUUID uploadId: UUID?,
+        @PathVariable("tmp_id") @ValidUUID tmpId: String?,
         @RequestHeader("Content-Range") contentRange: String,
         input: InputStream,
         @AuthenticationPrincipal userId: Long
     ) {
-        val groups = """(\d+)-(\d+)/(\d+)\$""".toRegex()
+        val groups = """^(\d+)-(\d+)/(\d+)\$""".toRegex()
             .matchEntire(contentRange)
             ?.groupValues
         if (groups == null || groups.size != 4) { // including full match
@@ -223,18 +220,18 @@ class VideoController @Autowired constructor(
         }
         videoService.saveVideoSource(
             userId = userId,
-            uploadId = uploadId!!,
+            tmpId = UUID.fromString(tmpId!!),
             start = start,
-            end = end,
+            end = end + 1,
             source = input
         )
     }
 
     @PostMapping("/{upload_id}/confirmation")
     fun confirmUpload(
-        @PathVariable("upload_id") @ValidUUID uploadId: UUID?,
+        @PathVariable("tmp_id") @ValidUUID tmpId: String?,
         @AuthenticationPrincipal userId: Long
-    ) = videoService.confirm(userId = userId, uploadId = uploadId!!).toDto()
+    ) = videoService.confirm(userId = userId, tmpId = UUID.fromString(tmpId!!)).toDto()
 
     @PatchMapping("/{video_id}/views")
     fun incrementViews(@PathVariable("video_id") @LongId videoId: Long?): VideoDto {

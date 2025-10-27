@@ -1,7 +1,7 @@
 package mikhail.shell.video.hosting.domain
 
 data class UploadedFile(
-    val name: String,
+    val fileName: String,
     val mimeType: String,
     val bytes: ByteArray
 ) {
@@ -11,7 +11,7 @@ data class UploadedFile(
 
         other as UploadedFile
 
-        if (name != other.name) return false
+        if (fileName != other.fileName) return false
         if (mimeType != other.mimeType) return false
         if (!bytes.contentEquals(other.bytes)) return false
 
@@ -19,7 +19,7 @@ data class UploadedFile(
     }
 
     override fun hashCode(): Int {
-        var result = name.hashCode()
+        var result = fileName.hashCode()
         result = 31 * result + mimeType.hashCode()
         result = 31 * result + bytes.contentHashCode()
         return result

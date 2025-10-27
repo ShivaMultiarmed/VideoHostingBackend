@@ -12,7 +12,8 @@ data class VideoDto(
     val dateTime: Instant,
     val views: Long,
     val likes: Long,
-    val dislikes: Long
+    val dislikes: Long,
+    val description: String?
 )
 
 fun Video.toDto() = VideoDto(
@@ -22,7 +23,8 @@ fun Video.toDto() = VideoDto(
     dateTime = dateTime,
     views = views,
     likes = likes,
-    dislikes = dislikes
+    dislikes = dislikes,
+    description = description
 )
 
 fun VideoDto.toDomain() = Video(
@@ -32,7 +34,8 @@ fun VideoDto.toDomain() = Video(
     dateTime = dateTime,
     views = views,
     likes = likes,
-    dislikes = dislikes
+    dislikes = dislikes,
+    description = description
 )
 
 data class VideoWithChannelDto(

@@ -15,7 +15,6 @@ interface VideoWithChannelsRepository: JpaRepository<VideoWithChannelEntity, Lon
         value = """
             SELECT v FROM VideoWithChannelEntity v
             LEFT OUTER JOIN Subscriber s ON v.channelId = s.id.channelId AND s.id.userId = :user_id 
-            WHERE v.state = 'UPLOADED' 
             ORDER BY (
             :date_time_weight * (CAST(FUNCTION('unix_timestamp', v.dateTime) AS Long) + 0.0) + 
             :subscribers_weight * (v.channel.subscribers + 0.0) +  
