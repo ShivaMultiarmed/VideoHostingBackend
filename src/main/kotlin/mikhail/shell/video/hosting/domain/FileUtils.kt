@@ -71,6 +71,9 @@ fun uploadImage(
                 height = if (height > 0) height else inputImage.height
             )
         }
+        if (!targetFile.exists()) {
+            targetFile.createNewFile()
+        }
         targetFile.outputStream().use {
             ImageIO.write(outputImage, targetFile.extension, it)
         }

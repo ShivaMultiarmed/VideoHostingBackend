@@ -18,8 +18,8 @@ interface VideoService {
     fun getRecommendations(userId: Long, partIndex: Long, partSize: Int): List<VideoWithChannel>
     fun checkExistence(videoId: Long): Boolean
     fun sync()
-    fun getCover(videoId: Long): Resource
-    fun save(userId: Long, video: VideoCreationModel): String
+    fun getCover(videoId: Long, size: ImageSize): Resource
+    fun save(userId: Long, video: VideoCreationModel): PendingVideo
     fun saveVideoSource(userId: Long, tmpId: UUID, start: Long, end: Long, source: InputStream)
     fun confirm(userId: Long, tmpId: UUID): Video
 }

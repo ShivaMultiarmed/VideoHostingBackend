@@ -25,6 +25,7 @@ import java.io.File
 import java.io.InputStream
 import java.io.RandomAccessFile
 import java.util.*
+import kotlin.io.path.Path
 
 @RestController
 @RequestMapping("/api/v2/videos")
@@ -69,8 +70,8 @@ class VideoController @Autowired constructor(
         request: HttpServletRequest,
         response: HttpServletResponse
     ): ResponseEntity<Any> {
-        val sourcesDirectory = File(appPaths.VIDEOS_SOURCES_BASE_PATH)
-        val file = findFileByName(sourcesDirectory, videoId.toString())
+        val sourceDirectory = Path(appPaths.VIDEOS_BASE_PATH, videoId.toString(), "source")
+        val file = findFileByName(sourceDirectory, "original")
         if (file?.exists() != true || !videoService.checkExistence(videoId!!)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build()
         }
@@ -142,9 +143,10 @@ class VideoController @Autowired constructor(
 
     @GetMapping("/{video_id}/cover")
     fun provideVideoCover(
-        @PathVariable("video_id") @LongId videoId: Long?
+        @PathVariable("video_id") @LongId videoId: Long?,
+        @RequestParam("size") @ValidEnum(ImageSize::class) size: String?
     ): ResponseEntity<Resource> {
-        val image = videoService.getCover(videoId!!)
+        val image = videoService.getCover(videoId!!, ImageSize.valueOf(size!!.uppercase()))
         return ResponseEntity.status(HttpStatus.OK)
             .contentType(MediaType.parseMediaType("image/${image.file.extension}"))
             .body(image)
@@ -197,7 +199,7 @@ class VideoController @Autowired constructor(
                 source = source
             )
         ).let {
-            ResponseEntity.status(HttpStatus.OK).body(it)
+            ResponseEntity.status(HttpStatus.OK).body(PendingVideoDto(tmpId = it.tmpId))
         }
     }
 
@@ -208,13 +210,13 @@ class VideoController @Autowired constructor(
         input: InputStream,
         @AuthenticationPrincipal userId: Long
     ) {
-        val groups = """^(\d+)-(\d+)/(\d+)\$""".toRegex()
-            .matchEntire(contentRange)
+        val groups = """(\d+)-(\d+)/(\d+)$""".toRegex()
+            .find(contentRange)
             ?.groupValues
         if (groups == null || groups.size != 4) { // including full match
             throw IllegalArgumentException()
         }
-        val (start, end, total) = groups.map { it.toLong() }.slice(1 .. 3)
+        val (start, end, total) = groups.slice(1 .. 3).map { it.toLong() }
         if (start > end || total <= 0 || start < 0) {
             throw IllegalArgumentException()
         }
@@ -227,11 +229,14 @@ class VideoController @Autowired constructor(
         )
     }
 
-    @PostMapping("/{upload_id}/confirmation")
+    @PostMapping("/{tmp_id}/confirmation")
     fun confirmUpload(
         @PathVariable("tmp_id") @ValidUUID tmpId: String?,
         @AuthenticationPrincipal userId: Long
-    ) = videoService.confirm(userId = userId, tmpId = UUID.fromString(tmpId!!)).toDto()
+    ) = videoService.confirm(
+        userId = userId,
+        tmpId = UUID.fromString(tmpId!!)
+    ).toDto()
 
     @PatchMapping("/{video_id}/views")
     fun incrementViews(@PathVariable("video_id") @LongId videoId: Long?): VideoDto {
@@ -261,7 +266,10 @@ class VideoController @Autowired constructor(
         @PathVariable("video_id") @LongId videoId: Long?,
         @AuthenticationPrincipal userId: Long
     ) {
-        videoService.delete(userId = userId, videoId = videoId!!)
+        videoService.delete(
+            userId = userId,
+            videoId = videoId!!
+        )
     }
 
     @GetMapping("/recommendations")

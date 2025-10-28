@@ -81,7 +81,8 @@ enum class TextError: Error {
 enum class NumericError: Error {
     EMPTY,
     LOW,
-    HIGH
+    HIGH,
+    NOT_EXISTS
 }
 
 enum class OptionError: Error {

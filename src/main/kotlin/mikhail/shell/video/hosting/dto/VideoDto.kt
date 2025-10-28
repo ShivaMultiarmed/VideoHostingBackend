@@ -4,6 +4,7 @@ import mikhail.shell.video.hosting.domain.Liking
 import mikhail.shell.video.hosting.domain.Video
 import mikhail.shell.video.hosting.domain.VideoWithUser
 import java.time.Instant
+import java.util.UUID
 
 data class VideoDto(
     val videoId: Long,
@@ -63,4 +64,8 @@ fun VideoWithUser.toDto() = VideoWithUserDto(
     likes = likes,
     liking = liking,
     dislikes = dislikes
+)
+
+data class PendingVideoDto(
+    val tmpId: UUID
 )
