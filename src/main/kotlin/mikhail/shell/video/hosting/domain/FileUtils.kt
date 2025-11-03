@@ -114,7 +114,7 @@ fun BufferedImage.crop(
     return Thumbnails.of(this)
         .sourceRegion(Positions.CENTER, cropWidth, cropHeight)
         .size(min(cropWidth, width), min(cropHeight, height))
-        .outputQuality(0.8f)
+        .outputQuality(0.7f)
         .asBufferedImage()
 }
 

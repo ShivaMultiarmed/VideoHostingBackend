@@ -60,6 +60,10 @@ dependencies {
 	implementation ("com.google.firebase:firebase-admin:9.4.3")
 
 	implementation("net.coobird:thumbnailator:0.4.8")
+
+    // mp4parser
+    implementation("org.mp4parser:isoparser:1.9.41")
+    implementation("org.mp4parser:muxer:1.9.41")
 }
 
 kotlin {

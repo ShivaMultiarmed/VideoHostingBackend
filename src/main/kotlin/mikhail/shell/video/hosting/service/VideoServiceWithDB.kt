@@ -18,6 +18,11 @@ import mikhail.shell.video.hosting.elastic.repository.VideoSearchRepository
 import mikhail.shell.video.hosting.entities.*
 import mikhail.shell.video.hosting.errors.*
 import mikhail.shell.video.hosting.repository.*
+import org.mp4parser.muxer.Movie
+import org.mp4parser.muxer.builder.DefaultMp4Builder
+import org.mp4parser.muxer.builder.FragmentedMp4Builder
+import org.mp4parser.muxer.container.mp4.MovieCreator
+import org.mp4parser.muxer.tracks.AppendTrack
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.io.FileSystemResource
 import org.springframework.core.io.Resource
@@ -29,9 +34,12 @@ import org.springframework.stereotype.Service
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
+import java.io.RandomAccessFile
+import java.nio.file.Path
 import java.nio.file.Paths
 import java.time.Instant
 import java.util.UUID
+import kotlin.io.extension
 import kotlin.io.path.*
 
 @Service
@@ -53,7 +61,10 @@ class VideoServiceWithDB @Autowired constructor(
         return videoRepository.findById(videoId).orElseThrow().toDomain()
     }
 
-    override fun get(videoId: Long, userId: Long): VideoWithUser {
+    override fun get(
+        videoId: Long,
+        userId: Long
+    ): VideoWithUser {
         if (!videoRepository.existsById(videoId)) {
             throw NoSuchElementException()
         }
@@ -72,13 +83,20 @@ class VideoServiceWithDB @Autowired constructor(
         return videoRepository.existsById(videoId)
     }
 
-    override fun checkLiking(videoId: Long, userId: Long): Liking {
+    override fun checkLiking(
+        videoId: Long,
+        userId: Long
+    ): Liking {
         val id = VideoLikingId(userId, videoId)
         return userLikeVideoRepository.findById(id).orElse(null)?.liking ?: Liking.NONE
     }
 
     @Transactional
-    override fun rate(videoId: Long, userId: Long, liking: Liking): VideoWithUser {
+    override fun rate(
+        videoId: Long,
+        userId: Long,
+        liking: Liking
+    ): VideoWithUser {
         val id = VideoLikingId(userId, videoId)
         val previousLiking = checkLiking(videoId, userId)
         val videoEntity = videoRepository.findById(videoId).orElseThrow()
@@ -119,7 +137,7 @@ class VideoServiceWithDB @Autowired constructor(
     override fun getByChannelId(
         channelId: Long,
         partSize: Int,
-        partIndex: Long,
+        partIndex: Long
     ): List<Video> {
         if (!channelRepository.existsById(channelId)) {
             throw NoSuchElementException()
@@ -198,7 +216,7 @@ class VideoServiceWithDB @Autowired constructor(
     override fun getByQuery(
         query: String,
         partSize: Int,
-        cursor: Long?,
+        cursor: Long?
     ): List<VideoWithChannel> {
         val sortingScript = Script.Builder()
             .lang("painless")
@@ -261,7 +279,7 @@ class VideoServiceWithDB @Autowired constructor(
 
     override fun save(
         userId: Long,
-        video: VideoCreationModel,
+        video: VideoCreationModel
     ): PendingVideo {
         val errors = mutableMapOf<String, Error>()
         if (!channelRepository.existsById(video.channelId)) {
@@ -301,21 +319,18 @@ class VideoServiceWithDB @Autowired constructor(
         tmpId: UUID,
         start: Long,
         end: Long,
-        source: InputStream,
+        source: InputStream
     ) {
-        val channelId = pendingVideosRepository.findById(tmpId).orElseThrow().channelId
+        val channelId = pendingVideosRepository
+            .findById(tmpId)
+            .orElseThrow()
+            .channelId
         if (!channelRepository.existsByOwnerIdAndChannelId(userId, channelId)) {
             throw IllegalAccessException()
         }
-        val path = Path(appPaths.TEMP_PATH, tmpId.toString())
-        if (path.notExists()) {
-            path.createDirectory()
-        }
-        val sourcePath = path.resolve("source")
-        if (sourcePath.notExists()) {
-            sourcePath.createDirectory()
-        }
-        saveFile(
+        val path = Path(appPaths.TEMP_PATH, tmpId.toString()).createDirectories()
+        val sourcePath = path.resolve("source").createDirectories()
+        writeToFile(
             input = source,
             path = sourcePath
                 .resolve("$start-$end.tmp")
@@ -327,9 +342,11 @@ class VideoServiceWithDB @Autowired constructor(
     @OptIn(ExperimentalPathApi::class)
     override fun confirm(
         userId: Long,
-        tmpId: UUID,
+        tmpId: UUID
     ): Video {
-        val pending = pendingVideosRepository.findById(tmpId).orElseThrow()
+        val pending = pendingVideosRepository
+            .findById(tmpId)
+            .orElseThrow()
         if (!channelRepository.existsByOwnerIdAndChannelId(userId, pending.channelId)) {
             throw IllegalAccessException()
         }
@@ -342,71 +359,73 @@ class VideoServiceWithDB @Autowired constructor(
             )
         )
         videoSearchRepository.save(videoEntity.toDocument())
-        assembleVideoSource(videoEntity.videoId!!, pending.tmpId)
+        val sourceMetaData = getSourceMetaData(pending.tmpId)
         val tmpPath = Path(appPaths.TEMP_PATH, tmpId.toString())
-        val tmpCover = findFileByName(tmpPath, "cover")
-        tmpCover?.let {
-            val coverPath = Path(appPaths.VIDEOS_BASE_PATH, videoEntity.videoId!!.toString(), "cover").createDirectory()
-            uploadImage(
-                uploadedFile = it,
-                targetFile = "$coverPath/large.${it.extension}",
-                width = 512,
-                height = 290
-            )
-            uploadImage(
-                uploadedFile = it,
-                targetFile = "$coverPath/medium.${it.extension}",
-                width = 256,
-                height = 144
-            )
-            uploadImage(
-                uploadedFile = it,
-                targetFile = "$coverPath/small.${it.extension}",
-                width = 128,
-                height = 72
-            )
-        }
-        val videoWithChannel = videoWithChannelsRepository.findById(videoEntity.videoId!!).orElseThrow()
-        val message = Message.builder()
-            .setTopic("$CHANNELS_TOPICS_PREFIX.${videoWithChannel.channelId}")
-            .putAllData(
-                mapOf(
-                    "channel_title" to videoWithChannel.channel.title,
-                    "video_title" to videoWithChannel.title,
-                    "video_id" to videoWithChannel.videoId.toString()
-                )
-            ).build()
-        fcm.send(message)
+        assembleVideoSource(
+            tmpPath = tmpPath,
+            metaData = sourceMetaData
+        )
+        moveVideoSource(
+            tmpPath = tmpPath,
+            metaData = sourceMetaData,
+            videoId = videoEntity.videoId!!
+        )
+        moveVideoCovers(
+            tmpPath = tmpPath,
+            videoId = videoEntity.videoId!!
+        )
+        val videoWithChannel = videoWithChannelsRepository
+            .findById(videoEntity.videoId!!)
+            .orElseThrow()
+            .toDomain()
         pendingVideosRepository.delete(pending)
         tmpPath.deleteRecursively()
+        sendNewVideoNotification(videoWithChannel)
         return videoEntity.toDomain()
     }
 
-    private fun assembleVideoSource(videoId: Long, tmpId: UUID) {
-        val tmpPath = Path(appPaths.TEMP_PATH, tmpId.toString())
-        val metaData = pendingVideosRepository.findById(tmpId).orElseThrow().let {
+    private fun getSourceMetaData(tmpId: UUID): VideoMetaData {
+        return pendingVideosRepository.findById(tmpId).orElseThrow().let {
             VideoMetaData(
                 fileName = it.fileName,
                 mimeType = it.mimeType,
                 size = it.size
             )
         }
-        val extension = metaData.fileName!!.parseExtension()
-        val tmpSource = tmpPath.resolve("source.$extension").createFile()
-        tmpSource.outputStream().use { output ->
-            val chunksPath = tmpPath.resolve("source")
-            chunksPath
-                .toFile()
-                .listFiles { _, name ->
-                    name.endsWith(".tmp")
-                }?.sortedBy {
-                    it.name
-                }?.forEach {
-                    it.inputStream().use { input ->
-                        input.copyTo(output)
-                    }
+    }
+
+    private fun assembleVideoSource(
+        tmpPath: Path,
+        metaData: VideoMetaData
+    ) {
+        val extension = metaData
+            .fileName!!
+            .parseExtension()
+        val tmpSourceChunks = tmpPath
+            .resolve("source")
+            .toFile()
+            .listFiles { file: File -> file.extension == "tmp" }!!
+            .sortedBy { it.nameWithoutExtension.substringBefore("-").toLong() }
+        val tmpSource = tmpPath
+            .resolve("source.$extension")
+            .createFile()
+            .toFile()
+        tmpSource.outputStream().use { fos ->
+            tmpSourceChunks.forEach { file: File ->
+                file.inputStream().use { fis ->
+                    fis.copyTo(fos)
                 }
+            }
         }
+    }
+
+    private fun moveVideoSource(
+        tmpPath: Path,
+        metaData: VideoMetaData,
+        videoId: Long
+    ) {
+        val extension = metaData.fileName!!.parseExtension()
+        val tmpSource = tmpPath.resolve("source.$extension")
         val path = Path(appPaths.VIDEOS_BASE_PATH, videoId.toString()).createDirectory()
         val sourcePath = path.resolve("source").createDirectory()
         val source = sourcePath.resolve("original.$extension")
@@ -434,6 +453,47 @@ class VideoServiceWithDB @Autowired constructor(
             .toList()
     }
 
+    private fun moveVideoCovers(
+        tmpPath: Path,
+        videoId: Long
+    ) {
+        val tmpCover = findFileByName(tmpPath, "cover")
+        tmpCover?.let {
+            val coverPath = Path(appPaths.VIDEOS_BASE_PATH, videoId.toString(), "cover").createDirectory()
+            uploadImage(
+                uploadedFile = it,
+                targetFile = "$coverPath/large.${it.extension}",
+                width = 512,
+                height = 290
+            )
+            uploadImage(
+                uploadedFile = it,
+                targetFile = "$coverPath/medium.${it.extension}",
+                width = 256,
+                height = 144
+            )
+            uploadImage(
+                uploadedFile = it,
+                targetFile = "$coverPath/small.${it.extension}",
+                width = 128,
+                height = 72
+            )
+        }
+    }
+
+    private fun sendNewVideoNotification(videoWithChannel: VideoWithChannel){
+        val message = Message.builder()
+            .setTopic("$CHANNELS_TOPICS_PREFIX.${videoWithChannel.channel.channelId}")
+            .putAllData(
+                mapOf(
+                    "channel_title" to videoWithChannel.channel.title,
+                    "video_title" to videoWithChannel.video.title,
+                    "video_id" to videoWithChannel.video.videoId.toString()
+                )
+            ).build()
+        fcm.send(message)
+    }
+
     override fun sync() {
         videoRepository
             .findAll()
@@ -444,15 +504,13 @@ class VideoServiceWithDB @Autowired constructor(
             }
     }
 
-    private fun saveFile(input: InputStream, path: String) {
+    private fun writeToFile(
+        input: InputStream,
+        path: String
+    ) {
         input.use { inStream ->
-            val output = FileOutputStream(File(path), true)
-            output.use { outStream ->
-                val buffer = ByteArray(IO_BUFFER_SIZE)
-                var bytesRead: Int
-                while (inStream.read(buffer).also { bytesRead = it } != -1) {
-                    outStream.write(buffer, 0, bytesRead)
-                }
+            File(path).outputStream().use { outStream ->
+                inStream.copyTo(outStream)
             }
         }
     }
@@ -464,7 +522,10 @@ class VideoServiceWithDB @Autowired constructor(
         return videoRepository.findById(videoId).get().toDomain()
     }
 
-    override fun delete(userId: Long, videoId: Long) {
+    override fun delete(
+        userId: Long,
+        videoId: Long
+    ) {
         if (!videoWithChannelsRepository.existsByChannel_OwnerIdAndVideoId(userId = userId, videoId = videoId)) {
             throw IllegalAccessException()
         }
@@ -477,7 +538,10 @@ class VideoServiceWithDB @Autowired constructor(
         findFileByName(File(appPaths.VIDEOS_COVERS_BASE_PATH), videoId.toString())?.delete()
     }
 
-    override fun getCover(videoId: Long, size: ImageSize): Resource {
+    override fun getCover(
+        videoId: Long,
+        size: ImageSize
+    ): Resource {
         val fileFolder = Path(appPaths.VIDEOS_BASE_PATH, videoId.toString(), "cover")
         val file = findFileByName(fileFolder, size.name.lowercase())
         if (!videoRepository.existsById(videoId) || file?.exists() != true) {
