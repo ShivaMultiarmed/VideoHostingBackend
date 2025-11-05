@@ -483,7 +483,7 @@ class VideoServiceWithDB @Autowired constructor(
     private fun notifyAllOnSuccess(videoWithChannel: VideoWithChannel) {
         val channelId = videoWithChannel.channel.channelId
         val subscribersTopic = "channels.$channelId.subscribers"
-        val creatorTopic = "channels.$channelId.creator"
+        val creatorTopic = "channels.$channelId.uploads"
         val data = mapOf(
             "channel_title" to videoWithChannel.channel.title,
             "video_title" to videoWithChannel.video.title,
@@ -499,8 +499,11 @@ class VideoServiceWithDB @Autowired constructor(
         fcm.send(message(creatorTopic))
     }
 
-    private fun notifyCreatorOnFailure(error: Error = UnexpectedError) {
-        val topic = "channels.{channel_id}.creator"
+    private fun notifyCreatorOnFailure(
+        channelId: Long,
+        error: Error = UnexpectedError
+    ) {
+        val topic = "/topics/channels/$channelId/uploads"
         val data = mapOf("source" to error)
             .map { it.key to it.value.toString() }
             .toMap()

@@ -67,6 +67,7 @@ dependencies {
 kotlin {
 	compilerOptions {
 		freeCompilerArgs.addAll("-Xjsr305=strict")
+        freeCompilerArgs
 	}
 	jvmToolchain(17)
 }
