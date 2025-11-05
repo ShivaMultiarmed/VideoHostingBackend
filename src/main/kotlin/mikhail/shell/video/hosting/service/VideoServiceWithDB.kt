@@ -10,6 +10,11 @@ import co.elastic.clients.json.JsonData
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.Message
 import jakarta.transaction.Transactional
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import mikhail.shell.video.hosting.controllers.VideoMetaData
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.elastic.documents.VideoDocument
@@ -18,11 +23,6 @@ import mikhail.shell.video.hosting.elastic.repository.VideoSearchRepository
 import mikhail.shell.video.hosting.entities.*
 import mikhail.shell.video.hosting.errors.*
 import mikhail.shell.video.hosting.repository.*
-import org.mp4parser.muxer.Movie
-import org.mp4parser.muxer.builder.DefaultMp4Builder
-import org.mp4parser.muxer.builder.FragmentedMp4Builder
-import org.mp4parser.muxer.container.mp4.MovieCreator
-import org.mp4parser.muxer.tracks.AppendTrack
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.io.FileSystemResource
 import org.springframework.core.io.Resource
@@ -32,9 +32,7 @@ import org.springframework.data.elasticsearch.core.ElasticsearchOperations
 import org.springframework.data.elasticsearch.core.search
 import org.springframework.stereotype.Service
 import java.io.File
-import java.io.FileOutputStream
 import java.io.InputStream
-import java.io.RandomAccessFile
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.time.Instant
@@ -311,7 +309,10 @@ class VideoServiceWithDB @Autowired constructor(
                 targetFile = coverPath.toString()
             )
         }
-        return PendingVideo(tmpId = pendingVideoEntity.tmpId)
+        return PendingVideo(
+            tmpId = pendingVideoEntity.tmpId,
+            channelId = pendingVideoEntity.channelId
+        )
     }
 
     override fun saveVideoSource(
@@ -343,45 +344,43 @@ class VideoServiceWithDB @Autowired constructor(
     override fun confirm(
         userId: Long,
         tmpId: UUID
-    ): Video {
-        val pending = pendingVideosRepository
-            .findById(tmpId)
-            .orElseThrow()
+    ) {
+        val pending = pendingVideosRepository.findById(tmpId).orElseThrow()
         if (!channelRepository.existsByOwnerIdAndChannelId(userId, pending.channelId)) {
             throw IllegalAccessException()
         }
-        val videoEntity = videoRepository.save(
-            VideoEntity(
-                channelId = pending.channelId,
-                title = pending.title,
-                description = pending.description,
-                dateTime = pending.dateTime
+        val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+        coroutineScope.launch {
+            val sourceMetaData = getSourceMetaData(pending.tmpId)
+            val tmpPath = Path(appPaths.TEMP_PATH, tmpId.toString())
+            assembleVideoSource(
+                tmpPath = tmpPath,
+                metaData = sourceMetaData
             )
-        )
-        videoSearchRepository.save(videoEntity.toDocument())
-        val sourceMetaData = getSourceMetaData(pending.tmpId)
-        val tmpPath = Path(appPaths.TEMP_PATH, tmpId.toString())
-        assembleVideoSource(
-            tmpPath = tmpPath,
-            metaData = sourceMetaData
-        )
-        moveVideoSource(
-            tmpPath = tmpPath,
-            metaData = sourceMetaData,
-            videoId = videoEntity.videoId!!
-        )
-        moveVideoCovers(
-            tmpPath = tmpPath,
-            videoId = videoEntity.videoId!!
-        )
-        val videoWithChannel = videoWithChannelsRepository
-            .findById(videoEntity.videoId!!)
-            .orElseThrow()
-            .toDomain()
-        pendingVideosRepository.delete(pending)
-        tmpPath.deleteRecursively()
-        sendNewVideoNotification(videoWithChannel)
-        return videoEntity.toDomain()
+            val videoEntity = videoRepository.save(
+                VideoEntity(
+                    channelId = pending.channelId,
+                    title = pending.title,
+                    description = pending.description,
+                    dateTime = pending.dateTime
+                )
+            )
+            videoSearchRepository.save(videoEntity.toDocument())
+            moveVideoSource(
+                tmpPath = tmpPath,
+                metaData = sourceMetaData,
+                videoId = videoEntity.videoId!!
+            )
+            moveVideoCovers(
+                tmpPath = tmpPath,
+                videoId = videoEntity.videoId!!
+            )
+            val videoWithChannel = videoWithChannelsRepository.findById(videoEntity.videoId!!).orElseThrow().toDomain()
+            pendingVideosRepository.delete(pending)
+            tmpPath.deleteRecursively()
+            notifyAllOnSuccess(videoWithChannel)
+            coroutineScope.cancel()
+        }
     }
 
     private fun getSourceMetaData(tmpId: UUID): VideoMetaData {
@@ -481,16 +480,34 @@ class VideoServiceWithDB @Autowired constructor(
         }
     }
 
-    private fun sendNewVideoNotification(videoWithChannel: VideoWithChannel){
+    private fun notifyAllOnSuccess(videoWithChannel: VideoWithChannel) {
+        val channelId = videoWithChannel.channel.channelId
+        val subscribersTopic = "channels.$channelId.subscribers"
+        val creatorTopic = "channels.$channelId.creator"
+        val data = mapOf(
+            "channel_title" to videoWithChannel.channel.title,
+            "video_title" to videoWithChannel.video.title,
+            "video_id" to videoWithChannel.video.videoId.toString()
+        )
+        val message = { topic: String ->
+            Message.builder()
+                .setTopic(topic)
+                .putAllData(data)
+                .build()
+        }
+        fcm.send(message(subscribersTopic))
+        fcm.send(message(creatorTopic))
+    }
+
+    private fun notifyCreatorOnFailure(error: Error = UnexpectedError) {
+        val topic = "channels.{channel_id}.creator"
+        val data = mapOf("source" to error)
+            .map { it.key to it.value.toString() }
+            .toMap()
         val message = Message.builder()
-            .setTopic("$CHANNELS_TOPICS_PREFIX.${videoWithChannel.channel.channelId}")
-            .putAllData(
-                mapOf(
-                    "channel_title" to videoWithChannel.channel.title,
-                    "video_title" to videoWithChannel.video.title,
-                    "video_id" to videoWithChannel.video.videoId.toString()
-                )
-            ).build()
+            .setTopic(topic)
+            .putAllData(data)
+            .build()
         fcm.send(message)
     }
 
@@ -510,7 +527,8 @@ class VideoServiceWithDB @Autowired constructor(
     ) {
         input.use { inStream ->
             File(path).outputStream().use { outStream ->
-                inStream.copyTo(outStream)
+                val bytesCopied = inStream.copyTo(outStream, BUFFER_SIZE)
+                println(bytesCopied)
             }
         }
     }
@@ -578,9 +596,16 @@ class VideoServiceWithDB @Autowired constructor(
         }
         return updatedVideoEntity.toDomain()
     }
-
     private companion object {
-        const val IO_BUFFER_SIZE = 100 * 1024
-        const val CHANNELS_TOPICS_PREFIX = "channels"
+        const val BUFFER_SIZE = 10 * 1024 * 1024
     }
+}
+
+fun String.resolve(vararg args: Pair<String, *>): String {
+    val stringBuilder = StringBuilder()
+    val replacements = args.toMap()
+    replacements.forEach {
+        stringBuilder.replace("{${it.key}}".toRegex(), it.value.toString())
+    }
+    return stringBuilder.toString()
 }

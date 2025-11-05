@@ -51,5 +51,6 @@ data class VideoCreationModel(
 )
 
 data class PendingVideo(
-    val tmpId: UUID
+    val tmpId: UUID,
+    val channelId: Long
 )

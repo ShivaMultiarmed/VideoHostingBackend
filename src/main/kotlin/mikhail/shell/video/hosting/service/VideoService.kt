@@ -21,5 +21,5 @@ interface VideoService {
     fun getCover(videoId: Long, size: ImageSize): Resource
     fun save(userId: Long, video: VideoCreationModel): PendingVideo
     fun saveVideoSource(userId: Long, tmpId: UUID, start: Long, end: Long, source: InputStream)
-    fun confirm(userId: Long, tmpId: UUID): Video
+    fun confirm(userId: Long, tmpId: UUID)
 }

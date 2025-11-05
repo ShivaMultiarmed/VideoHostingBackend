@@ -217,7 +217,7 @@ class VideoController @Autowired constructor(
             throw IllegalArgumentException()
         }
         val (start, end, total) = groups.slice(1 .. 3).map { it.toLong() }
-        if (start > end || total <= 0 || start < 0) {
+        if (start > end || total <= 0 || start < 0 || end - start + 1 > BUFFER_SIZE) {
             throw IllegalArgumentException()
         }
         videoService.saveVideoSource(
@@ -233,10 +233,12 @@ class VideoController @Autowired constructor(
     fun confirmUpload(
         @PathVariable("tmp_id") @ValidUUID tmpId: String?,
         @AuthenticationPrincipal userId: Long
-    ) = videoService.confirm(
-        userId = userId,
-        tmpId = UUID.fromString(tmpId!!)
-    ).toDto()
+    ) {
+        videoService.confirm(
+            userId = userId,
+            tmpId = UUID.fromString(tmpId!!)
+        )
+    }
 
     @PatchMapping("/{video_id}/views")
     fun incrementViews(@PathVariable("video_id") @LongId videoId: Long?): VideoDto {
@@ -293,6 +295,10 @@ class VideoController @Autowired constructor(
     @PostMapping("/search/sync")
     fun syncSearchIndex() {
         videoService.sync()
+    }
+
+    private companion object {
+        const val BUFFER_SIZE = 10 * 1024 * 1024
     }
 }
 

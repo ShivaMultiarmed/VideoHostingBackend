@@ -33,6 +33,8 @@ repositories {
 }
 
 dependencies {
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
+
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-data-elasticsearch")
@@ -60,10 +62,6 @@ dependencies {
 	implementation ("com.google.firebase:firebase-admin:9.4.3")
 
 	implementation("net.coobird:thumbnailator:0.4.8")
-
-    // mp4parser
-    implementation("org.mp4parser:isoparser:1.9.41")
-    implementation("org.mp4parser:muxer:1.9.41")
 }
 
 kotlin {
