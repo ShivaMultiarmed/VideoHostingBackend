@@ -571,34 +571,48 @@ class VideoServiceWithDB @Autowired constructor(
         return FileSystemResource(file)
     }
 
+    @OptIn(ExperimentalPathApi::class)
     override fun edit(
         userId: Long,
-        video: Video,
-        coverAction: EditAction,
-        cover: UploadedFile?,
+        video: VideoEditingModel,
     ): Video {
-        val videoEntity = videoRepository
-            .findById(video.videoId)
-            .orElseThrow()
-            .copy(title = video.title)
+        val videoEntity = videoRepository.findById(video.videoId).orElseThrow()
         if (!videoWithChannelsRepository.existsByChannel_OwnerIdAndVideoId(userId = userId, videoId = video.videoId)) {
             throw IllegalAccessException()
         }
-        val updatedVideoEntity = videoRepository.save(videoEntity)
+        val updatedVideoEntity = videoRepository.save(videoEntity.copy(title = video.title))
         videoSearchRepository.save(updatedVideoEntity.toDocument())
-        if (coverAction != EditAction.KEEP) {
-            findFileByName(Paths.get(appPaths.VIDEOS_COVERS_BASE_PATH).toFile(), video.videoId.toString())?.delete()
-        }
-        if (cover != null) {
+        val tmpId = UUID.randomUUID()
+        val tmpPath = Path(appPaths.TEMP_PATH, tmpId.toString()).createDirectory()
+        video.cover?.let {
+            val extension = video.cover.fileName.parseExtension()
+            val coverPath = tmpPath.resolve("cover.$extension").createFile()
             uploadImage(
-                uploadedFile = cover,
-                targetFile = "${appPaths.VIDEOS_COVERS_BASE_PATH}/${updatedVideoEntity.videoId}.jpg",
-                width = 500,
-                height = 280
+                uploadedFile = it,
+                targetFile = coverPath.toString()
             )
         }
+        moveVideoCovers(
+            tmpPath = tmpPath,
+            videoId = videoEntity.videoId!!
+        )
+        val videoPath = Path(appPaths.VIDEOS_BASE_PATH, video.videoId.toString())
+        val coverPath = videoPath.resolve("cover")
+        if (video.coverAction == EditAction.REMOVE) {
+            if (coverPath.exists()) {
+                coverPath.deleteRecursively()
+            }
+        } else if (video.coverAction == EditAction.UPDATE) {
+            if (coverPath.notExists()) {
+                coverPath.createDirectory()
+            } else {
+                coverPath.listDirectoryEntries().forEach { it.deleteIfExists() }
+            }
+        }
+        tmpPath.deleteRecursively()
         return updatedVideoEntity.toDomain()
     }
+
     private companion object {
         const val BUFFER_SIZE = 10 * 1024 * 1024
     }

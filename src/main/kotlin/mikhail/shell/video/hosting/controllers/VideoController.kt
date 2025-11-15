@@ -3,7 +3,6 @@ package mikhail.shell.video.hosting.controllers
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import jakarta.validation.Valid
-import jakarta.validation.constraints.NotEmpty
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ValidationRules.FILE_NAME_REGEX
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_VIDEO_SIZE
@@ -21,7 +20,6 @@ import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
-import java.io.File
 import java.io.InputStream
 import java.io.RandomAccessFile
 import java.util.*
@@ -245,23 +243,23 @@ class VideoController @Autowired constructor(
         return videoService.incrementViews(videoId!!).toDto()
     }
 
-//    @PutMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-//    fun editVideo(
-//        @RequestPart("video") @Valid video: VideoEditingRequest,
-//        @RequestPart("cover", required = false) @Image cover: MultipartFile?,
-//        @AuthenticationPrincipal userId: Long
-//    ): VideoDto {
-//        return videoService.edit(
-//            userId = userId,
-//            video = Video(
-//                videoId = video.videoId,
-//                title = video.title!!,
-//                channelId = video.channelId!!,
-//            ),
-//            coverAction = video.coverAction!!,
-//            cover = cover?.toUploadedFile()
-//        ).toDto()
-//    }
+    @PutMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    fun editVideo(
+        @RequestPart("video") @Valid video: VideoEditingRequest,
+        @RequestPart("cover") @Image cover: MultipartFile?,
+        @AuthenticationPrincipal userId: Long
+    ): VideoDto {
+        return videoService.edit(
+            userId = userId,
+            video = VideoEditingModel(
+                videoId = video.videoId!!,
+                title = video.title!!,
+                cover = cover?.toUploadedFile(),
+                coverAction = EditAction.valueOf(video.coverAction!!),
+                description = video.description
+            ),
+        ).toDto()
+    }
 
     @DeleteMapping("/{video_id}")
     fun delete(
@@ -322,10 +320,8 @@ data class VideoEditingRequest(
     val videoId: Long?,
     @field:Title
     val title: String?,
-    @field:LongId
-    val channelId: Long?,
-    @field:NotEmpty(message = "EMPTY")
-    val coverAction: EditAction?,
+    @field:ValidEnum(EditAction::class)
+    val coverAction: String?,
     @field:Description
     val description: String?
 )

@@ -54,3 +54,11 @@ data class PendingVideo(
     val tmpId: UUID,
     val channelId: Long
 )
+
+data class VideoEditingModel(
+    val videoId: Long,
+    val title: String,
+    val cover: UploadedFile?,
+    val coverAction: EditAction,
+    val description: String?
+)
