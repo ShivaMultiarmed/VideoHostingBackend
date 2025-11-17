@@ -34,7 +34,6 @@ import org.springframework.stereotype.Service
 import java.io.File
 import java.io.InputStream
 import java.nio.file.Path
-import java.nio.file.Paths
 import java.time.Instant
 import java.util.UUID
 import kotlin.io.extension
@@ -458,7 +457,7 @@ class VideoServiceWithDB @Autowired constructor(
     ) {
         val tmpCover = findFileByName(tmpPath, "cover")
         tmpCover?.let {
-            val coverPath = Path(appPaths.VIDEOS_BASE_PATH, videoId.toString(), "cover").createDirectory()
+            val coverPath = Path(appPaths.VIDEOS_BASE_PATH, videoId.toString(), "cover").createDirectories()
             uploadImage(
                 uploadedFile = it,
                 targetFile = "$coverPath/large.${it.extension}",
@@ -580,22 +579,23 @@ class VideoServiceWithDB @Autowired constructor(
         if (!videoWithChannelsRepository.existsByChannel_OwnerIdAndVideoId(userId = userId, videoId = video.videoId)) {
             throw IllegalAccessException()
         }
-        val updatedVideoEntity = videoRepository.save(videoEntity.copy(title = video.title))
+        val updatedVideoEntity = videoRepository.save(
+            videoEntity.copy(
+                title = video.title,
+                description = video.description
+            )
+        )
         videoSearchRepository.save(updatedVideoEntity.toDocument())
         val tmpId = UUID.randomUUID()
         val tmpPath = Path(appPaths.TEMP_PATH, tmpId.toString()).createDirectory()
         video.cover?.let {
             val extension = video.cover.fileName.parseExtension()
-            val coverPath = tmpPath.resolve("cover.$extension").createFile()
+            val tmpCoverPath = tmpPath.resolve("cover.$extension").createFile()
             uploadImage(
                 uploadedFile = it,
-                targetFile = coverPath.toString()
+                targetFile = tmpCoverPath.toString()
             )
         }
-        moveVideoCovers(
-            tmpPath = tmpPath,
-            videoId = videoEntity.videoId!!
-        )
         val videoPath = Path(appPaths.VIDEOS_BASE_PATH, video.videoId.toString())
         val coverPath = videoPath.resolve("cover")
         if (video.coverAction == EditAction.REMOVE) {
@@ -608,6 +608,10 @@ class VideoServiceWithDB @Autowired constructor(
             } else {
                 coverPath.listDirectoryEntries().forEach { it.deleteIfExists() }
             }
+            moveVideoCovers(
+                tmpPath = tmpPath,
+                videoId = videoEntity.videoId!!
+            )
         }
         tmpPath.deleteRecursively()
         return updatedVideoEntity.toDomain()

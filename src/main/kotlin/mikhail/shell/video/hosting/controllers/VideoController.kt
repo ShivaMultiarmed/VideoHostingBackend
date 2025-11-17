@@ -183,6 +183,7 @@ class VideoController @Autowired constructor(
         if (source.fileName == null || !source.fileName.matches(FILE_NAME_REGEX.toRegex())) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("source" to FileError.NAME_NOT_VALID))
         }
+        // TODO: check video type here and after assembling
         //val detectedMimeType = MimetypesFileTypeMap.getDefaultFileTypeMap().getContentType(source.fileName)?: ""
         if (!source.mimeType!!.startsWith("video")) { // || detectedMimeType != source.mimeType) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("source" to FileError.NOT_SUPPORTED))
@@ -255,7 +256,7 @@ class VideoController @Autowired constructor(
                 videoId = video.videoId!!,
                 title = video.title!!,
                 cover = cover?.toUploadedFile(),
-                coverAction = EditAction.valueOf(video.coverAction!!),
+                coverAction = EditAction.valueOf(video.coverAction!!.uppercase()),
                 description = video.description
             ),
         ).toDto()
