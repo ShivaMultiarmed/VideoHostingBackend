@@ -297,21 +297,21 @@ class ChannelServiceWithDB @Autowired constructor(
         return editedChannel
     }
 
+    @OptIn(ExperimentalPathApi::class)
     override fun removeChannel(userId: Long, channelId: Long) {
         if (!channelRepository.existsById(channelId)) {
             throw NoSuchElementException()
-        } else if (channelRepository.existsByOwnerIdAndChannelId(userId, channelId)) {
+        } else if (!channelRepository.existsByOwnerIdAndChannelId(userId, channelId)) {
             throw IllegalAccessException()
         } else {
-            findFileByName(File(appPaths.CHANNEL_LOGOS_BASE_PATH), channelId.toString())?.delete()
-            findFileByName(File(appPaths.CHANNEL_HEADERS_BASE_PATH), channelId.toString())?.delete()
-            val videoIds = videoRepository.findByChannelId(channelId).map { it.videoId }
+            val videoIds = videoRepository.findByChannelId(channelId).map { it.videoId!! }
             videoSearchRepository.deleteAllById(videoIds)
-            videoIds.filterNotNull().forEach {
-                findFileByName(File(appPaths.VIDEOS_COVERS_BASE_PATH), it.toString())?.delete()
-                findFileByName(File(appPaths.VIDEOS_SOURCES_BASE_PATH), it.toString())?.delete()
+            videoIds.forEach {
+                Path(appPaths.VIDEOS_BASE_PATH, it.toString()).deleteRecursively()
             }
             channelRepository.deleteById(channelId)
+            val channelPath = Path(appPaths.CHANNELS_BASE_PATH, channelId.toString())
+            channelPath.deleteRecursively()
         }
     }
 
