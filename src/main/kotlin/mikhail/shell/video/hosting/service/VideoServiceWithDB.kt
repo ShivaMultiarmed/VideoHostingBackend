@@ -542,20 +542,20 @@ class VideoServiceWithDB @Autowired constructor(
         return videoRepository.findById(videoId).get().toDomain()
     }
 
+    @OptIn(ExperimentalPathApi::class)
     override fun delete(
         userId: Long,
         videoId: Long
     ) {
-        if (!videoWithChannelsRepository.existsByChannel_OwnerIdAndVideoId(userId = userId, videoId = videoId)) {
-            throw IllegalAccessException()
-        }
         if (!videoRepository.existsById(videoId)) {
             throw NoSuchElementException()
         }
+        if (!videoWithChannelsRepository.existsByChannel_OwnerIdAndVideoId(userId = userId, videoId = videoId)) {
+            throw IllegalAccessException()
+        }
         videoRepository.deleteById(videoId)
         videoSearchRepository.deleteById(videoId)
-        findFileByName(File(appPaths.VIDEOS_SOURCES_BASE_PATH), videoId.toString())?.delete()
-        findFileByName(File(appPaths.VIDEOS_COVERS_BASE_PATH), videoId.toString())?.delete()
+        Path(appPaths.VIDEOS_BASE_PATH, videoId.toString()).deleteRecursively()
     }
 
     override fun getCover(
