@@ -24,10 +24,10 @@ class JwtTokenUtil(
 
     fun generateToken(
         username: String,
-        expirationPeriod: Duration = AUTH_TOKEN_EXPIRATION_DURATION
+        expirationDuration: ExpirationDuration = ExpirationDuration.LONG
     ): String {
         val now = Clock.System.now()
-        val expiration = now + expirationPeriod
+        val expiration = now + expirationDuration.duration
         return Jwts.builder()
             .setSubject(username)
             .setIssuedAt(now.toDate())
@@ -62,9 +62,9 @@ class JwtTokenUtil(
     fun extractSubject(token: String): String? {
         return parseClaims(token)?.subject
     }
+}
 
-    companion object {
-        val AUTH_TOKEN_EXPIRATION_DURATION = 30.days
-        val SHORT_LIVED_TOKEN_EXPIRATION_DURATION = 10.minutes
-    }
+enum class ExpirationDuration(val duration: Duration) {
+    LONG(30.days),
+    SHORT(10.minutes)
 }

@@ -4,24 +4,21 @@ import jakarta.transaction.Transactional
 import kotlinx.datetime.Clock
 import kotlinx.datetime.toKotlinInstant
 import mikhail.shell.video.hosting.domain.AuthModel
-import mikhail.shell.video.hosting.domain.User
+import mikhail.shell.video.hosting.domain.UserCreatingModel
 import mikhail.shell.video.hosting.domain.ValidationRules
 import mikhail.shell.video.hosting.errors.*
-import mikhail.shell.video.hosting.errors.SignUpError.*
 import mikhail.shell.video.hosting.repository.*
 import mikhail.shell.video.hosting.entities.InvalidTokenEntity
 import mikhail.shell.video.hosting.entities.VerificationCodePurpose
 import mikhail.shell.video.hosting.entities.VerificationEntity
 import mikhail.shell.video.hosting.security.CryptoUtils
+import mikhail.shell.video.hosting.security.ExpirationDuration
 import mikhail.shell.video.hosting.security.JwtTokenUtil
-import mikhail.shell.video.hosting.security.JwtTokenUtil.Companion.SHORT_LIVED_TOKEN_EXPIRATION_DURATION
 import org.springframework.mail.MailSender
 import org.springframework.mail.SimpleMailMessage
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import java.time.Instant
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.minutes
 
 @Service
 class AuthServiceWithDB(
@@ -37,7 +34,8 @@ class AuthServiceWithDB(
 ) : AuthService {
 
     override fun signInWithPassword(userName: String, password: String): AuthModel {
-        val method = if (userName.matches(ValidationRules.EMAIL_REGEX.toRegex())) AuthenticationMethod.EMAIL else AuthenticationMethod.TEL
+        val method =
+            if (userName.matches(ValidationRules.EMAIL_REGEX.toRegex())) AuthenticationMethod.EMAIL else AuthenticationMethod.TEL
         val authDetailEntity = authDetailRepository.findByUserNameAndId_Method(userName, method).orElseThrow()
         val userId = authDetailEntity.id.userId
         val expectedPassword = passwordRepository.findById(userId).orElseThrow().password
@@ -56,7 +54,9 @@ class AuthServiceWithDB(
     @Transactional
     override fun requestSignUpWithPassword(userName: String) {
         if (authDetailRepository.existsByUserNameAndId_Method(userName, AuthenticationMethod.EMAIL)) {
-            throw UniquenessViolationException()
+            throw ValidationException(
+                mapOf("userName" to TextError.EXISTS)
+            )
         }
         val code = cryptoUtils.generateString(4)
         SimpleMailMessage().apply {
@@ -69,43 +69,69 @@ class AuthServiceWithDB(
         verificationRepository.save(
             VerificationEntity(
                 userName = userName,
-                purpose = VerificationCodePurpose.SIGNUP,
+                purpose = VerificationCodePurpose.SIGN_UP,
                 issuedAt = Instant.now(),
                 code = passwordEncoder.encode(code)
             )
         )
     }
 
-    override fun verifySignUpWithPassword(userName: String, code: String): String {
+    override fun verifySignUpWithPassword(
+        userName: String,
+        code: String
+    ): String {
         if (authDetailRepository.existsByUserNameAndId_Method(userName, AuthenticationMethod.EMAIL)) {
-            throw UniquenessViolationException()
+            ValidationException(
+                mapOf("userName" to TextError.EXISTS)
+            )
         }
-        val verificationEntity = verificationRepository
-            .findByUserNameAndPurpose(
-                userName = userName,
-                purpose = VerificationCodePurpose.SIGNUP
-            ).orElseThrow {
-                IllegalArgumentException()
-            }
+        val verificationEntity = verificationRepository.findByUserNameAndPurpose(userName, VerificationCodePurpose.SIGN_UP).orElseThrow()
+        if (!passwordEncoder.matches(code, verificationEntity.code)) {
+            throw ValidationException(
+                mapOf("code" to TextError.NOT_CORRECT)
+            )
+        }
         verificationRepository.delete(verificationEntity)
-        return jwtTokenUtil.generateToken(userName, SHORT_LIVED_TOKEN_EXPIRATION_DURATION)
+        return jwtTokenUtil.generateToken(userName, ExpirationDuration.SHORT)
     }
 
     override fun confirmSignUpWithPassword(
         token: String,
         password: String,
-        user: User
+        user: UserCreatingModel
     ): AuthModel {
-        val userName = jwtTokenUtil.extractSubject(token)?: throw UnauthenticatedException()
+        val userName = jwtTokenUtil.extractSubject(token)!!
+        val errors = mutableMapOf<String, Error>()
         if (authDetailRepository.existsByUserNameAndId_Method(userName, AuthenticationMethod.EMAIL)) {
-            throw UniquenessViolationException()
+            errors["user"] = TextError.EXISTS
         }
         if (userRepository.existsByNick(user.nick)) {
-            throw UniquenessViolationException()
+            errors["nick"] = TextError.EXISTS
         }
-        val userId = userRepository.save(user.toEntity()).userId!!
-        authDetailRepository.save(AuthDetailEntity(AuthDetailEntityId(userId, AuthenticationMethod.EMAIL), userName))
-        passwordRepository.save(PasswordEntity(userId, passwordEncoder.encode(password)))
+        if (errors.isNotEmpty()) {
+            throw ValidationException(errors)
+        }
+        val userId = userRepository.save(
+            UserEntity(
+                nick = user.nick,
+                name = null,
+                bio = null,
+                tel = null,
+                email = null
+            )
+        ).userId!!
+        authDetailRepository.save(
+            AuthDetailEntity(
+                AuthDetailEntityId(userId, AuthenticationMethod.EMAIL),
+                userName
+            )
+        )
+        passwordRepository.save(
+            PasswordEntity(
+                userId,
+                passwordEncoder.encode(password)
+            )
+        )
         val authToken = jwtTokenUtil.generateToken(userId.toString())
         return AuthModel(authToken, userId)
     }
@@ -143,11 +169,11 @@ class AuthServiceWithDB(
         ).orElseThrow { NoSuchElementException() }
         if (!passwordEncoder.matches(code, verificationEntity.code)) {
             throw IllegalArgumentException()
-        } else if (verificationEntity.issuedAt.toKotlinInstant() + SHORT_LIVED_TOKEN_EXPIRATION_DURATION < Clock.System.now()) {
+        } else if (verificationEntity.issuedAt.toKotlinInstant() + ExpirationDuration.SHORT.duration < Clock.System.now()) {
             throw ExpiredException()
         } else {
             verificationRepository.delete(verificationEntity)
-            return jwtTokenUtil.generateToken(userName, SHORT_LIVED_TOKEN_EXPIRATION_DURATION)
+            return jwtTokenUtil.generateToken(userName, ExpirationDuration.LONG)
         }
     }
 
@@ -160,10 +186,7 @@ class AuthServiceWithDB(
             throw UnauthenticatedException()
         }
         val userName = jwtTokenUtil.extractSubject(token)!!
-        val userId = authDetailRepository
-            .findByUserName(userName)
-            .orElseThrow()
-            .id.userId
+        val userId = authDetailRepository.findByUserName(userName).orElseThrow().id.userId
         passwordRepository
             .findById(userId)
             .orElseThrow()

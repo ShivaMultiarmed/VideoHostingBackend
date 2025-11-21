@@ -5,12 +5,12 @@ import jakarta.validation.Valid
 import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_USERNAME_LENGTH
 import mikhail.shell.video.hosting.domain.ValidationRules.PASSWORD_REGEX
-import mikhail.shell.video.hosting.dto.SignUpRequest
 import mikhail.shell.video.hosting.errors.*
 import mikhail.shell.video.hosting.service.AuthService
 import mikhail.shell.video.hosting.service.UserService
@@ -19,6 +19,7 @@ import org.springframework.http.HttpHeaders
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
@@ -36,33 +37,31 @@ class AuthController(
     ) = authService.signInWithPassword(userName = userName, password = password)
 
     @PostMapping("/signup/password/request")
-    fun requestSignUpWithPassword(@RequestParam("user_name") @UserName userName: String) {
-        authService.requestSignUpWithPassword(userName)
+    fun requestSignUpWithPassword(@RequestParam("user_name") @UserName userName: String?) {
+        authService.requestSignUpWithPassword(userName!!)
     }
 
     @PostMapping("/signup/password/verification")
     fun verifySignUpWithPassword(
-        @RequestParam("user_name") @UserName userName: String,
-        @RequestParam("code") @Size(min = 4, max = 4, message = "NOT_CORRECT") code: String
-    ) = authService.verifySignUpWithPassword(userName = userName, code = code)
+        @RequestParam("user_name") @UserName userName: String?,
+        @RequestParam("code") @Pattern(regexp = "^[A-Za-z0-9]{4}$", message = "PATTERN") @NotNull code: String?
+    ): String {
+        return authService.verifySignUpWithPassword(userName!!, code!!)
+    }
 
-    @PostMapping("/signup/password/confirmation")
+    @PostMapping("/signup/password/confirm")
     fun confirmSignUpWithPassword(
-        request: HttpServletRequest,
-        @RequestBody @Valid user: UserCreatingRequest
+        @RequestHeader("Authorization") authorization: String,
+        @RequestBody @Valid user: SignUpRequest
     ) {
-        TODO()
-//        authService.confirmSignUpWithPassword(
-//            token = request.getHeader(HttpHeaders.AUTHORIZATION).removePrefix("Bearer "),
-//            password = user.password!!,
-//            user = User(
-//                nick = user.nick!!,
-//                name = user.name,
-//                bio = user.bio,
-//                tel = user.tel,
-//                email = user.email,
-//            )
-//        )
+        val token = authorization.removePrefix("Bearer ") // TODO: validate token
+        authService.confirmSignUpWithPassword(
+            token = token,
+            password = user.password!!,
+            user = UserCreatingModel(
+                nick = user.user.nick!!
+            )
+        )
     }
 
     @PostMapping("/reset/password/request")
@@ -95,5 +94,14 @@ class AuthController(
     }
 
     @GetMapping("/existence")
-    fun existsByUserName(@RequestParam("user_name") @UserName userName: String) = authService.existsByUserName(userName)
+    fun existsByUserName(
+        @RequestParam("user_name") @UserName userName: String
+    ) = authService.existsByUserName(userName)
 }
+
+data class SignUpRequest(
+    @field:Password
+    val password: String?,
+    @field:Valid
+    val user: UserCreatingRequest
+)

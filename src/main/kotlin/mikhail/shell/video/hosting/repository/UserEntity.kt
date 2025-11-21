@@ -8,7 +8,7 @@ import mikhail.shell.video.hosting.domain.User
 data class UserEntity(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "user_id")
-    val userId: Long?,
+    val userId: Long? = null,
     val nick: String,
     val name: String?,
     val bio: String?,

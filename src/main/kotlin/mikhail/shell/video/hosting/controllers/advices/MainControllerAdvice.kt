@@ -15,7 +15,7 @@ class MainControllerAdvice {
     fun handleValidationException(e: ValidationException): ResponseEntity<Map<String, String>> {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
             e.errors.map {
-                val key = it.key.camelToSnakeCase()
+                val key = ("${it.key}Error").camelToSnakeCase()
                 val value = if (it.value is Enum<*>) (it.value as Enum<*>).name.lowercase() else it.toString()
                 key to value
             }.toMap()

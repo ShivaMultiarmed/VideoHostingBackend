@@ -31,9 +31,3 @@ fun UserDto.toDomain() = User(
     tel = tel,
     email = email
 )
-
-data class SignUpRequest(
-    @field:NotBlank(message = "EMPTY") @field:Pattern(regexp = PASSWORD_REGEX, message = "PATTERN")
-    val password: String,
-    val userCreatingRequest: UserCreatingRequest
-)

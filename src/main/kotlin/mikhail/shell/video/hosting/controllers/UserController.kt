@@ -23,9 +23,6 @@ import org.springframework.web.multipart.MultipartFile
 class UserController @Autowired constructor(
     private val userService: UserService
 ) {
-    @Value("\${video-hosting.server.base-url}")
-    private lateinit var BASE_URL: String
-
     @GetMapping("/{user_id}")
     fun get(@PathVariable("user_id") @LongId userId: Long): UserDto {
         return userService.get(userId).toDto()
@@ -97,17 +94,7 @@ class UserController @Autowired constructor(
 
 data class UserCreatingRequest(
     @field:Nick
-    val nick: String?,
-    @field:Name
-    val name: String?,
-    @field:Password
-    val password: String?,
-    @field:Description
-    val bio: String?,
-    @field:Pattern(regexp = TEL_REGEX, message = "PATTERN")
-    val tel: String?,
-    @field:Email(message = "PATTERN")
-    val email: String?
+    val nick: String?
 )
 
 data class UserEditingRequest(

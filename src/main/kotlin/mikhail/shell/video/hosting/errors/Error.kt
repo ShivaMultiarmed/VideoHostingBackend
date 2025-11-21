@@ -7,7 +7,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
 interface Error
 
 data object UnexpectedError: Error {
-    override fun toString() = "UNEXPECTED"
+    override fun toString() = "UNEXPECTED_ERROR"
 }
 
 class UnauthenticatedException: RuntimeException()
