@@ -14,11 +14,7 @@ interface AuthService {
         userName: String,
         code: String
     ): String
-    fun confirmSignUpWithPassword(
-        token: String,
-        password: String,
-        user: UserCreatingModel,
-    ): AuthModel
+    fun confirmSignUpWithPassword(user: UserCreatingModel): AuthModel
     fun requestPasswordReset(userName: String)
     fun resetPassword(
         token: String,

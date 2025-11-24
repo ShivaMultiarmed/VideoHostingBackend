@@ -8,5 +8,8 @@ import java.util.Optional
 
 @Repository
 interface VerificationRepository: JpaRepository<VerificationEntity, Long> {
-    fun findByUserNameAndPurpose(userName: String, purpose: VerificationCodePurpose): Optional<VerificationEntity>
+    fun findFirstByUserNameAndPurposeOrderByIssuedAtDesc(
+        userName: String,
+        purpose: VerificationCodePurpose
+    ): Optional<VerificationEntity>
 }

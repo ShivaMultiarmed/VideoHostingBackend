@@ -65,7 +65,7 @@ class MainControllerAdvice {
     fun handleValidationErrors(e: MethodArgumentNotValidException): ResponseEntity<Map<String, String>> {
         return ResponseEntity.badRequest().body(
             e.bindingResult.allErrors.associate { error ->
-                val key = ((error as FieldError).field + "Error").camelToSnakeCase()
+                val key = ((error as FieldError).field.substringAfterLast(".") + "Error").camelToSnakeCase()
                 val value = (error.defaultMessage ?: UnexpectedError.toString()).lowercase()
                 key to value
             }
@@ -81,7 +81,7 @@ class MainControllerAdvice {
                         validationResult.resolvableErrors.forEach { error ->
                             when (error) {
                                 is FieldError -> {
-                                    this[(error.field + "Error").camelToSnakeCase()] = (error.defaultMessage ?: UnexpectedError.toString()).lowercase()
+                                    this[(error.field.substringAfterLast(".") + "Error").camelToSnakeCase()] = (error.defaultMessage ?: UnexpectedError.toString()).lowercase()
                                 }
                                 else -> {
                                     val parameterName = validationResult.methodParameter.parameterName

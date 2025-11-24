@@ -85,7 +85,7 @@ class AuthServiceWithDB(
                 mapOf("userName" to TextError.EXISTS)
             )
         }
-        val verificationEntity = verificationRepository.findByUserNameAndPurpose(userName, VerificationCodePurpose.SIGN_UP).orElseThrow()
+        val verificationEntity = verificationRepository.findFirstByUserNameAndPurposeOrderByIssuedAtDesc(userName, VerificationCodePurpose.SIGN_UP).orElseThrow()
         if (!passwordEncoder.matches(code, verificationEntity.code)) {
             throw ValidationException(
                 mapOf("code" to TextError.NOT_CORRECT)
@@ -95,15 +95,10 @@ class AuthServiceWithDB(
         return jwtTokenUtil.generateToken(userName, ExpirationDuration.SHORT)
     }
 
-    override fun confirmSignUpWithPassword(
-        token: String,
-        password: String,
-        user: UserCreatingModel
-    ): AuthModel {
-        val userName = jwtTokenUtil.extractSubject(token)!!
+    override fun confirmSignUpWithPassword(user: UserCreatingModel): AuthModel {
         val errors = mutableMapOf<String, Error>()
-        if (authDetailRepository.existsByUserNameAndId_Method(userName, AuthenticationMethod.EMAIL)) {
-            errors["user"] = TextError.EXISTS
+        if (authDetailRepository.existsByUserNameAndId_Method(user.userName, AuthenticationMethod.EMAIL)) {
+            errors["userName"] = TextError.EXISTS
         }
         if (userRepository.existsByNick(user.nick)) {
             errors["nick"] = TextError.EXISTS
@@ -122,14 +117,14 @@ class AuthServiceWithDB(
         ).userId!!
         authDetailRepository.save(
             AuthDetailEntity(
-                AuthDetailEntityId(userId, AuthenticationMethod.EMAIL),
-                userName
+                id = AuthDetailEntityId(userId, AuthenticationMethod.EMAIL),
+                userName = user.userName
             )
         )
         passwordRepository.save(
             PasswordEntity(
-                userId,
-                passwordEncoder.encode(password)
+                userId = userId,
+                password = passwordEncoder.encode(user.password)
             )
         )
         val authToken = jwtTokenUtil.generateToken(userId.toString())
@@ -163,7 +158,7 @@ class AuthServiceWithDB(
     }
 
     override fun verifyPasswordReset(userName: String, code: String): String {
-        val verificationEntity = verificationRepository.findByUserNameAndPurpose(
+        val verificationEntity = verificationRepository.findFirstByUserNameAndPurposeOrderByIssuedAtDesc(
             userName = userName,
             purpose = VerificationCodePurpose.RESET
         ).orElseThrow { NoSuchElementException() }

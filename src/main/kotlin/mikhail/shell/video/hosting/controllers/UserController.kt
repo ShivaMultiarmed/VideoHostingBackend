@@ -93,6 +93,8 @@ class UserController @Autowired constructor(
 }
 
 data class UserCreatingRequest(
+    @field:Password
+    val password: String?,
     @field:Nick
     val nick: String?
 )

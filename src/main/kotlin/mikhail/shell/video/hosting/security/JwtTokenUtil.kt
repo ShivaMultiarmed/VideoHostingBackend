@@ -48,7 +48,7 @@ class JwtTokenUtil(
 
     fun validateToken(token: String): Boolean {
         val claims = parseClaims(token)?: return false
-        claims.subject?.toLongOrNull()?: return false
+        claims.subject?: return false
         val issuedDate = claims.issuedAt?: return false
         val expireDate = claims.expiration?: return false
         val now = Date()
@@ -56,7 +56,7 @@ class JwtTokenUtil(
     }
 
     fun extractUserId(token: String): Long? {
-        return extractSubject(token)?.toLong()
+        return extractSubject(token)?.toLongOrNull()
     }
 
     fun extractSubject(token: String): String? {

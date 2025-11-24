@@ -25,9 +25,8 @@ class JwtTokenFilter @Autowired constructor(
         if (authHeader != null) {
             val token = authHeader.removePrefix("Bearer ")
             if (util.validateToken(token)) {
-                val claims = util.parseClaims(token)
-                val userId = claims!!.subject.toLong()
-                if (userRepository.existsById(userId)) {
+                val userId = util.extractUserId(token)
+                if (userId != null && userRepository.existsById(userId)) {
                     val authentication = HostingToken(userId, null, listOf())
                     authentication.details = WebAuthenticationDetailsSource().buildDetails(request)
                     SecurityContextHolder.getContext().authentication = authentication

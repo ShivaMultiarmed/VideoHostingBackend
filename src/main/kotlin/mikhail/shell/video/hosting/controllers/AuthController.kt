@@ -12,6 +12,7 @@ import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_USERNAME_LENGTH
 import mikhail.shell.video.hosting.domain.ValidationRules.PASSWORD_REGEX
 import mikhail.shell.video.hosting.errors.*
+import mikhail.shell.video.hosting.security.JwtTokenUtil
 import mikhail.shell.video.hosting.service.AuthService
 import mikhail.shell.video.hosting.service.UserService
 import org.hibernate.validator.constraints.Length
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 @RequestMapping("/api/v2/auth")
 class AuthController(
+    private val jwtTokenUtil: JwtTokenUtil,
     private val authService: AuthService
 ) {
 
@@ -44,7 +46,11 @@ class AuthController(
     @PostMapping("/signup/password/verification")
     fun verifySignUpWithPassword(
         @RequestParam("user_name") @UserName userName: String?,
-        @RequestParam("code") @Pattern(regexp = "^[A-Za-z0-9]{4}$", message = "PATTERN") @NotNull code: String?
+        @RequestParam("code")
+        @NotNull(message = "EMPTY")
+        @Size(max = 4, message = "LONG")
+        @Pattern(regexp = "^[A-Za-z0-9]{4}$", message = "PATTERN")
+        code: String?
     ): String {
         return authService.verifySignUpWithPassword(userName!!, code!!)
     }
@@ -52,14 +58,18 @@ class AuthController(
     @PostMapping("/signup/password/confirm")
     fun confirmSignUpWithPassword(
         @RequestHeader("Authorization") authorization: String,
-        @RequestBody @Valid user: SignUpRequest
-    ) {
-        val token = authorization.removePrefix("Bearer ") // TODO: validate token
-        authService.confirmSignUpWithPassword(
-            token = token,
-            password = user.password!!,
+        @RequestBody @Valid user: UserCreatingRequest
+    ): AuthModel {
+        val token = authorization.removePrefix("Bearer ")
+        if (!jwtTokenUtil.validateToken(token)) {
+            throw UnauthenticatedException()
+        }
+        val userName = jwtTokenUtil.extractSubject(token)?: throw UnauthenticatedException()
+        return authService.confirmSignUpWithPassword(
             user = UserCreatingModel(
-                nick = user.user.nick!!
+                userName = userName,
+                password = user.password!!,
+                nick = user.nick!!
             )
         )
     }
@@ -98,10 +108,3 @@ class AuthController(
         @RequestParam("user_name") @UserName userName: String
     ) = authService.existsByUserName(userName)
 }
-
-data class SignUpRequest(
-    @field:Password
-    val password: String?,
-    @field:Valid
-    val user: UserCreatingRequest
-)
