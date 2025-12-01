@@ -1,7 +1,6 @@
 package mikhail.shell.video.hosting.service
 
 import mikhail.shell.video.hosting.domain.AuthModel
-import mikhail.shell.video.hosting.domain.User
 import mikhail.shell.video.hosting.domain.UserCreatingModel
 
 interface AuthService {
@@ -15,12 +14,15 @@ interface AuthService {
         code: String
     ): String
     fun confirmSignUpWithPassword(user: UserCreatingModel): AuthModel
-    fun requestPasswordReset(userName: String)
-    fun resetPassword(
-        token: String,
+    fun requestPasswordReset(userName: String): Long
+    fun verifyPasswordReset(
+        userId: Long,
+        code: String
+    ): String
+    fun confirmPasswordReset(
+        userId: Long,
         password: String
-    )
-    fun signOut(token: String)
-    fun verifyPasswordReset(userName: String, code: String): String
+    ): AuthModel
     fun existsByUserName(userName: String): Boolean
+    fun signOut(token: String)
 }

@@ -355,3 +355,17 @@ class EnumValidator : ConstraintValidator<ValidEnum, String?> {
         return acceptedValues.contains(value?.uppercase())
     }
 }
+
+@NotNull(message = "EMPTY")
+@Size(max = 4, message = "LONG")
+@Pattern(regexp = "^[A-Za-z0-9]{4}$", message = "PATTERN")
+@Constraint(validatedBy = [])
+@Target(
+    AnnotationTarget.FIELD,
+    AnnotationTarget.VALUE_PARAMETER
+)
+annotation class Code(
+    val message: String = "",
+    val groups: Array<KClass<*>> = [],
+    val payload: Array<KClass<out Payload>> = []
+)
