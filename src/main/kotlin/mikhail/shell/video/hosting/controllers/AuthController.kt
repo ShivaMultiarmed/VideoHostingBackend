@@ -8,6 +8,8 @@ import mikhail.shell.video.hosting.domain.LongId
 import mikhail.shell.video.hosting.domain.Password
 import mikhail.shell.video.hosting.domain.UserCreatingModel
 import mikhail.shell.video.hosting.domain.UserName
+import mikhail.shell.video.hosting.domain.UserNameCheckPurpose
+import mikhail.shell.video.hosting.domain.ValidEnum
 import mikhail.shell.video.hosting.errors.UnauthenticatedException
 import mikhail.shell.video.hosting.security.JwtTokenUtil
 import mikhail.shell.video.hosting.service.AuthService
@@ -83,21 +85,25 @@ class AuthController(
         if (!jwtTokenUtil.validateToken(token)) {
             throw UnauthenticatedException()
         }
-        val userId = jwtTokenUtil.extractSubject(token)?: throw UnauthenticatedException()
+        val userId = jwtTokenUtil.extractSubject(token)?.toLongOrNull()?: throw UnauthenticatedException()
         return authService.confirmPasswordReset(userId, password)
     }
 
     @PostMapping("/signout")
-    fun signOut(request: HttpServletRequest) {
-        val token = request.getHeader("Authorization")?.removePrefix("Bearer ")
-            ?: throw UnauthenticatedException()
-        authService.signOut(token)
+    fun signOut(
+        @RequestHeader("Authorization") authorization: String
+    ) {
+        authService.signOut(authorization.removePrefix("Bearer "))
     }
 
     @GetMapping("/existence")
     fun existsByUserName(
-        @RequestParam("user_name") @UserName userName: String
-    ): Boolean {
-        return authService.existsByUserName(userName)
+        @RequestParam("purpose") @ValidEnum(UserNameCheckPurpose::class) purpose: String?,
+        @RequestParam("user_name") @UserName userName: String?
+    ) {
+        authService.existsByUserName(
+            purpose = UserNameCheckPurpose.valueOf(purpose!!.uppercase()),
+            userName = userName!!
+        )
     }
 }

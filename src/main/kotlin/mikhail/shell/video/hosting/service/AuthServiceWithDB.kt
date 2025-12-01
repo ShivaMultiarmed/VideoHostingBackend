@@ -3,6 +3,7 @@ package mikhail.shell.video.hosting.service
 import jakarta.transaction.Transactional
 import mikhail.shell.video.hosting.domain.AuthModel
 import mikhail.shell.video.hosting.domain.UserCreatingModel
+import mikhail.shell.video.hosting.domain.UserNameCheckPurpose
 import mikhail.shell.video.hosting.domain.ValidationRules
 import mikhail.shell.video.hosting.errors.*
 import mikhail.shell.video.hosting.repository.*
@@ -191,10 +192,6 @@ class AuthServiceWithDB(
         }
     }
 
-    override fun existsByUserName(userName: String): Boolean {
-        return authDetailRepository.existsByUserNameAndId_Method(userName, AuthenticationMethod.EMAIL)
-    }
-
     override fun confirmPasswordReset(
         userId: Long,
         password: String
@@ -214,5 +211,24 @@ class AuthServiceWithDB(
         passwordRepository.save(passwordEntity)
         val token = jwtTokenUtil.generateToken(userId.toString())
         return AuthModel(token, authEntity.id.userId)
+    }
+
+    override fun existsByUserName(
+        purpose: UserNameCheckPurpose,
+        userName: String
+    ) {
+        val exists = authDetailRepository.existsByUserName(userName)
+        when (purpose) {
+            UserNameCheckPurpose.SIGN_UP -> {
+                if (exists) {
+                    throw UniquenessViolationException()
+                }
+            }
+            UserNameCheckPurpose.SIGN_IN, UserNameCheckPurpose.RESET -> {
+                if (!exists) {
+                    throw NoSuchElementException()
+                }
+            }
+        }
     }
 }

@@ -6,6 +6,7 @@ import java.util.Optional
 
 @Repository
 interface AuthDetailRepository: JpaRepository<AuthDetailEntity, AuthDetailEntityId> {
+    fun existsByUserName(userName: String): Boolean
     fun findById_UserId(userId: Long): List<AuthDetailEntity>
     fun findByUserNameAndId_Method(userName: String, method: AuthenticationMethod): Optional<AuthDetailEntity>
     fun existsByUserNameAndId_Method(userName: String, method: AuthenticationMethod): Boolean
