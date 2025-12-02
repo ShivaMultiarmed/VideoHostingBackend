@@ -86,10 +86,14 @@ class AuthServiceWithDB(
                 mapOf("userName" to TextError.EXISTS)
             )
         }
-        val verificationEntity = verificationRepository.findLastByUserNameAndPurposeOrderByIssuedAtDesc(
+        val verificationEntity = verificationRepository.findFirstByUserNameAndPurposeOrderByIssuedAtDesc(
             userName,
             VerificationCodePurpose.SIGN_UP
-        ).orElseThrow()
+        ).orElseThrow {
+            ValidationException(
+                mapOf("userName" to TextError.EXISTS)
+            )
+        }
         if (!passwordEncoder.matches(code, verificationEntity.code)) {
             throw ValidationException(
                 mapOf("code" to TextError.NOT_CORRECT)
@@ -170,7 +174,7 @@ class AuthServiceWithDB(
         userId: Long,
         code: String
     ): String {
-        val verificationEntity = verificationRepository.findLastByUserNameAndPurposeOrderByIssuedAtDesc(
+        val verificationEntity = verificationRepository.findFirstByUserNameAndPurposeOrderByIssuedAtDesc(
             userName = userId.toString(),
             purpose = VerificationCodePurpose.RESET
         ).orElseThrow {
