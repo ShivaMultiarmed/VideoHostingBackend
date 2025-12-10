@@ -2,7 +2,6 @@ package mikhail.shell.video.hosting.service
 
 import com.google.firebase.messaging.FirebaseMessaging
 import jakarta.transaction.Transactional
-import mikhail.shell.video.hosting.controllers.ChannelCreationRequest
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.Subscription.NOT_SUBSCRIBED
 import mikhail.shell.video.hosting.domain.Subscription.SUBSCRIBED
@@ -18,7 +17,6 @@ import org.springframework.core.io.FileSystemResource
 import org.springframework.core.io.Resource
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
-import java.io.File
 import kotlin.io.path.*
 
 @Service
@@ -210,9 +208,7 @@ class ChannelServiceWithDB @Autowired constructor(
     }
 
     @OptIn(ExperimentalPathApi::class)
-    override fun editChannel(
-        channel: ChannelEditingModel,
-    ): Channel {
+    override fun editChannel(channel: ChannelEditingModel): Channel {
         val currentChannelEntity = channelRepository.findById(channel.channelId).orElseThrow()
         if (!channelRepository.existsByOwnerIdAndChannelId(channel.ownerId, channel.channelId)) {
             throw IllegalAccessException()
@@ -239,10 +235,10 @@ class ChannelServiceWithDB @Autowired constructor(
             channelPath.createDirectory()
         }
         val headerPath = channelPath.resolve("header")
-        if (channel.headerAction == EditAction.REMOVE) {
+        if (channel.header == EditingAction.Remove) {
             headerPath.deleteRecursively()
-        } else if (channel.headerAction == EditAction.UPDATE) {
-            channel.header?.let {
+        } else if (channel.header is EditingAction.Edit) {
+            channel.header.value.let {
                 if (headerPath.notExists()) {
                     headerPath.createDirectory()
                 }
@@ -267,10 +263,10 @@ class ChannelServiceWithDB @Autowired constructor(
             }
         }
         val logoPath = channelPath.resolve("logo")
-        if (channel.logoAction == EditAction.REMOVE) {
+        if (channel.logo == EditingAction.Remove) {
             logoPath.deleteRecursively()
-        } else if (channel.logoAction == EditAction.UPDATE) {
-            channel.logo?.let {
+        } else if (channel.logo is EditingAction.Edit) {
+            channel.logo.value.let {
                 if (logoPath.notExists()) {
                     logoPath.createDirectory()
                 }

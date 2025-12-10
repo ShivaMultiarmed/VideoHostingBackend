@@ -44,8 +44,6 @@ data class ChannelEditingModel(
     val title: String,
     val alias: String?,
     val description: String?,
-    val header: UploadedFile?,
-    val headerAction: EditAction,
-    val logo: UploadedFile?,
-    val logoAction: EditAction
+    val header: EditingAction<UploadedFile>,
+    val logo: EditingAction<UploadedFile>
 )
