@@ -96,12 +96,12 @@ class ChannelController @Autowired constructor(
                 header = when (EditAction.valueOf(channel.headerAction!!.uppercase())) {
                     EditAction.KEEP -> EditingAction.Keep
                     EditAction.REMOVE -> EditingAction.Remove
-                    EditAction.UPDATE -> EditingAction.Edit(header!!.toUploadedFile())
+                    EditAction.EDIT -> EditingAction.Edit(header!!.toUploadedFile())
                 },
                 logo = when (EditAction.valueOf(channel.logoAction!!.uppercase())) {
                     EditAction.KEEP -> EditingAction.Keep
                     EditAction.REMOVE -> EditingAction.Remove
-                    EditAction.UPDATE -> EditingAction.Edit(logo!!.toUploadedFile())
+                    EditAction.EDIT -> EditingAction.Edit(logo!!.toUploadedFile())
                 }
             )
         ).toDto()

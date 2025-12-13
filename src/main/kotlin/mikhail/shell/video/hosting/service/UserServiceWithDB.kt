@@ -53,7 +53,7 @@ class UserServiceWithDB @Autowired constructor(
         val avatarPath = userPath.resolve("avatar")
         if (user.avatarAction == EditAction.REMOVE) {
             avatarPath.deleteRecursively()
-        } else if (user.avatarAction == EditAction.UPDATE) {
+        } else if (user.avatarAction == EditAction.EDIT) {
             user.avatar?.let {
                 if (avatarPath.notExists()) {
                     avatarPath.createDirectory()

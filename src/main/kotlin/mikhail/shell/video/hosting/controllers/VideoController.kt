@@ -259,7 +259,7 @@ class VideoController @Autowired constructor(
                 cover = when (EditAction.valueOf(video.coverAction!!.uppercase())) {
                     EditAction.KEEP -> EditingAction.Keep
                     EditAction.REMOVE -> EditingAction.Remove
-                    EditAction.UPDATE -> EditingAction.Edit(cover!!.toUploadedFile())
+                    EditAction.EDIT -> EditingAction.Edit(cover!!.toUploadedFile())
                 }
             ),
         ).toDto()
