@@ -576,7 +576,7 @@ class VideoServiceWithDB @Autowired constructor(
         video: VideoEditingModel,
     ): Video {
         val videoEntity = videoRepository.findById(video.videoId).orElseThrow()
-        if (!videoWithChannelsRepository.existsByChannel_OwnerIdAndVideoId(userId = userId, videoId = video.videoId)) {
+        if (!videoWithChannelsRepository.existsByChannel_OwnerIdAndVideoId(userId, video.videoId)) {
             throw IllegalAccessException()
         }
         val updatedVideoEntity = videoRepository.save(
@@ -588,21 +588,21 @@ class VideoServiceWithDB @Autowired constructor(
         videoSearchRepository.save(updatedVideoEntity.toDocument())
         val tmpId = UUID.randomUUID()
         val tmpPath = Path(appPaths.TEMP_PATH, tmpId.toString()).createDirectory()
-        video.cover?.let {
-            val extension = video.cover.fileName.parseExtension()
+        if (video.cover is EditingAction.Edit) {
+            val extension = video.cover.value.fileName.parseExtension()
             val tmpCoverPath = tmpPath.resolve("cover.$extension").createFile()
             uploadImage(
-                uploadedFile = it,
+                uploadedFile = video.cover.value,
                 targetFile = tmpCoverPath.toString()
             )
         }
         val videoPath = Path(appPaths.VIDEOS_BASE_PATH, video.videoId.toString())
         val coverPath = videoPath.resolve("cover")
-        if (video.coverAction == EditAction.REMOVE) {
+        if (video.cover is EditingAction.Remove) {
             if (coverPath.exists()) {
                 coverPath.deleteRecursively()
             }
-        } else if (video.coverAction == EditAction.UPDATE) {
+        } else if (video.cover is EditingAction.Edit) {
             if (coverPath.notExists()) {
                 coverPath.createDirectory()
             } else {

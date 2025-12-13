@@ -7,5 +7,5 @@ enum class EditAction {
 sealed class EditingAction<out I> {
     data object Keep : EditingAction<Nothing>()
     data object Remove : EditingAction<Nothing>()
-    data class Edit<I>(val value: I) : EditingAction<I>()
+    data class Edit<out I>(val value: I) : EditingAction<I>()
 }

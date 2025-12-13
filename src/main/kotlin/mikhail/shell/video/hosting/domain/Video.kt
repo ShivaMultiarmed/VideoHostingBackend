@@ -58,7 +58,6 @@ data class PendingVideo(
 data class VideoEditingModel(
     val videoId: Long,
     val title: String,
-    val cover: UploadedFile?,
-    val coverAction: EditAction,
-    val description: String?
+    val description: String?,
+    val cover: EditingAction<UploadedFile>
 )

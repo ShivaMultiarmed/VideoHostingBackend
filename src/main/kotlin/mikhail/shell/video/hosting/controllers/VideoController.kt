@@ -255,9 +255,12 @@ class VideoController @Autowired constructor(
             video = VideoEditingModel(
                 videoId = video.videoId!!,
                 title = video.title!!,
-                cover = cover?.toUploadedFile(),
-                coverAction = EditAction.valueOf(video.coverAction!!.uppercase()),
-                description = video.description
+                description = video.description,
+                cover = when (EditAction.valueOf(video.coverAction!!.uppercase())) {
+                    EditAction.KEEP -> EditingAction.Keep
+                    EditAction.REMOVE -> EditingAction.Remove
+                    EditAction.UPDATE -> EditingAction.Edit(cover!!.toUploadedFile())
+                }
             ),
         ).toDto()
     }

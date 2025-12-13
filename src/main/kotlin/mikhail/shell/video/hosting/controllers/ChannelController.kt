@@ -93,15 +93,15 @@ class ChannelController @Autowired constructor(
                 title = channel.title!!,
                 alias = channel.alias,
                 description = channel.description,
-                header = when {
-                    header == null -> EditingAction.Keep
-                    header.isEmpty -> EditingAction.Remove
-                    else -> EditingAction.Edit(header.toUploadedFile())
+                header = when (EditAction.valueOf(channel.headerAction!!.uppercase())) {
+                    EditAction.KEEP -> EditingAction.Keep
+                    EditAction.REMOVE -> EditingAction.Remove
+                    EditAction.UPDATE -> EditingAction.Edit(header!!.toUploadedFile())
                 },
-                logo = when {
-                    logo == null -> EditingAction.Keep
-                    logo.isEmpty -> EditingAction.Remove
-                    else -> EditingAction.Edit(logo.toUploadedFile())
+                logo = when (EditAction.valueOf(channel.logoAction!!.uppercase())) {
+                    EditAction.KEEP -> EditingAction.Keep
+                    EditAction.REMOVE -> EditingAction.Remove
+                    EditAction.UPDATE -> EditingAction.Edit(logo!!.toUploadedFile())
                 }
             )
         ).toDto()
@@ -216,5 +216,9 @@ data class ChannelEditingRequest(
     @field:Alias
     val alias: String?,
     @field:Description
-    val description: String?
+    val description: String?,
+    @field:ValidEnum(EditAction::class)
+    val headerAction: String?,
+    @field:ValidEnum(EditAction::class)
+    val logoAction: String?
 )
