@@ -21,7 +21,7 @@ import java.time.Instant
 @RestController
 @RequestMapping("/api/v2/comments")
 class CommentController @Autowired constructor(
-    private val commentService: CommentService,
+    private val commentService: CommentService
 ) {
     @Value("\${video-hosting.server.base-url}")
     private lateinit var BASE_URL: String

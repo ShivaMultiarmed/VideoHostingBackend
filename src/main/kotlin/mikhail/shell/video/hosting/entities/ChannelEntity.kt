@@ -33,3 +33,16 @@ fun Channel.toEntity() = ChannelEntity(
     description = description,
     subscribers = subscribers
 )
+
+@Entity
+@Table(name = "subscribers")
+data class Subscriber(
+    @EmbeddedId
+    val id: SubscriberId
+)
+
+@Embeddable
+data class SubscriberId(
+    val channelId: Long,
+    val userId: Long
+)

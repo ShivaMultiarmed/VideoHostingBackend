@@ -51,32 +51,31 @@ class UserServiceWithDB @Autowired constructor(
             userPath.createDirectory()
         }
         val avatarPath = userPath.resolve("avatar")
-        if (user.avatarAction == EditAction.REMOVE) {
+        if (user.avatar is EditingAction.Remove) {
             avatarPath.deleteRecursively()
-        } else if (user.avatarAction == EditAction.EDIT) {
-            user.avatar?.let {
-                if (avatarPath.notExists()) {
-                    avatarPath.createDirectory()
-                }
-                uploadImage(
-                    uploadedFile = it,
-                    targetFile = "$avatarPath/large.png",
-                    width = 512,
-                    height = 512
-                )
-                uploadImage(
-                    uploadedFile = it,
-                    targetFile = "$avatarPath/medium.png",
-                    width = 128,
-                    height = 128
-                )
-                uploadImage(
-                    uploadedFile = it,
-                    targetFile = "$avatarPath/small.png",
-                    width = 64,
-                    height = 64
-                )
+        } else if (user.avatar is EditingAction.Edit) {
+            if (avatarPath.notExists()) {
+                avatarPath.createDirectory()
             }
+            uploadImage(
+                uploadedFile = user.avatar.value,
+                targetFile = "$avatarPath/large.png",
+                width = 512,
+                height = 512
+            )
+            uploadImage(
+                uploadedFile = user.avatar.value,
+                targetFile = "$avatarPath/medium.png",
+                width = 128,
+                height = 128
+            )
+            uploadImage(
+                uploadedFile = user.avatar.value,
+                targetFile = "$avatarPath/small.png",
+                width = 64,
+                height = 64
+            )
+
         }
         return editedUserEntity.toDomain()
     }
@@ -89,6 +88,7 @@ class UserServiceWithDB @Autowired constructor(
         }
     }
 
+    @OptIn(ExperimentalPathApi::class)
     override fun remove(userId: Long) {
         if (!userRepository.existsById(userId)) {
             throw NoSuchElementException()
@@ -98,7 +98,7 @@ class UserServiceWithDB @Autowired constructor(
         }
         commentService.removeAllByUserId(userId)
         val credentialIds = authDetailRepository.findById_UserId(userId).map { it.id }
-        findFileByName(appPaths.USER_AVATARS_BASE_PATH, userId.toString())?.delete()
+        Path(appPaths.USERS_BASE_PATH, userId.toString()).deleteRecursively()
         authDetailRepository.deleteAllById(credentialIds)
         userRepository.deleteById(userId)
     }

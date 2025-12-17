@@ -22,6 +22,5 @@ data class UserEditingModel(
     val bio: String?,
     val tel: String?,
     val email: String?,
-    val avatar: UploadedFile?,
-    val avatarAction: EditAction
+    val avatar: EditingAction<UploadedFile>
 )

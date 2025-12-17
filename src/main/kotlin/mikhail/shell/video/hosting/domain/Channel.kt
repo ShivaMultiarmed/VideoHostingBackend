@@ -47,3 +47,7 @@ data class ChannelEditingModel(
     val header: EditingAction<UploadedFile>,
     val logo: EditingAction<UploadedFile>
 )
+
+enum class Subscription {
+    SUBSCRIBED, NOT_SUBSCRIBED
+}

@@ -1,8 +1,10 @@
 package mikhail.shell.video.hosting.entities
 
 import jakarta.persistence.*
+import mikhail.shell.video.hosting.domain.Liking
 import mikhail.shell.video.hosting.domain.Video
 import mikhail.shell.video.hosting.domain.VideoWithChannel
+import java.io.Serializable
 import java.time.Instant
 import java.util.UUID
 
@@ -106,3 +108,17 @@ data class PendingVideoEntity(
     val mimeType: String,
     val size: Long
 )
+
+@Entity
+@Table(name = "video_likings")
+data class VideoLiking(
+    @EmbeddedId val id: VideoLikingId,
+    @Enumerated(value = EnumType.STRING)
+    val liking: Liking
+)
+
+@Embeddable
+data class VideoLikingId(
+    val userId: Long,
+    val videoId: Long,
+): Serializable

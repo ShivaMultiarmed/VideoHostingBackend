@@ -61,3 +61,7 @@ data class VideoEditingModel(
     val description: String?,
     val cover: EditingAction<UploadedFile>
 )
+
+enum class Liking {
+    LIKED, DISLIKED, NONE
+}

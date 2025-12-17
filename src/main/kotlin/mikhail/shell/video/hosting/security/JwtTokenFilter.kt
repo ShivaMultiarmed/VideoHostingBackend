@@ -3,6 +3,7 @@ package mikhail.shell.video.hosting.security
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import mikhail.shell.video.hosting.repository.InvalidTokenRepository
 import mikhail.shell.video.hosting.repository.UserRepository
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.security.core.context.SecurityContextHolder
@@ -13,7 +14,8 @@ import org.springframework.web.filter.OncePerRequestFilter
 @Component
 class JwtTokenFilter @Autowired constructor(
     private val util: JwtTokenUtil,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val invalidTokenRepository: InvalidTokenRepository
 ): OncePerRequestFilter() {
 
     override fun doFilterInternal(
@@ -24,7 +26,7 @@ class JwtTokenFilter @Autowired constructor(
         val authHeader = request.getHeader("Authorization")
         if (authHeader != null) {
             val token = authHeader.removePrefix("Bearer ")
-            if (util.validateToken(token)) {
+            if (util.validateToken(token) && !invalidTokenRepository.existsById(token)) {
                 val userId = util.extractUserId(token)
                 if (userId != null && userRepository.existsById(userId)) {
                     val authentication = HostingToken(userId, null, listOf())

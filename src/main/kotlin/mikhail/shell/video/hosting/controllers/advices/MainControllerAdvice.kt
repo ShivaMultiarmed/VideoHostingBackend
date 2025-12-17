@@ -52,15 +52,6 @@ class MainControllerAdvice {
         return ResponseEntity.status(HttpStatus.GONE).build()
     }
 
-//    @ExceptionHandler(BindException::class)
-//    fun handleNotValidArguments(e: BindException): ResponseEntity<Map<String, String>> {
-//        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
-//            e.bindingResult.allErrors.associate {
-//                (it as FieldError).field to (it.defaultMessage ?: UnexpectedError.toString())
-//            }
-//        )
-//    }
-
     @ExceptionHandler(MethodArgumentNotValidException::class)
     fun handleValidationErrors(e: MethodArgumentNotValidException): ResponseEntity<Map<String, String>> {
         return ResponseEntity.badRequest().body(
@@ -96,11 +87,11 @@ class MainControllerAdvice {
             )
     }
 
-//    @ExceptionHandler(Exception::class)
-//    fun handleExceptions(e: Exception): ResponseEntity<Unit> {
-//        e.printStackTrace()
-//        return ResponseEntity.internalServerError().build()
-//    }
+    @ExceptionHandler(Exception::class)
+    fun handleExceptions(e: Exception): ResponseEntity<Unit> {
+        e.printStackTrace()
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
+    }
 }
 
 fun String.camelToSnakeCase(): String {

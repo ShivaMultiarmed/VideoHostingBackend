@@ -69,8 +69,11 @@ class UserController @Autowired constructor(
                 bio = user.bio,
                 tel = user.tel,
                 email = user.email,
-                avatar = avatar?.toUploadedFile(),
-                avatarAction = EditAction.valueOf(user.avatarAction!!.uppercase())
+                avatar = when (EditAction.valueOf(user.avatarAction!!.uppercase())) {
+                    EditAction.KEEP -> EditingAction.Keep
+                    EditAction.REMOVE -> EditingAction.Remove
+                    EditAction.EDIT -> EditingAction.Edit(avatar!!.toUploadedFile())
+                }
             )
         ).toDto()
     }

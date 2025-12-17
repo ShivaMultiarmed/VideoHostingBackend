@@ -33,7 +33,7 @@ class CommentServiceWithDB @Autowired constructor(
 
     override fun removeAllByUserId(userId: Long): Boolean {
         commentRepository.deleteByUserId(userId)
-        return commentRepository.existsByUserId(userId)
+        return !commentRepository.existsByUserId(userId)
     }
 
     override fun remove(userId: Long, commentId: Long) {

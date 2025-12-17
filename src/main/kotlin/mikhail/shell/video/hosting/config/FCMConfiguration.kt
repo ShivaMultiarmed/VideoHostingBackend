@@ -24,15 +24,14 @@ class FCMConfiguration {
             .setCredentials(
                 GoogleCredentials.fromStream(inputStream)
             ).build()
-        return FirebaseApp.initializeApp(firebaseOptions, Companion.FIREBASE_APP)
+        return FirebaseApp.initializeApp(firebaseOptions, FIREBASE_APP)
     }
     @Bean
     fun fcm(): FirebaseMessaging {
-        val app = firebaseApplication()
-        return FirebaseMessaging.getInstance(app)
+        return FirebaseMessaging.getInstance(firebaseApplication())
     }
 
     private companion object {
-        val FIREBASE_APP = "hosting"
+        const val FIREBASE_APP = "hosting"
     }
 }

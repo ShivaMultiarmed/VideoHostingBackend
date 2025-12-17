@@ -55,6 +55,11 @@ data class VideoWithUserDto(
     val dislikes: Long
 )
 
+data class VideoDetailsDto(
+    val video: VideoWithUserDto,
+    val channel: ChannelWithUserDto,
+)
+
 fun VideoWithUser.toDto() = VideoWithUserDto(
     videoId = videoId,
     channelId = channelId,

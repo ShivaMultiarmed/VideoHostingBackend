@@ -59,7 +59,11 @@ class VideoController @Autowired constructor(
         @RequestParam("liking") @ValidEnum(Liking::class) liking: String?,
         @AuthenticationPrincipal userId: Long
     ): VideoWithUserDto {
-        return videoService.rate(videoId = videoId!!, userId = userId, liking = Liking.valueOf(liking!!.uppercase())).toDto()
+        return videoService.rate(
+            videoId = videoId!!,
+            userId = userId,
+            liking = Liking.valueOf(liking!!.uppercase())
+        ).toDto()
     }
 
     @GetMapping("/{video_id}/source")

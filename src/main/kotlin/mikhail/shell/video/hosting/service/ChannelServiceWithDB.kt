@@ -238,57 +238,54 @@ class ChannelServiceWithDB @Autowired constructor(
         if (channel.header == EditingAction.Remove) {
             headerPath.deleteRecursively()
         } else if (channel.header is EditingAction.Edit) {
-            channel.header.value.let {
-                if (headerPath.notExists()) {
-                    headerPath.createDirectory()
-                }
-                uploadImage(
-                    uploadedFile = it,
-                    targetFile = "$headerPath/large.png",
-                    width = 1800,
-                    height = 200
-                )
-                uploadImage(
-                    uploadedFile = it,
-                    targetFile = "$headerPath/medium.png",
-                    width = 1000,
-                    height = 120
-                )
-                uploadImage(
-                    uploadedFile = it,
-                    targetFile = "$headerPath/small.png",
-                    width = 350,
-                    height = 60
-                )
+            if (headerPath.notExists()) {
+                headerPath.createDirectory()
             }
+            uploadImage(
+                uploadedFile = channel.header.value,
+                targetFile = "$headerPath/large.png",
+                width = 1800,
+                height = 200
+            )
+            uploadImage(
+                uploadedFile = channel.header.value,
+                targetFile = "$headerPath/medium.png",
+                width = 1000,
+                height = 120
+            )
+            uploadImage(
+                uploadedFile = channel.header.value,
+                targetFile = "$headerPath/small.png",
+                width = 350,
+                height = 60
+            )
+
         }
         val logoPath = channelPath.resolve("logo")
         if (channel.logo == EditingAction.Remove) {
             logoPath.deleteRecursively()
         } else if (channel.logo is EditingAction.Edit) {
-            channel.logo.value.let {
-                if (logoPath.notExists()) {
-                    logoPath.createDirectory()
-                }
-                uploadImage(
-                    uploadedFile = it.copy(),
-                    targetFile = "$logoPath/small.png",
-                    width = 64,
-                    height = 64
-                )
-                uploadImage(
-                    uploadedFile = it.copy(),
-                    targetFile = "$logoPath/medium.png",
-                    width = 128,
-                    height = 128
-                )
-                uploadImage(
-                    uploadedFile = it.copy(),
-                    targetFile = "$logoPath/large.png",
-                    width = 512,
-                    height = 512
-                )
+            if (logoPath.notExists()) {
+                logoPath.createDirectory()
             }
+            uploadImage(
+                uploadedFile = channel.logo.value,
+                targetFile = "$logoPath/small.png",
+                width = 64,
+                height = 64
+            )
+            uploadImage(
+                uploadedFile = channel.logo.value,
+                targetFile = "$logoPath/medium.png",
+                width = 128,
+                height = 128
+            )
+            uploadImage(
+                uploadedFile = channel.logo.value,
+                targetFile = "$logoPath/large.png",
+                width = 512,
+                height = 512
+            )
         }
         return editedChannel
     }

@@ -35,13 +35,21 @@ class AuthServiceWithDB(
     override fun signInWithPassword(userName: String, password: String): AuthModel {
         val method = when {
             userName.matches(ValidationRules.EMAIL_REGEX.toRegex()) -> AuthenticationMethod.EMAIL
-            else -> throw IllegalArgumentException()
+            else -> throw ValidationException(
+                mapOf("userName" to TextError.PATTERN)
+            )
         }
-        val authDetailEntity = authDetailRepository.findByUserNameAndId_Method(userName, method).orElseThrow()
+        val authDetailEntity = authDetailRepository.findByUserNameAndId_Method(userName, method).orElseThrow {
+            ValidationException(
+                mapOf("userName" to TextError.NOT_EXISTS)
+            )
+        }
         val userId = authDetailEntity.id.userId
         val expectedPassword = passwordRepository.findById(userId).orElseThrow().password
         if (!passwordEncoder.matches(password, expectedPassword)) {
-            throw IllegalArgumentException()
+            throw ValidationException(
+                mapOf("password" to TextError.NOT_CORRECT)
+            )
         } else {
             val token = jwtTokenUtil.generateToken(userId.toString())
             return AuthModel(token, userId)
