@@ -139,18 +139,18 @@ fun InputStream.toImage(): BufferedImage? {
 
 fun BufferedImage.crop(
     width: Int = this.width,
-    height: Int = this.height,
+    height: Int = this.height
 ): BufferedImage {
     val actualRatio = this.width.toFloat() / this.height
-    val targetRatio = width.toFloat() / height
+    val cropRatio = width.toFloat() / height
     val cropWidth: Int
     val cropHeight: Int
-    if (targetRatio > actualRatio) {
+    if (cropRatio > actualRatio) {
         cropWidth = this.width
-        cropHeight = (cropWidth / targetRatio).toInt()
+        cropHeight = (cropWidth / cropRatio).toInt()
     } else {
         cropHeight = this.height
-        cropWidth = (cropHeight * targetRatio).toInt()
+        cropWidth = (cropHeight * cropRatio).toInt()
     }
     return Thumbnails.of(this)
         .sourceRegion(Positions.CENTER, cropWidth, cropHeight)
