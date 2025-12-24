@@ -7,7 +7,6 @@ import java.awt.image.BufferedImage
 import java.io.File
 import java.io.InputStream
 import java.nio.file.Path
-import javax.imageio.ImageIO
 import kotlin.io.path.Path
 import kotlin.math.min
 
@@ -60,11 +59,13 @@ fun uploadImage(
     targetFile: String,
     width: Int = -1,
     height: Int = -1,
+    compress: Boolean = false
 ) = uploadImage(
     uploadedFile = uploadedFile,
     targetFile = File(targetFile),
     width = width,
-    height = height
+    height = height,
+    compress = compress
 )
 
 fun uploadImage(
@@ -72,21 +73,38 @@ fun uploadImage(
     targetFile: String,
     width: Int = -1,
     height: Int = -1,
+    compress: Boolean = false
 ) = uploadImage(
     uploadedFile = uploadedFile.inputStream(),
     targetFile = File(targetFile),
     width = width,
-    height = height
+    height = height,
+    compress = compress
+)
+
+fun uploadImage(
+    uploadedFile: UploadedFile,
+    targetFile: File,
+    width: Int = -1,
+    height: Int = -1,
+    compress: Boolean = false
+) = uploadImage(
+    uploadedFile = uploadedFile.bytes.inputStream(),
+    targetFile = targetFile,
+    width = width,
+    height = height,
+    compress = compress
 )
 
 fun uploadImage(
     uploadedFile: InputStream,
     targetFile: File,
     width: Int = -1,
-    height: Int = -1
+    height: Int = -1,
+    compress: Boolean = false
 ): Boolean {
     return try {
-        val inputImage = ImageIO.read(uploadedFile)
+        val inputImage = uploadedFile.toImage() ?: return false
         val outputImage = when {
             width == -1 && height == -1 -> inputImage
             else -> inputImage.crop(
@@ -94,12 +112,13 @@ fun uploadImage(
                 height = if (height > 0) height else inputImage.height
             )
         }
-        if (!targetFile.exists()) {
-            targetFile.createNewFile()
-        }
-        targetFile.outputStream().use {
-            ImageIO.write(outputImage, targetFile.extension, it)
-        }
+        outputImage.save(
+            output = targetFile,
+            compressionCoefficient = when (compress) {
+                true -> outputImage.compressionCoefficient
+                false -> 1f
+            }
+        )
         true
     } catch (e: Exception) {
         e.printStackTrace()
@@ -107,17 +126,16 @@ fun uploadImage(
     }
 }
 
-fun uploadImage(
-    uploadedFile: UploadedFile,
-    targetFile: File,
-    width: Int = -1,
-    height: Int = -1,
-) = uploadImage(
-    uploadedFile = uploadedFile.bytes.inputStream(),
-    targetFile = targetFile,
-    width = width,
-    height = height
-)
+fun InputStream.toImage(): BufferedImage? {
+    return try {
+        Thumbnails.of(this)
+            .useExifOrientation(true)
+            .scale(1.0)
+            .asBufferedImage()
+    } catch (e: Exception) {
+        null
+    }
+}
 
 fun BufferedImage.crop(
     width: Int = this.width,
@@ -132,14 +150,33 @@ fun BufferedImage.crop(
         cropHeight = (cropWidth / targetRatio).toInt()
     } else {
         cropHeight = this.height
-        cropWidth = (cropHeight / targetRatio).toInt()
+        cropWidth = (cropHeight * targetRatio).toInt()
     }
     return Thumbnails.of(this)
         .sourceRegion(Positions.CENTER, cropWidth, cropHeight)
         .size(min(cropWidth, width), min(cropHeight, height))
-        .outputQuality(0.7f)
         .asBufferedImage()
 }
+
+fun BufferedImage.save(
+    output: File,
+    compressionCoefficient: Float = this.compressionCoefficient
+) {
+    return Thumbnails.of(this)
+        .scale(1.0)
+        .outputQuality(compressionCoefficient)
+        .toFile(output)
+}
+
+val BufferedImage.compressionCoefficient: Float
+    get() {
+        return when {
+            width > 1024 || height > 1024 -> 0.7f
+            width > 512 || height > 512 -> 0.8f
+            width > 128 || height > 128 -> 0.9f
+            else -> 1f
+        }
+    }
 
 fun getMimeType(fileName: String): String {
     return MediaTypeFactory

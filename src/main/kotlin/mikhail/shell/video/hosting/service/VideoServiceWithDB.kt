@@ -51,7 +51,7 @@ class VideoServiceWithDB @Autowired constructor(
     private val userLikeVideoRepository: UserLikeVideoRepository,
     private val channelRepository: ChannelRepository,
     private val fcm: FirebaseMessaging,
-    private val appPaths: ApplicationPathsInitializer,
+    private val appPaths: ApplicationPathsInitializer
 ) : VideoService {
 
     override fun get(videoId: Long): Video {
@@ -148,68 +148,6 @@ class VideoServiceWithDB @Autowired constructor(
         ).map { it.toDomain() }
     }
 
-//    override fun getByQuery(
-//        query: String,
-//        partSize: Int,
-//        cursor: Long?,
-//    ): List<VideoWithChannel> {
-//        val (viewWeight, likeWeight, dislikeWeight) = listOf(0.1, 0.3, -0.3)
-//        val elasticQuery = QueryBuilders.multiMatch {
-//            it.query(query)
-//            it.fields("title", "description")
-//        }
-//        val scoreFunction: (String, Double) -> FunctionScore = { field, weight ->
-//            FunctionScore.Builder()
-//                .fieldValueFactor(
-//                    FieldValueFactorScoreFunction.Builder()
-//                        .field(field)
-//                        .factor(weight)
-//                        .build()
-//                ).build()
-//        }
-//        val scoredQuery = FunctionScoreQuery.of {
-//            it.query(elasticQuery)
-//            it.functions(
-//                mutableListOf(
-//                    scoreFunction("views", viewWeight),
-//                    scoreFunction("likes", likeWeight),
-//                    scoreFunction("dislikes", dislikeWeight)
-//                )
-//            )
-//        }.query()!!
-//        val nativeSearchQuery: Query = NativeQuery.builder()
-//            .withQuery(scoredQuery)
-//            .withSort(
-//                SortOptions.Builder()
-//                    .score(
-//                        SortOptionsBuilders.score()
-//                            .order(SortOrder.Desc)
-//                            .build()
-//                    ).build()
-//            ).withSort(
-//                SortOptions.Builder()
-//                    .field(
-//                        SortOptionsBuilders.field {
-//                            it.field("videoId")
-//                            it.order(SortOrder.Asc)
-//                        }.field()
-//                    ).build()
-//            ).let {
-//                if (cursor != null) {
-//                    val lastScore = videoRepository.findById(cursor).orElseThrow().let {
-//                        it.views * viewWeight + it.likes * likeWeight + it.dislikes
-//                    }
-//                    it.withSearchAfter(
-//                        mutableListOf<Any>(cursor)
-//                    )
-//                } else it
-//            }.withPageable(
-//                PageRequest.of(0, partSize)
-//            ).build()
-//        val videoIds = elasticSearchOperations.search<VideoDocument>(nativeSearchQuery).map { it.content.videoId }.toList()
-//        return videoWithChannelsRepository.findAllById(videoIds).map { it.toDomain() }
-//    }
-
     override fun getByQuery(
         query: String,
         partSize: Int,
@@ -226,7 +164,7 @@ class VideoServiceWithDB @Autowired constructor(
             )
             .params(
                 mapOf(
-                    //"dateTime" to JsonData.of(recommendationWeights.dateTime),
+                    //"dateTime" to JsonData.of(recommendationWeights.dateTime), // TODO: take the dateTime into account
                     "views" to JsonData.of(recommendationWeights.views),
                     "likes" to JsonData.of(recommendationWeights.likes),
                     "dislikes" to JsonData.of(recommendationWeights.dislikes)
@@ -301,8 +239,8 @@ class VideoServiceWithDB @Autowired constructor(
         )
         val tmpPath = Path(appPaths.TEMP_PATH, pendingVideoEntity.tmpId.toString()).createDirectory()
         video.cover?.let {
-            val extension = video.cover.fileName.parseExtension()
-            val coverPath = tmpPath.resolve("cover.$extension").createFile()
+            val ext = video.cover.fileName.parseExtension()
+            val coverPath = tmpPath.resolve("cover.$ext").createFile()
             uploadImage(
                 uploadedFile = it,
                 targetFile = coverPath.toString()
@@ -460,21 +398,24 @@ class VideoServiceWithDB @Autowired constructor(
             val coverPath = Path(appPaths.VIDEOS_BASE_PATH, videoId.toString(), "cover").createDirectories()
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$coverPath/large.${it.extension}",
-                width = 512,
-                height = 290
+                targetFile = "$coverPath/small.${it.extension}",
+                width = 128,
+                height = 72,
+                compress = true
             )
             uploadImage(
                 uploadedFile = it,
                 targetFile = "$coverPath/medium.${it.extension}",
-                width = 256,
-                height = 144
+                width = 320,
+                height = 180,
+                compress = true
             )
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$coverPath/small.${it.extension}",
-                width = 128,
-                height = 72
+                targetFile = "$coverPath/large.${it.extension}",
+                width = 512,
+                height = 288,
+                compress = true
             )
         }
     }
@@ -589,8 +530,8 @@ class VideoServiceWithDB @Autowired constructor(
         val tmpId = UUID.randomUUID()
         val tmpPath = Path(appPaths.TEMP_PATH, tmpId.toString()).createDirectory()
         if (video.cover is EditingAction.Edit) {
-            val extension = video.cover.value.fileName.parseExtension()
-            val tmpCoverPath = tmpPath.resolve("cover.$extension").createFile()
+            val ext = video.cover.value.fileName.parseExtension()
+            val tmpCoverPath = tmpPath.resolve("cover.$ext").createFile()
             uploadImage(
                 uploadedFile = video.cover.value,
                 targetFile = tmpCoverPath.toString()

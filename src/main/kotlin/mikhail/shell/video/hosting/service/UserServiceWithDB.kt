@@ -56,24 +56,30 @@ class UserServiceWithDB @Autowired constructor(
         } else if (user.avatar is EditingAction.Edit) {
             if (avatarPath.notExists()) {
                 avatarPath.createDirectory()
+            } else {
+                avatarPath.listDirectoryEntries().forEach { it.deleteIfExists() }
             }
+            val ext = user.avatar.value.fileName.parseExtension()
             uploadImage(
                 uploadedFile = user.avatar.value,
-                targetFile = "$avatarPath/large.png",
-                width = 512,
-                height = 512
-            )
-            uploadImage(
-                uploadedFile = user.avatar.value,
-                targetFile = "$avatarPath/medium.png",
-                width = 128,
-                height = 128
-            )
-            uploadImage(
-                uploadedFile = user.avatar.value,
-                targetFile = "$avatarPath/small.png",
+                targetFile = "$avatarPath/small.$ext",
                 width = 64,
-                height = 64
+                height = 64,
+                compress = true
+            )
+            uploadImage(
+                uploadedFile = user.avatar.value,
+                targetFile = "$avatarPath/medium.$ext",
+                width = 192,
+                height = 192,
+                compress = true
+            )
+            uploadImage(
+                uploadedFile = user.avatar.value,
+                targetFile = "$avatarPath/large.$ext",
+                width = 512,
+                height = 512,
+                compress = true
             )
 
         }
@@ -104,8 +110,9 @@ class UserServiceWithDB @Autowired constructor(
     }
 
     override fun getAvatar(userId: Long, size: ImageSize): Resource {
-        val file = Path(appPaths.USERS_BASE_PATH, userId.toString(), "avatar", size.name.lowercase() + ".png").toFile()
-        if (!userRepository.existsById(userId) || !file.exists()) {
+        val avatarDirectory = Path(appPaths.USERS_BASE_PATH, userId.toString(), "avatar")
+        val file = findFileByName(avatarDirectory, size.name.lowercase())
+        if (!userRepository.existsById(userId) || file == null) {
             throw NoSuchElementException()
         } else {
             return FileSystemResource(file)

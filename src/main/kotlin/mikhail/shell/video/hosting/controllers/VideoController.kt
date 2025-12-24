@@ -32,9 +32,6 @@ class VideoController @Autowired constructor(
     private val channelService: ChannelService,
     private val appPaths: ApplicationPathsInitializer
 ) {
-    @Value("\${video-hosting.server.base-url}")
-    private lateinit var BASE_URL: String
-
     @GetMapping("/{video_id}")
     fun get(@PathVariable("video_id") @LongId videoId: Long?): VideoDto {
         return videoService.get(videoId!!).toDto()

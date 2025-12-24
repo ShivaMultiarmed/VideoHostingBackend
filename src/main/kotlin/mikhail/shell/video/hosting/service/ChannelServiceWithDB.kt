@@ -81,23 +81,27 @@ class ChannelServiceWithDB @Autowired constructor(
             if (headerPath.notExists()) {
                 headerPath.createDirectory()
             }
+            val ext = it.fileName.parseExtension()
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$headerPath/large.png",
-                width = 1800,
-                height = 200
+                targetFile = "$headerPath/small.$ext",
+                width = 600,
+                height = 100,
+                compress = true
             )
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$headerPath/medium.png",
-                width = 1000,
-                height = 120
+                targetFile = "$headerPath/medium.$ext",
+                width = 1200,
+                height = 200,
+                compress = true
             )
             uploadImage(
                 uploadedFile = it,
-                targetFile = "$headerPath/small.png",
-                width = 350,
-                height = 60
+                targetFile = "$headerPath/large.$ext",
+                width = 2400,
+                height = 400,
+                compress = true
             )
         }
         channel.logo?.let {
@@ -105,35 +109,39 @@ class ChannelServiceWithDB @Autowired constructor(
             if (logoPath.notExists()) {
                 logoPath.createDirectory()
             }
+            val ext = it.fileName.parseExtension()
             uploadImage(
-                uploadedFile = it.copy(),
-                targetFile = "$logoPath/small.png",
+                uploadedFile = it,
+                targetFile = "$logoPath/small.$ext",
                 width = 64,
-                height = 64
+                height = 64,
+                compress = true
             )
             uploadImage(
-                uploadedFile = it.copy(),
-                targetFile = "$logoPath/medium.png",
-                width = 128,
-                height = 128
+                uploadedFile = it,
+                targetFile = "$logoPath/medium.$ext",
+                width = 192,
+                height = 192,
+                compress = true
             )
             uploadImage(
-                uploadedFile = it.copy(),
-                targetFile = "$logoPath/large.png",
+                uploadedFile = it,
+                targetFile = "$logoPath/large.$ext",
                 width = 512,
-                height = 512
+                height = 512,
+                compress = true
             )
         }
         return createdChannel
     }
 
     override fun getLogo(channelId: Long, size: ImageSize): Resource {
-        val file =
-            Path(appPaths.CHANNELS_BASE_PATH, channelId.toString(), "logo", size.name.lowercase() + ".png").toFile()
-        if (!channelRepository.existsById(channelId) || !file.exists()) {
+        val directory = Path(appPaths.CHANNELS_BASE_PATH, channelId.toString(), "logo")
+        val logo = findFileByName(directory, size.name.lowercase())
+        if (!channelRepository.existsById(channelId) || logo == null) {
             throw NoSuchElementException()
         } else {
-            return FileSystemResource(file)
+            return FileSystemResource(logo)
         }
     }
 
@@ -142,12 +150,12 @@ class ChannelServiceWithDB @Autowired constructor(
     }
 
     override fun getHeader(channelId: Long, size: ImageSize): Resource {
-        val file =
-            Path(appPaths.CHANNELS_BASE_PATH, channelId.toString(), "header", size.name.lowercase() + ".png").toFile()
-        if (!channelRepository.existsById(channelId) || !file.exists()) {
+        val directory = Path(appPaths.CHANNELS_BASE_PATH, channelId.toString(), "header")
+        val header = findFileByName(directory, size.name.lowercase())
+        if (!channelRepository.existsById(channelId) || header == null) {
             throw NoSuchElementException()
         } else {
-            return FileSystemResource(file)
+            return FileSystemResource(header)
         }
     }
 
@@ -240,24 +248,30 @@ class ChannelServiceWithDB @Autowired constructor(
         } else if (channel.header is EditingAction.Edit) {
             if (headerPath.notExists()) {
                 headerPath.createDirectory()
+            } else {
+                headerPath.listDirectoryEntries().forEach { it.deleteIfExists() }
             }
+            val ext = channel.header.value.fileName.parseExtension()
             uploadImage(
                 uploadedFile = channel.header.value,
-                targetFile = "$headerPath/large.png",
-                width = 1800,
-                height = 200
+                targetFile = "$headerPath/small.$ext",
+                width = 600,
+                height = 100,
+                compress = true
             )
             uploadImage(
                 uploadedFile = channel.header.value,
-                targetFile = "$headerPath/medium.png",
-                width = 1000,
-                height = 120
+                targetFile = "$headerPath/medium.$ext",
+                width = 1200,
+                height = 200,
+                compress = true
             )
             uploadImage(
                 uploadedFile = channel.header.value,
-                targetFile = "$headerPath/small.png",
-                width = 350,
-                height = 60
+                targetFile = "$headerPath/large.$ext",
+                width = 2400,
+                height = 400,
+                compress = true
             )
 
         }
@@ -267,24 +281,30 @@ class ChannelServiceWithDB @Autowired constructor(
         } else if (channel.logo is EditingAction.Edit) {
             if (logoPath.notExists()) {
                 logoPath.createDirectory()
+            } else {
+                logoPath.listDirectoryEntries().forEach { it.deleteIfExists() }
             }
+            val ext = channel.logo.value.fileName.parseExtension()
             uploadImage(
                 uploadedFile = channel.logo.value,
-                targetFile = "$logoPath/small.png",
+                targetFile = "$logoPath/small.$ext",
                 width = 64,
-                height = 64
+                height = 64,
+                compress = true
             )
             uploadImage(
                 uploadedFile = channel.logo.value,
-                targetFile = "$logoPath/medium.png",
-                width = 128,
-                height = 128
+                targetFile = "$logoPath/medium.$ext",
+                width = 192,
+                height = 192,
+                compress = true
             )
             uploadImage(
                 uploadedFile = channel.logo.value,
-                targetFile = "$logoPath/large.png",
+                targetFile = "$logoPath/large.$ext",
                 width = 512,
-                height = 512
+                height = 512,
+                compress = true
             )
         }
         return editedChannel
