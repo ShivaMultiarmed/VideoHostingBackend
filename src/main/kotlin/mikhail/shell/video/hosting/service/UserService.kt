@@ -9,4 +9,6 @@ interface UserService {
     fun remove(userId: Long)
     fun existsByNick(userId: Long? = null, nick: String): Boolean
     fun getAvatar(userId: Long, size: ImageSize): Resource
+    fun subscribeToNotifications(userId: Long, token: String)
+    fun unsubscribeFromNotifications(userId: Long, token: String)
 }

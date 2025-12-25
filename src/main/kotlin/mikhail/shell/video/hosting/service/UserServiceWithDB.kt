@@ -1,6 +1,12 @@
 package mikhail.shell.video.hosting.service
 
 
+import com.google.firebase.messaging.FirebaseMessaging
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.errors.Error
 import mikhail.shell.video.hosting.errors.TextError
@@ -10,16 +16,21 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.io.FileSystemResource
 import org.springframework.core.io.Resource
 import org.springframework.stereotype.Service
+import javax.annotation.PreDestroy
 import kotlin.io.path.*
 
 @Service
 class UserServiceWithDB @Autowired constructor(
     private val userRepository: UserRepository,
     private val channelService: ChannelService,
+    private val subscriberRepository: SubscriberRepository,
     private val authDetailRepository: AuthDetailRepository,
     private val commentService: CommentService,
+    private val fcm: FirebaseMessaging,
     private val appPaths: ApplicationPathsInitializer
 ) : UserService {
+    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
     override fun get(userId: Long): User {
         return userRepository.findById(userId).orElseThrow().toDomain()
     }
@@ -117,5 +128,45 @@ class UserServiceWithDB @Autowired constructor(
         } else {
             return FileSystemResource(file)
         }
+    }
+
+    override fun subscribeToNotifications(userId: Long, token: String) {
+        subscriberRepository
+            .findById_UserId(userId)
+            .map { it.id.channelId }
+            .forEach {
+                coroutineScope.launch {
+                    fcm.subscribeToTopic(listOf(token), "channels.$it.subscribers")
+                }
+            }
+        channelService.getChannelsByOwnerId(userId)
+            .map { it.channelId }
+            .forEach {
+                coroutineScope.launch {
+                    fcm.subscribeToTopic(listOf(token), "channels.$it.uploads")
+                }
+            }
+    }
+
+    override fun unsubscribeFromNotifications(userId: Long, token: String) {
+        subscriberRepository
+            .findById_UserId(userId)
+            .map { it.id.channelId }
+            .forEach {
+                coroutineScope.launch {
+                    fcm.unsubscribeFromTopic(listOf(token), "channels.$it.subscribers")
+                }
+            }
+        channelService.getChannelsByOwnerId(userId)
+            .map { it.channelId }
+            .forEach {
+                coroutineScope.launch {
+                    fcm.unsubscribeFromTopic(listOf(token), "channels.$it.uploads")
+                }
+            }
+    }
+    @PreDestroy
+    fun preDestroy() {
+        coroutineScope.cancel()
     }
 }

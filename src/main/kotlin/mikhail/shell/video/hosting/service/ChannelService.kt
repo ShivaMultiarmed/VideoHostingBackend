@@ -24,8 +24,6 @@ interface ChannelService {
         subscription: Subscription,
         token: String
     ): ChannelWithUser
-    fun subscribeToNotifications(userId: Long, token: String)
-    fun unsubscribeFromNotifications(userId: Long, token: String)
     fun getChannel(channelId: Long): Channel
     fun checkOwner(userId: Long, channelId: Long): Boolean
     fun existsById(channelId: Long): Boolean

@@ -352,28 +352,6 @@ class ChannelServiceWithDB @Autowired constructor(
         return channelRepository.existsById(channelId)
     }
 
-    override fun subscribeToNotifications(userId: Long, token: String) {
-        subscriberRepository
-            .findById_UserId(userId)
-            .map { it.id.channelId }
-            .forEach { fcm.subscribeToTopic(listOf(token), "channels.$it.subscribers") }
-        channelRepository
-            .findByOwnerId(userId)
-            .map { it.channelId }
-            .forEach { fcm.subscribeToTopic(listOf(token), "channels.$it.uploads") }
-    }
-
-    override fun unsubscribeFromNotifications(userId: Long, token: String) {
-        subscriberRepository
-            .findById_UserId(userId)
-            .map { it.id.channelId }
-            .forEach { fcm.unsubscribeFromTopic(listOf(token), "channels.$it.subscribers") }
-        channelRepository
-            .findByOwnerId(userId)
-            .map { it.channelId }
-            .forEach { fcm.unsubscribeFromTopic(listOf(token), "channels.$it.uploads") }
-    }
-
     private companion object {
         const val CHANNELS_TOPICS_PREFIX = "channels"
     }

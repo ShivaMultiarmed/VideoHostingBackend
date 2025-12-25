@@ -137,31 +137,15 @@ class ChannelController @Autowired constructor(
     fun subscribe(
         @PathVariable("channel_id") @LongId channelId: Long?,
         @RequestParam("subscription") @ValidEnum(Subscription::class) subscription: String?,
-        @RequestParam("fcm_token") @NotBlank(message = "EMPTY") fcmToken: String?,
-        @AuthenticationPrincipal userId: Long,
+        @RequestHeader("Messaging-Token") fcmToken: String,
+        @AuthenticationPrincipal userId: Long
     ): ChannelWithUserDto {
         return channelService.changeSubscriptionState(
             subscriberId = userId,
             channelId = channelId!!,
             subscription = Subscription.valueOf(subscription!!.uppercase()),
-            token = fcmToken!!
+            token = fcmToken
         ).toDto()
-    }
-
-    @PostMapping("/notifications/subscription")
-    fun resubscribeToFCM(
-        @RequestParam("fcm_token") @NotBlank(message = "EMPTY") token: String?,
-        @AuthenticationPrincipal userId: Long
-    ) {
-        channelService.subscribeToNotifications(userId = userId, token = token!!)
-    }
-
-    @DeleteMapping("/notifications/subscription")
-    fun unsubscribeFromFCM(
-        @RequestParam("fcm_token") @NotBlank(message = "EMPTY") token: String?,
-        @AuthenticationPrincipal userId: Long
-    ) {
-        channelService.unsubscribeFromNotifications(userId = userId, token = token!!)
     }
 
     @DeleteMapping("/{channel_id}")

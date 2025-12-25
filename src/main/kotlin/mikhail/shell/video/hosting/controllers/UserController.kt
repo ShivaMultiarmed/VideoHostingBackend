@@ -9,7 +9,6 @@ import mikhail.shell.video.hosting.dto.UserDto
 import mikhail.shell.video.hosting.dto.toDto
 import mikhail.shell.video.hosting.service.UserService
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.core.io.Resource
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -92,6 +91,22 @@ class UserController @Autowired constructor(
         return ResponseEntity.status(HttpStatus.OK)
             .contentType(MediaType.parseMediaType("image/${image.file.extension}"))
             .body(image)
+    }
+
+    @PostMapping("/notifications/subscription")
+    fun subscribeToNotifications(
+        @RequestHeader("Messaging-Token") token: String,
+        @AuthenticationPrincipal userId: Long
+    ) {
+        userService.subscribeToNotifications(userId = userId, token = token)
+    }
+
+    @DeleteMapping("/notifications/subscription")
+    fun unsubscribeFromNotifications(
+        @RequestHeader("Messaging-Token") token: String,
+        @AuthenticationPrincipal userId: Long
+    ) {
+        userService.unsubscribeFromNotifications(userId = userId, token = token)
     }
 }
 
