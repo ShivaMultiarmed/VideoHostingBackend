@@ -20,10 +20,12 @@ class FCMConfiguration {
     @Bean
     fun firebaseApplication(): FirebaseApp {
         val inputStream = ClassPathResource(FCM_CONFIG).inputStream
+        val credentials = inputStream.use {
+            GoogleCredentials.fromStream(inputStream)
+        }
         val firebaseOptions = FirebaseOptions.builder()
-            .setCredentials(
-                GoogleCredentials.fromStream(inputStream)
-            ).build()
+            .setCredentials(credentials)
+            .build()
         return FirebaseApp.initializeApp(firebaseOptions, FIREBASE_APP)
     }
     @Bean

@@ -1,5 +1,7 @@
 package mikhail.shell.video.hosting.domain
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import net.coobird.thumbnailator.Thumbnails
 import net.coobird.thumbnailator.geometry.Positions
 import org.springframework.http.MediaTypeFactory
@@ -54,7 +56,7 @@ fun String.parseFileName(): String {
     return substringBeforeLast(".")
 }
 
-fun uploadImage(
+suspend fun uploadImage(
     uploadedFile: UploadedFile,
     targetFile: String,
     width: Int = -1,
@@ -68,35 +70,43 @@ fun uploadImage(
     compress = compress
 )
 
-fun uploadImage(
+suspend fun uploadImage(
     uploadedFile: File,
     targetFile: String,
     width: Int = -1,
     height: Int = -1,
     compress: Boolean = false
-) = uploadImage(
-    uploadedFile = uploadedFile.inputStream(),
-    targetFile = File(targetFile),
-    width = width,
-    height = height,
-    compress = compress
-)
+): Boolean {
+    return uploadedFile.inputStream().use {
+        uploadImage(
+            uploadedFile = it,
+            targetFile = File(targetFile),
+            width = width,
+            height = height,
+            compress = compress
+        )
+    }
+}
 
-fun uploadImage(
+suspend fun uploadImage(
     uploadedFile: UploadedFile,
     targetFile: File,
     width: Int = -1,
     height: Int = -1,
     compress: Boolean = false
-) = uploadImage(
-    uploadedFile = uploadedFile.bytes.inputStream(),
-    targetFile = targetFile,
-    width = width,
-    height = height,
-    compress = compress
-)
+): Boolean {
+    return uploadedFile.bytes.inputStream().use {
+        uploadImage(
+            uploadedFile = it,
+            targetFile = targetFile,
+            width = width,
+            height = height,
+            compress = compress
+        )
+    }
+}
 
-fun uploadImage(
+suspend fun uploadImage(
     uploadedFile: InputStream,
     targetFile: File,
     width: Int = -1,
@@ -104,21 +114,27 @@ fun uploadImage(
     compress: Boolean = false
 ): Boolean {
     return try {
-        val inputImage = uploadedFile.toImage() ?: return false
+        val inputImage = withContext(Dispatchers.IO) {
+            uploadedFile.toImage()!!
+        }
         val outputImage = when {
             width == -1 && height == -1 -> inputImage
-            else -> inputImage.crop(
-                width = if (width > 0) width else inputImage.width,
-                height = if (height > 0) height else inputImage.height
+            else -> withContext(Dispatchers.Default) {
+                inputImage.crop(
+                    width = if (width > 0) width else inputImage.width,
+                    height = if (height > 0) height else inputImage.height
+                )
+            }
+        }
+        withContext(Dispatchers.IO) {
+            outputImage.save(
+                output = targetFile,
+                compressionCoefficient = when (compress) {
+                    true -> outputImage.compressionCoefficient
+                    false -> 1f
+                }
             )
         }
-        outputImage.save(
-            output = targetFile,
-            compressionCoefficient = when (compress) {
-                true -> outputImage.compressionCoefficient
-                false -> 1f
-            }
-        )
         true
     } catch (e: Exception) {
         e.printStackTrace()

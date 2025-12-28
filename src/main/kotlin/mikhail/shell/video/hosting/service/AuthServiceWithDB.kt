@@ -1,6 +1,8 @@
 package mikhail.shell.video.hosting.service
 
 import jakarta.transaction.Transactional
+import kotlinx.datetime.Clock
+import kotlinx.datetime.toKotlinInstant
 import mikhail.shell.video.hosting.domain.AuthModel
 import mikhail.shell.video.hosting.domain.UserCreatingModel
 import mikhail.shell.video.hosting.domain.UserNameCheckPurpose
@@ -106,9 +108,14 @@ class AuthServiceWithDB(
             throw ValidationException(
                 mapOf("code" to TextError.NOT_CORRECT)
             )
+        } else if (verificationEntity.issuedAt.toKotlinInstant() + ExpirationDuration.SHORT.duration < Clock.System.now()) {
+            throw ValidationException(
+                mapOf("code" to TextError.NOT_VALID)
+            )
+        } else {
+            verificationRepository.delete(verificationEntity)
+            return jwtTokenUtil.generateToken(userName, ExpirationDuration.SHORT)
         }
-        verificationRepository.delete(verificationEntity)
-        return jwtTokenUtil.generateToken(userName, ExpirationDuration.SHORT)
     }
 
     override fun confirmSignUpWithPassword(user: UserCreatingModel): AuthModel {
@@ -194,11 +201,11 @@ class AuthServiceWithDB(
             throw ValidationException(
                 mapOf("code" to TextError.NOT_CORRECT)
             )
-        }
-//        else if (verificationEntity.issuedAt.toKotlinInstant() + ExpirationDuration.SHORT.duration < Clock.System.now()) {
-//            throw ExpiredException()
-//        }
-        else {
+        } else if (verificationEntity.issuedAt.toKotlinInstant() + ExpirationDuration.SHORT.duration < Clock.System.now()) {
+            throw ValidationException(
+                mapOf("code" to TextError.NOT_VALID)
+            )
+        } else {
             verificationRepository.delete(verificationEntity)
             return jwtTokenUtil.generateToken(userId.toString(), ExpirationDuration.SHORT)
         }

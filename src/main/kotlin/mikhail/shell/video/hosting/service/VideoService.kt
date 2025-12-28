@@ -13,7 +13,7 @@ interface VideoService {
     fun getByChannelId(channelId: Long, partSize: Int, partIndex: Long): List<Video>
     fun getByQuery(query: String, partSize: Int, cursor: Long?): List<VideoWithChannel>
     fun incrementViews(videoId: Long): Video
-    fun delete(userId: Long, videoId: Long)
+    fun remove(userId: Long, videoId: Long)
     fun edit(userId: Long, video: VideoEditingModel): Video
     fun getRecommendations(userId: Long, partIndex: Long, partSize: Int): List<VideoWithChannel>
     fun checkExistence(videoId: Long): Boolean

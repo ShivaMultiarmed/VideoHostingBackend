@@ -6,7 +6,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.errors.Error
 import mikhail.shell.video.hosting.errors.TextError
@@ -71,28 +74,36 @@ class UserServiceWithDB @Autowired constructor(
                 avatarPath.listDirectoryEntries().forEach { it.deleteIfExists() }
             }
             val ext = user.avatar.value.fileName.parseExtension()
-            uploadImage(
-                uploadedFile = user.avatar.value,
-                targetFile = "$avatarPath/small.$ext",
-                width = 64,
-                height = 64,
-                compress = true
-            )
-            uploadImage(
-                uploadedFile = user.avatar.value,
-                targetFile = "$avatarPath/medium.$ext",
-                width = 192,
-                height = 192,
-                compress = true
-            )
-            uploadImage(
-                uploadedFile = user.avatar.value,
-                targetFile = "$avatarPath/large.$ext",
-                width = 512,
-                height = 512,
-                compress = true
-            )
-
+            runBlocking {
+                val smallImage = launch {
+                    uploadImage(
+                        uploadedFile = user.avatar.value,
+                        targetFile = "$avatarPath/small.$ext",
+                        width = 64,
+                        height = 64,
+                        compress = true
+                    )
+                }
+                val mediumImage = launch {
+                    uploadImage(
+                        uploadedFile = user.avatar.value,
+                        targetFile = "$avatarPath/medium.$ext",
+                        width = 192,
+                        height = 192,
+                        compress = true
+                    )
+                }
+                val largeImage = launch {
+                    uploadImage(
+                        uploadedFile = user.avatar.value,
+                        targetFile = "$avatarPath/large.$ext",
+                        width = 512,
+                        height = 512,
+                        compress = true
+                    )
+                }
+                setOf(smallImage, mediumImage, largeImage).joinAll()
+            }
         }
         return editedUserEntity.toDomain()
     }
@@ -110,8 +121,12 @@ class UserServiceWithDB @Autowired constructor(
         if (!userRepository.existsById(userId)) {
             throw NoSuchElementException()
         }
-        channelService.getChannelsByOwnerId(userId).forEach {
-            channelService.removeChannel(userId, it.channelId)
+        runBlocking {
+            channelService.getChannelsByOwnerId(userId).map {
+                launch {
+                    channelService.removeChannel(userId, it.channelId)
+                }
+            }.joinAll()
         }
         commentService.removeAllByUserId(userId)
         val credentialIds = authDetailRepository.findById_UserId(userId).map { it.id }
@@ -131,40 +146,39 @@ class UserServiceWithDB @Autowired constructor(
     }
 
     override fun subscribeToNotifications(userId: Long, token: String) {
-        subscriberRepository
-            .findById_UserId(userId)
-            .map { it.id.channelId }
-            .forEach {
-                coroutineScope.launch {
+        val subscribedIds = subscriberRepository.findById_UserId(userId).map { it.id.channelId }
+        val ownedIds = channelService.getChannelsByOwnerId(userId).map { it.channelId }
+        coroutineScope.launch {
+            subscribedIds.map {
+                launch {
                     fcm.subscribeToTopic(listOf(token), "channels.$it.subscribers")
                 }
             }
-        channelService.getChannelsByOwnerId(userId)
-            .map { it.channelId }
-            .forEach {
-                coroutineScope.launch {
+            ownedIds.map {
+                launch {
                     fcm.subscribeToTopic(listOf(token), "channels.$it.uploads")
                 }
             }
+        }
     }
 
     override fun unsubscribeFromNotifications(userId: Long, token: String) {
-        subscriberRepository
-            .findById_UserId(userId)
-            .map { it.id.channelId }
-            .forEach {
-                coroutineScope.launch {
+        val subscribedIds = subscriberRepository.findById_UserId(userId).map { it.id.channelId }
+        val ownedIds = channelService.getChannelsByOwnerId(userId).map { it.channelId }
+        coroutineScope.launch {
+            subscribedIds.map {
+                launch {
                     fcm.unsubscribeFromTopic(listOf(token), "channels.$it.subscribers")
                 }
             }
-        channelService.getChannelsByOwnerId(userId)
-            .map { it.channelId }
-            .forEach {
-                coroutineScope.launch {
+            ownedIds.map {
+                launch {
                     fcm.unsubscribeFromTopic(listOf(token), "channels.$it.uploads")
                 }
             }
+        }
     }
+
     @PreDestroy
     fun preDestroy() {
         coroutineScope.cancel()

@@ -1,7 +1,6 @@
 package mikhail.shell.video.hosting.controllers
 
 import jakarta.validation.Valid
-import jakarta.validation.constraints.*
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.dto.ChannelDto
 import mikhail.shell.video.hosting.dto.ChannelWithUserDto
@@ -137,14 +136,14 @@ class ChannelController @Autowired constructor(
     fun subscribe(
         @PathVariable("channel_id") @LongId channelId: Long?,
         @RequestParam("subscription") @ValidEnum(Subscription::class) subscription: String?,
-        @RequestHeader("Messaging-Token") fcmToken: String,
+        @RequestHeader("Messaging-Token") token: String,
         @AuthenticationPrincipal userId: Long
     ): ChannelWithUserDto {
-        return channelService.changeSubscriptionState(
+        return channelService.subscribe(
             subscriberId = userId,
             channelId = channelId!!,
             subscription = Subscription.valueOf(subscription!!.uppercase()),
-            token = fcmToken
+            token = token
         ).toDto()
     }
 

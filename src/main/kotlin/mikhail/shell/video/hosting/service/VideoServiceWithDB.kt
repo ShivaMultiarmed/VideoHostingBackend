@@ -14,7 +14,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import mikhail.shell.video.hosting.controllers.VideoMetaData
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.elastic.documents.VideoDocument
@@ -36,6 +39,7 @@ import java.io.InputStream
 import java.nio.file.Path
 import java.time.Instant
 import java.util.UUID
+import javax.annotation.PreDestroy
 import kotlin.io.extension
 import kotlin.io.path.*
 
@@ -53,6 +57,7 @@ class VideoServiceWithDB @Autowired constructor(
     private val fcm: FirebaseMessaging,
     private val appPaths: ApplicationPathsInitializer
 ) : VideoService {
+    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     override fun get(videoId: Long): Video {
         return videoRepository.findById(videoId).orElseThrow().toDomain()
@@ -239,12 +244,14 @@ class VideoServiceWithDB @Autowired constructor(
         )
         val tmpPath = Path(appPaths.TEMP_PATH, pendingVideoEntity.tmpId.toString()).createDirectory()
         video.cover?.let {
-            val ext = video.cover.fileName.parseExtension()
+            val ext = it.fileName.parseExtension()
             val coverPath = tmpPath.resolve("cover.$ext").createFile()
-            uploadImage(
-                uploadedFile = it,
-                targetFile = coverPath.toString()
-            )
+            runBlocking {
+                uploadImage(
+                    uploadedFile = it,
+                    targetFile = coverPath.toString()
+                )
+            }
         }
         return PendingVideo(
             tmpId = pendingVideoEntity.tmpId,
@@ -286,7 +293,6 @@ class VideoServiceWithDB @Autowired constructor(
         if (!channelRepository.existsByOwnerIdAndChannelId(userId, pending.channelId)) {
             throw IllegalAccessException()
         }
-        val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
         coroutineScope.launch {
             val sourceMetaData = getSourceMetaData(pending.tmpId)
             val tmpPath = Path(appPaths.TEMP_PATH, tmpId.toString())
@@ -303,20 +309,24 @@ class VideoServiceWithDB @Autowired constructor(
                 )
             )
             videoSearchRepository.save(videoEntity.toDocument())
-            moveVideoSource(
-                tmpPath = tmpPath,
-                metaData = sourceMetaData,
-                videoId = videoEntity.videoId!!
-            )
-            moveVideoCovers(
-                tmpPath = tmpPath,
-                videoId = videoEntity.videoId!!
-            )
+            val sourceJob = launch {
+                moveVideoSource(
+                    tmpPath = tmpPath,
+                    metaData = sourceMetaData,
+                    videoId = videoEntity.videoId!!
+                )
+            }
+            val coversJob = launch {
+                moveVideoCovers(
+                    tmpPath = tmpPath,
+                    videoId = videoEntity.videoId!!
+                )
+            }
             val videoWithChannel = videoWithChannelsRepository.findById(videoEntity.videoId!!).orElseThrow().toDomain()
             pendingVideosRepository.delete(pending)
+            joinAll(sourceJob, coversJob)
             tmpPath.deleteRecursively()
             notifyAllOnSuccess(videoWithChannel)
-            coroutineScope.cancel()
         }
     }
 
@@ -340,7 +350,7 @@ class VideoServiceWithDB @Autowired constructor(
         val tmpSourceChunks = tmpPath
             .resolve("source")
             .toFile()
-            .listFiles { file: File -> file.extension == "tmp" }!!
+            .listFiles { it: File -> it.extension == "tmp" }!!
             .sortedBy { it.nameWithoutExtension.substringBefore("-").toLong() }
         val tmpSource = tmpPath
             .resolve("source.$extension")
@@ -389,34 +399,41 @@ class VideoServiceWithDB @Autowired constructor(
             .toList()
     }
 
-    private fun moveVideoCovers(
+    private suspend fun moveVideoCovers(
         tmpPath: Path,
         videoId: Long
-    ) {
+    ) = coroutineScope {
         val tmpCover = findFileByName(tmpPath, "cover")
         tmpCover?.let {
             val coverPath = Path(appPaths.VIDEOS_BASE_PATH, videoId.toString(), "cover").createDirectories()
-            uploadImage(
-                uploadedFile = it,
-                targetFile = "$coverPath/small.${it.extension}",
-                width = 128,
-                height = 72,
-                compress = true
-            )
-            uploadImage(
-                uploadedFile = it,
-                targetFile = "$coverPath/medium.${it.extension}",
-                width = 320,
-                height = 180,
-                compress = true
-            )
-            uploadImage(
-                uploadedFile = it,
-                targetFile = "$coverPath/large.${it.extension}",
-                width = 512,
-                height = 288,
-                compress = true
-            )
+            val smallImage = launch {
+                uploadImage(
+                    uploadedFile = it,
+                    targetFile = "$coverPath/small.${it.extension}",
+                    width = 128,
+                    height = 72,
+                    compress = true
+                )
+            }
+            val mediumImage = launch {
+                uploadImage(
+                    uploadedFile = it,
+                    targetFile = "$coverPath/medium.${it.extension}",
+                    width = 320,
+                    height = 180,
+                    compress = true
+                )
+            }
+            val largeImage = launch {
+                uploadImage(
+                    uploadedFile = it,
+                    targetFile = "$coverPath/large.${it.extension}",
+                    width = 512,
+                    height = 288,
+                    compress = true
+                )
+            }
+            setOf(smallImage, mediumImage, largeImage).joinAll()
         }
     }
 
@@ -433,7 +450,7 @@ class VideoServiceWithDB @Autowired constructor(
             Message.builder()
                 .setTopic(topic)
                 .putAllData(data)
-                .build()
+                .build()!!
         }
         fcm.send(message(subscribersTopic))
         fcm.send(message(creatorTopic))
@@ -443,8 +460,8 @@ class VideoServiceWithDB @Autowired constructor(
         channelId: Long,
         error: Error = UnexpectedError
     ) {
-        val topic = "/topics/channels/$channelId/uploads"
-        val data = mapOf("source" to error)
+        val topic = "channels.$channelId.uploads"
+        val data = mapOf("source_error" to error)
             .map { it.key to it.value.toString() }
             .toMap()
         val message = Message.builder()
@@ -468,14 +485,12 @@ class VideoServiceWithDB @Autowired constructor(
         input: InputStream,
         path: String
     ) {
-        input.use { inStream ->
-            File(path).outputStream().use { outStream ->
-                val bytesCopied = inStream.copyTo(outStream, BUFFER_SIZE)
-                println(bytesCopied)
-            }
+        File(path).outputStream().use { outStream ->
+            input.copyTo(outStream, BUFFER_SIZE)
         }
     }
 
+    @Transactional
     override fun incrementViews(videoId: Long): Video {
         val video = videoRepository.findById(videoId).orElseThrow()
         videoRepository.save(video.copy(views = video.views + 1))
@@ -484,7 +499,7 @@ class VideoServiceWithDB @Autowired constructor(
     }
 
     @OptIn(ExperimentalPathApi::class)
-    override fun delete(
+    override fun remove(
         userId: Long,
         videoId: Long
     ) {
@@ -505,7 +520,7 @@ class VideoServiceWithDB @Autowired constructor(
     ): Resource {
         val fileFolder = Path(appPaths.VIDEOS_BASE_PATH, videoId.toString(), "cover")
         val file = findFileByName(fileFolder, size.name.lowercase())
-        if (!videoRepository.existsById(videoId) || file?.exists() != true) {
+        if (!videoRepository.existsById(videoId) || file == null) {
             throw NoSuchElementException()
         }
         return FileSystemResource(file)
@@ -532,10 +547,12 @@ class VideoServiceWithDB @Autowired constructor(
         if (video.cover is EditingAction.Edit) {
             val ext = video.cover.value.fileName.parseExtension()
             val tmpCoverPath = tmpPath.resolve("cover.$ext").createFile()
-            uploadImage(
-                uploadedFile = video.cover.value,
-                targetFile = tmpCoverPath.toString()
-            )
+            runBlocking {
+                uploadImage(
+                    uploadedFile = video.cover.value,
+                    targetFile = tmpCoverPath.toString()
+                )
+            }
         }
         val videoPath = Path(appPaths.VIDEOS_BASE_PATH, video.videoId.toString())
         val coverPath = videoPath.resolve("cover")
@@ -549,25 +566,23 @@ class VideoServiceWithDB @Autowired constructor(
             } else {
                 coverPath.listDirectoryEntries().forEach { it.deleteIfExists() }
             }
-            moveVideoCovers(
-                tmpPath = tmpPath,
-                videoId = videoEntity.videoId!!
-            )
+            runBlocking {
+                moveVideoCovers(
+                    tmpPath = tmpPath,
+                    videoId = videoEntity.videoId!!
+                )
+            }
         }
         tmpPath.deleteRecursively()
         return updatedVideoEntity.toDomain()
     }
 
+    @PreDestroy
+    fun preDestroy() {
+        coroutineScope.cancel()
+    }
+
     private companion object {
         const val BUFFER_SIZE = 10 * 1024 * 1024
     }
-}
-
-fun String.resolve(vararg args: Pair<String, *>): String {
-    val stringBuilder = StringBuilder()
-    val replacements = args.toMap()
-    replacements.forEach {
-        stringBuilder.replace("{${it.key}}".toRegex(), it.value.toString())
-    }
-    return stringBuilder.toString()
 }

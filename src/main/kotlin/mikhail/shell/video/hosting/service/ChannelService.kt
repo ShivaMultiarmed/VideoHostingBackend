@@ -18,7 +18,7 @@ interface ChannelService {
         partIndex: Long,
         partSize: Int
     ): List<Channel>
-    fun changeSubscriptionState(
+    fun subscribe(
         subscriberId: Long,
         channelId: Long,
         subscription: Subscription,

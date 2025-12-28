@@ -2,6 +2,10 @@ package mikhail.shell.video.hosting.service
 
 import com.google.firebase.messaging.FirebaseMessaging
 import jakarta.transaction.Transactional
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.Subscription.NOT_SUBSCRIBED
 import mikhail.shell.video.hosting.domain.Subscription.SUBSCRIBED
@@ -82,27 +86,36 @@ class ChannelServiceWithDB @Autowired constructor(
                 headerPath.createDirectory()
             }
             val ext = it.fileName.parseExtension()
-            uploadImage(
-                uploadedFile = it,
-                targetFile = "$headerPath/small.$ext",
-                width = 600,
-                height = 100,
-                compress = true
-            )
-            uploadImage(
-                uploadedFile = it,
-                targetFile = "$headerPath/medium.$ext",
-                width = 1200,
-                height = 200,
-                compress = true
-            )
-            uploadImage(
-                uploadedFile = it,
-                targetFile = "$headerPath/large.$ext",
-                width = 2400,
-                height = 400,
-                compress = true
-            )
+            runBlocking {
+                val smallImage = launch {
+                    uploadImage(
+                        uploadedFile = it,
+                        targetFile = "$headerPath/small.$ext",
+                        width = 600,
+                        height = 100,
+                        compress = true
+                    )
+                }
+                val mediumImage = launch {
+                    uploadImage(
+                        uploadedFile = it,
+                        targetFile = "$headerPath/medium.$ext",
+                        width = 1200,
+                        height = 200,
+                        compress = true
+                    )
+                }
+                val largeImage = launch {
+                    uploadImage(
+                        uploadedFile = it,
+                        targetFile = "$headerPath/large.$ext",
+                        width = 2400,
+                        height = 400,
+                        compress = true
+                    )
+                }
+                setOf(smallImage, mediumImage, largeImage).joinAll()
+            }
         }
         channel.logo?.let {
             val logoPath = channelPath.resolve("logo")
@@ -110,27 +123,36 @@ class ChannelServiceWithDB @Autowired constructor(
                 logoPath.createDirectory()
             }
             val ext = it.fileName.parseExtension()
-            uploadImage(
-                uploadedFile = it,
-                targetFile = "$logoPath/small.$ext",
-                width = 64,
-                height = 64,
-                compress = true
-            )
-            uploadImage(
-                uploadedFile = it,
-                targetFile = "$logoPath/medium.$ext",
-                width = 192,
-                height = 192,
-                compress = true
-            )
-            uploadImage(
-                uploadedFile = it,
-                targetFile = "$logoPath/large.$ext",
-                width = 512,
-                height = 512,
-                compress = true
-            )
+            runBlocking {
+                val smallImage = launch {
+                    uploadImage(
+                        uploadedFile = it,
+                        targetFile = "$logoPath/small.$ext",
+                        width = 64,
+                        height = 64,
+                        compress = true
+                    )
+                }
+                val mediumImage = launch {
+                    uploadImage(
+                        uploadedFile = it,
+                        targetFile = "$logoPath/medium.$ext",
+                        width = 192,
+                        height = 192,
+                        compress = true
+                    )
+                }
+                val largeImage = launch {
+                    uploadImage(
+                        uploadedFile = it,
+                        targetFile = "$logoPath/large.$ext",
+                        width = 512,
+                        height = 512,
+                        compress = true
+                    )
+                }
+                setOf(smallImage, mediumImage, largeImage).joinAll()
+            }
         }
         return createdChannel
     }
@@ -188,7 +210,7 @@ class ChannelServiceWithDB @Autowired constructor(
         return channelRepository.findAllById(channelIds).map { it.toDomain() }
     }
 
-    override fun changeSubscriptionState(
+    override fun subscribe(
         subscriberId: Long,
         channelId: Long,
         subscription: Subscription,
@@ -207,10 +229,11 @@ class ChannelServiceWithDB @Autowired constructor(
         val savedChannel = channelRepository.save(
             channelEntity.copy(subscribers = newSubscribersNumber)
         )
+        val topic = "channels.$channelId.subscribers"
         if (subscription == SUBSCRIBED) {
-            fcm.subscribeToTopic(listOf(token), "${CHANNELS_TOPICS_PREFIX}.$channelId")
+            fcm.subscribeToTopic(listOf(token), topic)
         } else {
-            fcm.unsubscribeFromTopic(listOf(token), "${CHANNELS_TOPICS_PREFIX}.$channelId")
+            fcm.unsubscribeFromTopic(listOf(token), topic)
         }
         return savedChannel.toDomain() with subscription
     }
@@ -252,27 +275,36 @@ class ChannelServiceWithDB @Autowired constructor(
                 headerPath.listDirectoryEntries().forEach { it.deleteIfExists() }
             }
             val ext = channel.header.value.fileName.parseExtension()
-            uploadImage(
-                uploadedFile = channel.header.value,
-                targetFile = "$headerPath/small.$ext",
-                width = 600,
-                height = 100,
-                compress = true
-            )
-            uploadImage(
-                uploadedFile = channel.header.value,
-                targetFile = "$headerPath/medium.$ext",
-                width = 1200,
-                height = 200,
-                compress = true
-            )
-            uploadImage(
-                uploadedFile = channel.header.value,
-                targetFile = "$headerPath/large.$ext",
-                width = 2400,
-                height = 400,
-                compress = true
-            )
+            runBlocking {
+                val smallImage = launch {
+                    uploadImage(
+                        uploadedFile = channel.header.value,
+                        targetFile = "$headerPath/small.$ext",
+                        width = 600,
+                        height = 100,
+                        compress = true
+                    )
+                }
+                val mediumImage = launch {
+                    uploadImage(
+                        uploadedFile = channel.header.value,
+                        targetFile = "$headerPath/medium.$ext",
+                        width = 1200,
+                        height = 200,
+                        compress = true
+                    )
+                }
+                val largeImage = launch {
+                    uploadImage(
+                        uploadedFile = channel.header.value,
+                        targetFile = "$headerPath/large.$ext",
+                        width = 2400,
+                        height = 400,
+                        compress = true
+                    )
+                }
+                setOf(smallImage, mediumImage, largeImage).joinAll()
+            }
 
         }
         val logoPath = channelPath.resolve("logo")
@@ -285,27 +317,36 @@ class ChannelServiceWithDB @Autowired constructor(
                 logoPath.listDirectoryEntries().forEach { it.deleteIfExists() }
             }
             val ext = channel.logo.value.fileName.parseExtension()
-            uploadImage(
-                uploadedFile = channel.logo.value,
-                targetFile = "$logoPath/small.$ext",
-                width = 64,
-                height = 64,
-                compress = true
-            )
-            uploadImage(
-                uploadedFile = channel.logo.value,
-                targetFile = "$logoPath/medium.$ext",
-                width = 192,
-                height = 192,
-                compress = true
-            )
-            uploadImage(
-                uploadedFile = channel.logo.value,
-                targetFile = "$logoPath/large.$ext",
-                width = 512,
-                height = 512,
-                compress = true
-            )
+            runBlocking {
+                val smallImage = launch {
+                    uploadImage(
+                        uploadedFile = channel.logo.value,
+                        targetFile = "$logoPath/small.$ext",
+                        width = 64,
+                        height = 64,
+                        compress = true
+                    )
+                }
+                val mediumImage = launch {
+                    uploadImage(
+                        uploadedFile = channel.logo.value,
+                        targetFile = "$logoPath/medium.$ext",
+                        width = 192,
+                        height = 192,
+                        compress = true
+                    )
+                }
+                val largeImage = launch {
+                    uploadImage(
+                        uploadedFile = channel.logo.value,
+                        targetFile = "$logoPath/large.$ext",
+                        width = 512,
+                        height = 512,
+                        compress = true
+                    )
+                }
+                setOf(smallImage, mediumImage, largeImage).joinAll()
+            }
         }
         return editedChannel
     }
@@ -319,8 +360,12 @@ class ChannelServiceWithDB @Autowired constructor(
         } else {
             val videoIds = videoRepository.findByChannelId(channelId).map { it.videoId!! }
             videoSearchRepository.deleteAllById(videoIds)
-            videoIds.forEach {
-                Path(appPaths.VIDEOS_BASE_PATH, it.toString()).deleteRecursively()
+            runBlocking {
+                videoIds.map {
+                    launch(Dispatchers.IO) {
+                        Path(appPaths.VIDEOS_BASE_PATH, it.toString()).deleteRecursively()
+                    }
+                }.joinAll()
             }
             channelRepository.deleteById(channelId)
             val channelPath = Path(appPaths.CHANNELS_BASE_PATH, channelId.toString())

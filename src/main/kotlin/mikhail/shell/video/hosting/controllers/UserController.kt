@@ -7,6 +7,7 @@ import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ValidationRules.TEL_REGEX
 import mikhail.shell.video.hosting.dto.UserDto
 import mikhail.shell.video.hosting.dto.toDto
+import mikhail.shell.video.hosting.service.AuthService
 import mikhail.shell.video.hosting.service.UserService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.io.Resource
@@ -20,7 +21,8 @@ import org.springframework.web.multipart.MultipartFile
 @RestController
 @RequestMapping("/api/v2/users")
 class UserController @Autowired constructor(
-    private val userService: UserService
+    private val userService: UserService,
+    private val authService: AuthService,
 ) {
     @GetMapping("/{user_id}")
     fun get(@PathVariable("user_id") @LongId userId: Long): UserDto {
@@ -78,7 +80,12 @@ class UserController @Autowired constructor(
     }
 
     @DeleteMapping
-    fun remove(@AuthenticationPrincipal userId: Long) {
+    fun remove(
+        @RequestHeader("Authorization") authorization: String,
+        @AuthenticationPrincipal userId: Long
+    ) {
+        val token = authorization.removePrefix("Bearer ")
+        authService.signOut(token)
         userService.remove(userId)
     }
 

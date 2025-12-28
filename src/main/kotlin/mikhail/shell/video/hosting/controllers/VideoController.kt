@@ -11,7 +11,6 @@ import mikhail.shell.video.hosting.errors.FileError
 import mikhail.shell.video.hosting.service.ChannelService
 import mikhail.shell.video.hosting.service.VideoService
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.core.io.Resource
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
@@ -71,7 +70,7 @@ class VideoController @Autowired constructor(
     ): ResponseEntity<Any> {
         val sourceDirectory = Path(appPaths.VIDEOS_BASE_PATH, videoId.toString(), "source")
         val file = findFileByName(sourceDirectory, "original")
-        if (file?.exists() != true || !videoService.checkExistence(videoId!!)) {
+        if (file == null || !videoService.checkExistence(videoId!!)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build()
         }
         val rangeHeader = request.getHeader(HttpHeaders.RANGE)
@@ -135,9 +134,7 @@ class VideoController @Autowired constructor(
             channelId = channelId!!,
             partSize = partSize,
             partIndex = partIndex
-        ).map {
-            it.toDto()
-        }
+        ).map { it.toDto() }
     }
 
     @GetMapping("/{video_id}/cover")
@@ -220,13 +217,15 @@ class VideoController @Autowired constructor(
         if (start > end || total <= 0 || start < 0 || end - start + 1 > BUFFER_SIZE) {
             throw IllegalArgumentException()
         }
-        videoService.saveVideoSource(
-            userId = userId,
-            tmpId = UUID.fromString(tmpId!!),
-            start = start,
-            end = end + 1,
-            source = input
-        )
+        input.use {
+            videoService.saveVideoSource(
+                userId = userId,
+                tmpId = UUID.fromString(tmpId!!),
+                start = start,
+                end = end + 1,
+                source = it
+            )
+        }
     }
 
     @PostMapping("/{tmp_id}/confirmation")
@@ -262,7 +261,7 @@ class VideoController @Autowired constructor(
                     EditAction.REMOVE -> EditingAction.Remove
                     EditAction.EDIT -> EditingAction.Edit(cover!!.toUploadedFile())
                 }
-            ),
+            )
         ).toDto()
     }
 
@@ -271,7 +270,7 @@ class VideoController @Autowired constructor(
         @PathVariable("video_id") @LongId videoId: Long?,
         @AuthenticationPrincipal userId: Long
     ) {
-        videoService.delete(
+        videoService.remove(
             userId = userId,
             videoId = videoId!!
         )
@@ -301,7 +300,7 @@ class VideoController @Autowired constructor(
     }
 
     private companion object {
-        const val BUFFER_SIZE = 10 * 1024 * 1024
+        const val BUFFER_SIZE = 1024 * 1024
     }
 }
 
