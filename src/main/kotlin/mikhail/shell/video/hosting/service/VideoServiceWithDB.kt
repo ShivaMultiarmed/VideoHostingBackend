@@ -162,14 +162,15 @@ class VideoServiceWithDB @Autowired constructor(
             .lang("painless")
             .source(
                 """
-                    return params.views * doc['views'].value 
+                    return params.date_time * doc['date_time'].value.millis
+                     + params.views * doc['views'].value 
                      + params.likes * doc['likes'].value 
                      + params.dislikes * doc['dislikes'].value;
                 """.trimIndent()
             )
             .params(
                 mapOf(
-                    //"dateTime" to JsonData.of(recommendationWeights.dateTime), // TODO: take the dateTime into account
+                    "date_time" to JsonData.of(recommendationWeights.dateTime),
                     "views" to JsonData.of(recommendationWeights.views),
                     "likes" to JsonData.of(recommendationWeights.likes),
                     "dislikes" to JsonData.of(recommendationWeights.dislikes)

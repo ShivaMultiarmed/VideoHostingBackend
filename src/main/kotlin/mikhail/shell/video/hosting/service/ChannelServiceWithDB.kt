@@ -214,7 +214,7 @@ class ChannelServiceWithDB @Autowired constructor(
         subscriberId: Long,
         channelId: Long,
         subscription: Subscription,
-        token: String,
+        token: String?,
     ): ChannelWithUser {
         val channelEntity = channelRepository.findById(channelId).orElseThrow()
         var newSubscribersNumber = channelEntity.subscribers
@@ -229,11 +229,13 @@ class ChannelServiceWithDB @Autowired constructor(
         val savedChannel = channelRepository.save(
             channelEntity.copy(subscribers = newSubscribersNumber)
         )
-        val topic = "channels.$channelId.subscribers"
-        if (subscription == SUBSCRIBED) {
-            fcm.subscribeToTopic(listOf(token), topic)
-        } else {
-            fcm.unsubscribeFromTopic(listOf(token), topic)
+        val topic = "channels/$channelId/subscribers"
+        if (token != null) {
+            if (subscription == SUBSCRIBED) {
+                fcm.subscribeToTopic(listOf(token), topic)
+            } else {
+                fcm.unsubscribeFromTopic(listOf(token), topic)
+            }
         }
         return savedChannel.toDomain() with subscription
     }

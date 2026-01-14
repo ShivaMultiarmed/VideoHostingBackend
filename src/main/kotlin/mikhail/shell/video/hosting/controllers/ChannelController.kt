@@ -136,7 +136,7 @@ class ChannelController @Autowired constructor(
     fun subscribe(
         @PathVariable("channel_id") @LongId channelId: Long?,
         @RequestParam("subscription") @ValidEnum(Subscription::class) subscription: String?,
-        @RequestHeader("Messaging-Token") token: String,
+        @RequestHeader("Messaging-Token") token: String?,
         @AuthenticationPrincipal userId: Long
     ): ChannelWithUserDto {
         return channelService.subscribe(

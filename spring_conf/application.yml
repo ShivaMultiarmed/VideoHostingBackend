@@ -53,7 +53,7 @@ video-hosting:
     path: ${HOSTING_APP_PATH}
     ranking:
       weights:
-        date-time: 0.00000005
+        date-time: 0.000005
         subscribers: 0.01
         views: 0.01
         likes: 0.005

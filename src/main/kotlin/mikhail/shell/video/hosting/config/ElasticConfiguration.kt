@@ -4,6 +4,7 @@ import mikhail.shell.video.hosting.elastic.repository.converters.LocalDateTimeTo
 import mikhail.shell.video.hosting.elastic.repository.converters.SecondsToLocalDateTimeConverter
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.core.convert.converter.Converter
 import org.springframework.data.elasticsearch.core.convert.ElasticsearchCustomConversions
 import org.springframework.data.elasticsearch.repository.config.EnableElasticsearchRepositories
 
@@ -15,10 +16,7 @@ class ElasticConfiguration {
     @Bean
     fun elasticsearchCustomConversions(): ElasticsearchCustomConversions {
         return ElasticsearchCustomConversions(
-            listOf(
-                LocalDateTimeToSecondsConverter(),
-                SecondsToLocalDateTimeConverter()
-            )
+            setOf<Converter<*, *>>()
         )
     }
 }

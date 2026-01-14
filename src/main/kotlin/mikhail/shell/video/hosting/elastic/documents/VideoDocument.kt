@@ -10,11 +10,18 @@ import java.time.Instant
 
 @Document(indexName = "videos")
 data class VideoDocument(
-    @Id val videoId: Long,
+    @Id
+    @Field(name = "video_id")
+    val videoId: Long,
+    @Field(name = "channel_id")
     val channelId: Long,
     val title: String,
     val description: String?,
-    @Field(type = FieldType.Date, format = [DateFormat.epoch_millis])
+    @Field(
+        name = "date_time",
+        type = FieldType.Date,
+        format = [DateFormat.strict_date_time_no_millis]
+    )
     val dateTime: Instant,
     val views: Long,
     val likes: Long,

@@ -22,7 +22,7 @@ interface ChannelService {
         subscriberId: Long,
         channelId: Long,
         subscription: Subscription,
-        token: String
+        token: String?
     ): ChannelWithUser
     fun getChannel(channelId: Long): Channel
     fun checkOwner(userId: Long, channelId: Long): Boolean
