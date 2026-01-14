@@ -201,13 +201,13 @@ class VideoServiceWithDB @Autowired constructor(
             .withSort(
                 SortOptions.Builder()
                     .field {
-                        it.field("videoId").order(SortOrder.Asc)
+                        it.field("video_id").order(SortOrder.Asc)
                     }.build()
             )
             .let {
                 if (cursor != null) {
                     val lastScore = videoRepository.findById(cursor).orElseThrow().let {
-                        it.views * recommendationWeights.views + it.likes * recommendationWeights.likes + it.dislikes * recommendationWeights.dislikes
+                        it.dateTime.toEpochMilli() * recommendationWeights.dateTime + it.views * recommendationWeights.views + it.likes * recommendationWeights.likes + it.dislikes * recommendationWeights.dislikes
                     }
                     it.withSearchAfter(listOf(lastScore, cursor))
                 } else it

@@ -20,7 +20,7 @@ data class VideoDocument(
     @Field(
         name = "date_time",
         type = FieldType.Date,
-        format = [DateFormat.strict_date_time_no_millis]
+        format = [DateFormat.strict_date_hour_minute_second]
     )
     val dateTime: Instant,
     val views: Long,
