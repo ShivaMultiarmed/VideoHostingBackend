@@ -6,7 +6,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -19,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.io.FileSystemResource
 import org.springframework.core.io.Resource
 import org.springframework.stereotype.Service
+import java.util.UUID
 import javax.annotation.PreDestroy
 import kotlin.io.path.*
 
@@ -30,7 +30,8 @@ class UserServiceWithDB @Autowired constructor(
     private val authDetailRepository: AuthDetailRepository,
     private val commentService: CommentService,
     private val fcm: FirebaseMessaging,
-    private val appPaths: ApplicationPathsInitializer
+    private val appPaths: ApplicationPaths,
+    private val imageValidator: FileValidator.ImageValidator
 ) : UserService {
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -47,11 +48,27 @@ class UserServiceWithDB @Autowired constructor(
         if (userRepository.existsByNick(user.nick) && !userRepository.existsByUserIdAndNick(user.userId, user.nick)) {
             errors["nick"] = TextError.EXISTS
         }
+        val tmpId = UUID.randomUUID()
+        val tmpPath = Path(appPaths.TEMP_PATH, tmpId.toString()).createDirectory()
+        if (user.avatar is EditingAction.Edit) {
+            val ext = user.avatar.value.name.parseExtension()
+            val tmpAvatarPath = tmpPath.resolve("avatar.$ext")
+            runBlocking(Dispatchers.IO) {
+                uploadImage(
+                    uploadedFile = user.avatar.value,
+                    targetFile = tmpAvatarPath.toString()
+                )
+                imageValidator.validate(tmpAvatarPath.toFile()).onFailure { error ->
+                    errors["avatar"] = error
+                }
+            }
+        }
         if (errors.isNotEmpty()) {
+            tmpPath.deleteRecursively()
             throw ValidationException(errors)
         }
         val userToEdit = userRepository.findById(user.userId).get()
-        val editedUserEntity = userRepository.save(
+        val editedUser = userRepository.save(
             userToEdit.copy(
                 nick = user.nick,
                 name = user.name,
@@ -59,53 +76,47 @@ class UserServiceWithDB @Autowired constructor(
                 tel = user.tel,
                 email = user.email
             )
-        )
+        ).toDomain()
         val userPath = Path(appPaths.USERS_BASE_PATH, user.userId.toString())
-        if (userPath.notExists()) {
-            userPath.createDirectory()
-        }
         val avatarPath = userPath.resolve("avatar")
         if (user.avatar is EditingAction.Remove) {
             avatarPath.deleteRecursively()
         } else if (user.avatar is EditingAction.Edit) {
-            if (avatarPath.notExists()) {
-                avatarPath.createDirectory()
-            } else {
-                avatarPath.listDirectoryEntries().forEach { it.deleteIfExists() }
-            }
-            val ext = user.avatar.value.fileName.parseExtension()
+            val ext = user.avatar.value.name.parseExtension()
+            val tmpAvatarPath = tmpPath.resolve("avatar.$ext")
             runBlocking {
-                val smallImage = launch {
+                val smallImageJob = launch {
                     uploadImage(
-                        uploadedFile = user.avatar.value,
+                        uploadedFile = tmpAvatarPath.toFile(),
                         targetFile = "$avatarPath/small.$ext",
                         width = 64,
                         height = 64,
                         compress = true
                     )
                 }
-                val mediumImage = launch {
+                val mediumImageJob = launch {
                     uploadImage(
-                        uploadedFile = user.avatar.value,
+                        uploadedFile = tmpAvatarPath.toFile(),
                         targetFile = "$avatarPath/medium.$ext",
                         width = 192,
                         height = 192,
                         compress = true
                     )
                 }
-                val largeImage = launch {
+                val largeImageJob = launch {
                     uploadImage(
-                        uploadedFile = user.avatar.value,
+                        uploadedFile = tmpAvatarPath.toFile(),
                         targetFile = "$avatarPath/large.$ext",
                         width = 512,
                         height = 512,
                         compress = true
                     )
                 }
-                setOf(smallImage, mediumImage, largeImage).joinAll()
+                setOf(smallImageJob, mediumImageJob, largeImageJob).joinAll()
             }
         }
-        return editedUserEntity.toDomain()
+        tmpPath.deleteRecursively()
+        return editedUser
     }
 
     override fun existsByNick(userId: Long?, nick: String): Boolean {

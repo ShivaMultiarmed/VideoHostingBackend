@@ -3,6 +3,7 @@ package mikhail.shell.video.hosting.service
 import com.google.firebase.messaging.FirebaseMessaging
 import jakarta.transaction.Transactional
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -21,6 +22,7 @@ import org.springframework.core.io.FileSystemResource
 import org.springframework.core.io.Resource
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
+import java.util.UUID
 import kotlin.io.path.*
 
 @Service
@@ -31,7 +33,8 @@ class ChannelServiceWithDB @Autowired constructor(
     private val videoRepository: VideoRepository,
     private val videoSearchRepository: VideoSearchRepository,
     private val fcm: FirebaseMessaging,
-    private val appPaths: ApplicationPathsInitializer,
+    private val appPaths: ApplicationPaths,
+    private val imageValidator: FileValidator.ImageValidator
 ) : ChannelService {
 
     override fun get(channelId: Long): Channel {
@@ -56,16 +59,50 @@ class ChannelServiceWithDB @Autowired constructor(
         return subscriberRepository.existsById(SubscriberId(channelId, userId))
     }
 
+    @OptIn(ExperimentalPathApi::class)
     @Transactional
     override fun createChannel(channel: ChannelCreationModel): Channel {
         val errors = mutableMapOf<String, Error>()
         if (channelRepository.existsByTitle(channel.title)) {
-            errors["titleError"] = TextError.EXISTS
+            errors["title"] = TextError.EXISTS
         }
         if (channel.alias != null && channelRepository.existsByAlias(channel.alias)) {
-            errors["aliasError"] = TextError.EXISTS
+            errors["alias"] = TextError.EXISTS
+        }
+        val tmpId = UUID.randomUUID()
+        val tmpPath = Path(appPaths.TEMP_PATH, tmpId.toString()).createDirectory()
+        runBlocking {
+            val headerJob = channel.header?.let {
+                val ext = it.name.parseExtension()
+                val tmpHeaderPath = tmpPath.resolve("header.$ext")
+                async(Dispatchers.IO) {
+                    uploadImage(
+                        uploadedFile = channel.header,
+                        targetFile = tmpHeaderPath.toString()
+                    )
+                    imageValidator.validate(tmpHeaderPath.toFile())
+                }
+            }
+            val logoJob = channel.logo?.let {
+                val ext = it.name.parseExtension()
+                val tmpLogoPath = tmpPath.resolve("logo.$ext")
+                async(Dispatchers.IO) {
+                    uploadImage(
+                        uploadedFile = channel.logo,
+                        targetFile = tmpLogoPath.toString()
+                    )
+                    imageValidator.validate(tmpLogoPath.toFile())
+                }
+            }
+            headerJob?.await()?.onFailure { error ->
+                errors["header"] = error
+            }
+            logoJob?.await()?.onFailure { error ->
+                errors["logo"] = error
+            }
         }
         if (errors.isNotEmpty()) {
+            tmpPath.deleteRecursively()
             throw ValidationException(errors)
         }
         val createdChannel = channelRepository.save(
@@ -76,18 +113,12 @@ class ChannelServiceWithDB @Autowired constructor(
                 description = channel.description
             )
         ).toDomain()
-        val channelPath = Path(appPaths.CHANNELS_BASE_PATH, createdChannel.channelId.toString())
-        if (channelPath.notExists()) {
-            channelPath.createDirectory()
-        }
+        val channelPath = Path(appPaths.CHANNELS_BASE_PATH, createdChannel.channelId.toString()).createDirectory()
         channel.header?.let {
-            val headerPath = channelPath.resolve("header")
-            if (headerPath.notExists()) {
-                headerPath.createDirectory()
-            }
-            val ext = it.fileName.parseExtension()
+            val headerPath = channelPath.resolve("header").createDirectory()
+            val ext = it.name.parseExtension()
             runBlocking {
-                val smallImage = launch {
+                val smallImageJob = launch {
                     uploadImage(
                         uploadedFile = it,
                         targetFile = "$headerPath/small.$ext",
@@ -96,7 +127,7 @@ class ChannelServiceWithDB @Autowired constructor(
                         compress = true
                     )
                 }
-                val mediumImage = launch {
+                val mediumImageJob = launch {
                     uploadImage(
                         uploadedFile = it,
                         targetFile = "$headerPath/medium.$ext",
@@ -105,7 +136,7 @@ class ChannelServiceWithDB @Autowired constructor(
                         compress = true
                     )
                 }
-                val largeImage = launch {
+                val largeImageJob = launch {
                     uploadImage(
                         uploadedFile = it,
                         targetFile = "$headerPath/large.$ext",
@@ -114,17 +145,14 @@ class ChannelServiceWithDB @Autowired constructor(
                         compress = true
                     )
                 }
-                setOf(smallImage, mediumImage, largeImage).joinAll()
+                setOf(smallImageJob, mediumImageJob, largeImageJob).joinAll()
             }
         }
         channel.logo?.let {
-            val logoPath = channelPath.resolve("logo")
-            if (logoPath.notExists()) {
-                logoPath.createDirectory()
-            }
-            val ext = it.fileName.parseExtension()
+            val logoPath = channelPath.resolve("logo").createDirectory()
+            val ext = it.name.parseExtension()
             runBlocking {
-                val smallImage = launch {
+                val smallImageJob = launch {
                     uploadImage(
                         uploadedFile = it,
                         targetFile = "$logoPath/small.$ext",
@@ -133,7 +161,7 @@ class ChannelServiceWithDB @Autowired constructor(
                         compress = true
                     )
                 }
-                val mediumImage = launch {
+                val mediumImageJob = launch {
                     uploadImage(
                         uploadedFile = it,
                         targetFile = "$logoPath/medium.$ext",
@@ -142,7 +170,7 @@ class ChannelServiceWithDB @Autowired constructor(
                         compress = true
                     )
                 }
-                val largeImage = launch {
+                val largeImageJob = launch {
                     uploadImage(
                         uploadedFile = it,
                         targetFile = "$logoPath/large.$ext",
@@ -151,7 +179,7 @@ class ChannelServiceWithDB @Autowired constructor(
                         compress = true
                     )
                 }
-                setOf(smallImage, mediumImage, largeImage).joinAll()
+                setOf(smallImageJob, mediumImageJob, largeImageJob).joinAll()
             }
         }
         return createdChannel
@@ -229,7 +257,7 @@ class ChannelServiceWithDB @Autowired constructor(
         val savedChannel = channelRepository.save(
             channelEntity.copy(subscribers = newSubscribersNumber)
         )
-        val topic = "channels/$channelId/subscribers"
+        val topic = "channels.$channelId.subscribers"
         if (token != null) {
             if (subscription == SUBSCRIBED) {
                 fcm.subscribeToTopic(listOf(token), topic)
@@ -248,12 +276,45 @@ class ChannelServiceWithDB @Autowired constructor(
         }
         val errors = mutableMapOf<String, Error>()
         if (channelRepository.existsByTitle(channel.title) && currentChannelEntity.title != channel.title) {
-            errors["titleError"] = TextError.EXISTS
+            errors["title"] = TextError.EXISTS
         }
         if (channel.alias != null && channelRepository.existsByAlias(channel.alias) && currentChannelEntity.alias != channel.alias) {
-            errors["aliasError"] = TextError.EXISTS
+            errors["alias"] = TextError.EXISTS
+        }
+        val tmpId = UUID.randomUUID()
+        val tmpPath = Path(appPaths.TEMP_PATH, tmpId.toString()).createDirectory()
+        runBlocking {
+            val headerJob = if (channel.header is EditingAction.Edit) {
+                val ext = channel.header.value.name.parseExtension()
+                val tmpHeaderPath = tmpPath.resolve("header.$ext")
+                async(Dispatchers.IO) {
+                    uploadImage(
+                        uploadedFile = channel.header.value,
+                        targetFile = tmpHeaderPath.toString()
+                    )
+                    imageValidator.validate(tmpHeaderPath.toFile())
+                }
+            } else null
+            val logoJob = if (channel.logo is EditingAction.Edit) {
+                val ext = channel.logo.value.name.parseExtension()
+                val tmpLogoPath = tmpPath.resolve("logo.$ext")
+                async(Dispatchers.IO) {
+                    uploadImage(
+                        uploadedFile = channel.logo.value,
+                        targetFile = tmpLogoPath.toString()
+                    )
+                    imageValidator.validate(tmpLogoPath.toFile())
+                }
+            } else null
+            headerJob?.await()?.onFailure { error ->
+                errors["header"] = error
+            }
+            logoJob?.await()?.onFailure { error ->
+                errors["logo"] = error
+            }
         }
         if (errors.isNotEmpty()) {
+            tmpPath.deleteRecursively()
             throw ValidationException(errors)
         }
         val editedChannel = channelRepository.save(
@@ -264,9 +325,6 @@ class ChannelServiceWithDB @Autowired constructor(
             )
         ).toDomain()
         val channelPath = Path(appPaths.CHANNELS_BASE_PATH, editedChannel.channelId.toString())
-        if (channelPath.notExists()) {
-            channelPath.createDirectory()
-        }
         val headerPath = channelPath.resolve("header")
         if (channel.header == EditingAction.Remove) {
             headerPath.deleteRecursively()
@@ -276,9 +334,9 @@ class ChannelServiceWithDB @Autowired constructor(
             } else {
                 headerPath.listDirectoryEntries().forEach { it.deleteIfExists() }
             }
-            val ext = channel.header.value.fileName.parseExtension()
+            val ext = channel.header.value.name.parseExtension()
             runBlocking {
-                val smallImage = launch {
+                val smallImageJob = launch {
                     uploadImage(
                         uploadedFile = channel.header.value,
                         targetFile = "$headerPath/small.$ext",
@@ -287,7 +345,7 @@ class ChannelServiceWithDB @Autowired constructor(
                         compress = true
                     )
                 }
-                val mediumImage = launch {
+                val mediumImageJob = launch {
                     uploadImage(
                         uploadedFile = channel.header.value,
                         targetFile = "$headerPath/medium.$ext",
@@ -296,7 +354,7 @@ class ChannelServiceWithDB @Autowired constructor(
                         compress = true
                     )
                 }
-                val largeImage = launch {
+                val largeImageJob = launch {
                     uploadImage(
                         uploadedFile = channel.header.value,
                         targetFile = "$headerPath/large.$ext",
@@ -305,9 +363,8 @@ class ChannelServiceWithDB @Autowired constructor(
                         compress = true
                     )
                 }
-                setOf(smallImage, mediumImage, largeImage).joinAll()
+                setOf(smallImageJob, mediumImageJob, largeImageJob).joinAll()
             }
-
         }
         val logoPath = channelPath.resolve("logo")
         if (channel.logo == EditingAction.Remove) {
@@ -318,9 +375,9 @@ class ChannelServiceWithDB @Autowired constructor(
             } else {
                 logoPath.listDirectoryEntries().forEach { it.deleteIfExists() }
             }
-            val ext = channel.logo.value.fileName.parseExtension()
+            val ext = channel.logo.value.name.parseExtension()
             runBlocking {
-                val smallImage = launch {
+                val smallImageJob = launch {
                     uploadImage(
                         uploadedFile = channel.logo.value,
                         targetFile = "$logoPath/small.$ext",
@@ -329,7 +386,7 @@ class ChannelServiceWithDB @Autowired constructor(
                         compress = true
                     )
                 }
-                val mediumImage = launch {
+                val mediumImageJob = launch {
                     uploadImage(
                         uploadedFile = channel.logo.value,
                         targetFile = "$logoPath/medium.$ext",
@@ -338,7 +395,7 @@ class ChannelServiceWithDB @Autowired constructor(
                         compress = true
                     )
                 }
-                val largeImage = launch {
+                val largeImageJob = launch {
                     uploadImage(
                         uploadedFile = channel.logo.value,
                         targetFile = "$logoPath/large.$ext",
@@ -347,9 +404,10 @@ class ChannelServiceWithDB @Autowired constructor(
                         compress = true
                     )
                 }
-                setOf(smallImage, mediumImage, largeImage).joinAll()
+                setOf(smallImageJob, mediumImageJob, largeImageJob).joinAll()
             }
         }
+        tmpPath.deleteRecursively()
         return editedChannel
     }
 

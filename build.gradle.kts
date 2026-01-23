@@ -48,10 +48,7 @@ dependencies {
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	compileOnly("org.projectlombok:lombok")
 	annotationProcessor("org.projectlombok:lombok")
-	testImplementation("org.springframework.boot:spring-boot-starter-test")
-	testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
-	testImplementation("org.springframework.security:spring-security-test")
-	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
 	implementation("org.jetbrains.kotlinx:kotlinx-datetime-jvm:0.4.1")
 	// JAXB API
 	implementation("javax.xml.bind:jaxb-api:2.3.1")
@@ -62,6 +59,17 @@ dependencies {
 	implementation ("com.google.firebase:firebase-admin:9.4.3")
 
 	implementation("net.coobird:thumbnailator:0.4.8")
+
+    val jave = "3.5.0"
+    implementation("ws.schild:jave-core:$jave")
+    implementation("ws.schild:jave-nativebin-linux64:$jave")
+
+    implementation("org.apache.commons:commons-imaging:1.0.0-alpha6")
+
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+    testImplementation("org.springframework.security:spring-security-test")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 kotlin {

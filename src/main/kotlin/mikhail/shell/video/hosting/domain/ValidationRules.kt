@@ -12,9 +12,14 @@ import mikhail.shell.video.hosting.domain.ValidationRules.MAX_NAME_LENGTH
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_TITLE_LENGTH
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_USERNAME_LENGTH
 import mikhail.shell.video.hosting.domain.ValidationRules.PASSWORD_REGEX
+import mikhail.shell.video.hosting.errors.FileError
 import mikhail.shell.video.hosting.errors.TextError
+import org.apache.commons.imaging.Imaging
 import org.hibernate.validator.constraints.UUID
+import org.springframework.stereotype.Component
 import org.springframework.web.multipart.MultipartFile
+import ws.schild.jave.MultimediaObject
+import java.io.File
 import kotlin.reflect.KClass
 
 object ValidationRules {
@@ -46,11 +51,13 @@ annotation class MaxFileSize(
     val groups: Array<KClass<*>> = [],
     val payload: Array<KClass<out Payload>> = []
 )
-class MaxFileSizeValidator: ConstraintValidator<MaxFileSize, MultipartFile?> {
+
+class MaxFileSizeValidator : ConstraintValidator<MaxFileSize, MultipartFile?> {
     private var max: Long = 0
     override fun initialize(constraintAnnotation: MaxFileSize) {
         max = constraintAnnotation.max
     }
+
     override fun isValid(p0: MultipartFile?, p1: ConstraintValidatorContext): Boolean {
         return p0 == null || p0.size <= max
     }
@@ -67,26 +74,10 @@ annotation class NotEmptyFile(
     val groups: Array<KClass<*>> = [],
     val payload: Array<KClass<out Payload>> = []
 )
-class NotEmptyFileValidator: ConstraintValidator<NotEmptyFile, MultipartFile?> {
+
+class NotEmptyFileValidator : ConstraintValidator<NotEmptyFile, MultipartFile?> {
     override fun isValid(p0: MultipartFile?, p1: ConstraintValidatorContext): Boolean {
         return p0 == null || !p0.isEmpty
-    }
-}
-
-@Target(
-    AnnotationTarget.VALUE_PARAMETER,
-    AnnotationTarget.ANNOTATION_CLASS
-)
-@Retention(AnnotationRetention.RUNTIME)
-@Constraint(validatedBy = [FileNameValidator::class])
-annotation class FileName(
-    val message: String = "NAME_NOT_VALID",
-    val groups: Array<KClass<*>> = [],
-    val payload: Array<KClass<out Payload>> = []
-)
-class FileNameValidator: ConstraintValidator<FileName, MultipartFile?> {
-    override fun isValid(p0: MultipartFile?, p1: ConstraintValidatorContext): Boolean {
-        return p0 == null || p0.originalFilename!!.length <= MAX_TITLE_LENGTH && p0.originalFilename!!.matches(FILE_NAME_REGEX.toRegex())
     }
 }
 
@@ -102,17 +93,21 @@ annotation class FileType(
     val groups: Array<KClass<*>> = [],
     val payload: Array<KClass<out Payload>> = []
 )
-class FileTypeValidator: ConstraintValidator<FileType, MultipartFile?> {
+
+class FileTypeValidator : ConstraintValidator<FileType, MultipartFile?> {
     private var mime: String = ""
+
     override fun initialize(constraintAnnotation: FileType) {
         mime = constraintAnnotation.mime
     }
+
     override fun isValid(p0: MultipartFile?, p1: ConstraintValidatorContext?): Boolean {
-        return p0 == null || !p0.isEmpty && p0.contentType?.startsWith(mime)?: false
+        return p0 == null || !p0.isEmpty && p0.contentType?.startsWith(mime) ?: false
+                && p0.originalFilename!!.length <= MAX_TITLE_LENGTH
+                && p0.originalFilename!!.matches(FILE_NAME_REGEX.toRegex())
     }
 }
 
-@FileName
 @NotEmptyFile
 @MaxFileSize(max = MAX_IMAGE_SIZE)
 @FileType(mime = "image")
@@ -325,7 +320,8 @@ annotation class NotBlankNullable(
     val groups: Array<KClass<*>> = [],
     val payload: Array<KClass<out Payload>> = []
 )
-class NotBlankNullableValidator: ConstraintValidator<NotBlankNullable, String?> {
+
+class NotBlankNullableValidator : ConstraintValidator<NotBlankNullable, String?> {
     override fun isValid(p0: String?, p1: ConstraintValidatorContext?): Boolean {
         return p0 == null || p0.isNotBlank()
     }
@@ -369,3 +365,78 @@ annotation class Code(
     val groups: Array<KClass<*>> = [],
     val payload: Array<KClass<out Payload>> = []
 )
+
+sealed interface FileValidator {
+    fun validate(file: File): Result<Unit, FileError>
+    interface ImageValidator : FileValidator
+    interface VideoValidator : FileValidator
+}
+
+@Component
+class Jave2VideoValidator : FileValidator.VideoValidator {
+    private companion object {
+        val allowedExtensions = mapOf(
+            "mp4" to listOf("mp4", "m4v", "mov"),
+            "mov" to listOf("mov", "mp4", "m4v"),
+            "mkv" to listOf("mkv", "mk3d", "mka"),
+            "webm" to listOf("webm"),
+            "avi" to listOf("avi"),
+            "flv" to listOf("flv"),
+            "3gp" to listOf("3gp"),
+            "mpeg" to listOf("mpeg", "mpg")
+        )
+    }
+    override fun validate(file: File): Result<Unit, FileError> {
+        return try {
+            val media = MultimediaObject(file)
+            val info = media.info
+            val extension = file.extension.lowercase()
+            if (
+                info?.video != null
+                && info.video.size.width > 0
+                && info.video.size.height > 0
+                && info.video.frameRate * (info.duration / 1000f) >= 1
+                && allowedExtensions[info.format.lowercase()]?.contains(extension) == true
+            ) {
+                Result.Success(Unit)
+            } else {
+                Result.Failure(FileError.NOT_VALID)
+            }
+        } catch (_: Exception) {
+            Result.Failure(FileError.NOT_VALID)
+        }
+    }
+}
+
+@Component
+class ImagingValidator : FileValidator.ImageValidator {
+    private companion object {
+        val allowedExtensions = mapOf(
+            "jpeg" to listOf("jpg", "jpeg"),
+            "png" to listOf("png"),
+            "gif" to listOf("gif"),
+            "bmp" to listOf("bmp"),
+            "tiff" to listOf("tif", "tiff"),
+            "webp" to listOf("webp"),
+            "avif" to listOf("avif")
+        )
+    }
+    override fun validate(file: File): Result<Unit, FileError> {
+        return try {
+            val extension = file.extension.lowercase()
+            val info = Imaging.getImageInfo(file)
+            if (
+                info != null
+                && info.width > 0
+                && info.height > 0
+                && allowedExtensions[info.formatName?.lowercase()]?.contains(extension) == true
+            ) {
+                Result.Success(Unit)
+            } else {
+                Result.Failure(FileError.NOT_VALID)
+            }
+        } catch (_: Exception) {
+            Result.Failure(FileError.NOT_VALID)
+        }
+    }
+}

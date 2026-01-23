@@ -3,6 +3,7 @@ package mikhail.shell.video.hosting.service
 import jakarta.transaction.Transactional
 import kotlinx.datetime.Clock
 import kotlinx.datetime.toKotlinInstant
+import mikhail.shell.video.hosting.domain.ApplicationPaths
 import mikhail.shell.video.hosting.domain.AuthModel
 import mikhail.shell.video.hosting.domain.UserCreatingModel
 import mikhail.shell.video.hosting.domain.UserNameCheckPurpose
@@ -20,6 +21,8 @@ import org.springframework.mail.SimpleMailMessage
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import java.time.Instant
+import kotlin.io.path.Path
+import kotlin.io.path.createDirectory
 
 @Service
 class AuthServiceWithDB(
@@ -31,7 +34,8 @@ class AuthServiceWithDB(
     private val mailSender: MailSender,
     private val cryptoUtils: CryptoUtils,
     private val verificationRepository: VerificationRepository,
-    private val invalidTokenRepository: InvalidTokenRepository
+    private val invalidTokenRepository: InvalidTokenRepository,
+    private val applicationPaths: ApplicationPaths
 ) : AuthService {
 
     override fun signInWithPassword(userName: String, password: String): AuthModel {
@@ -150,6 +154,7 @@ class AuthServiceWithDB(
                 password = passwordEncoder.encode(user.password)
             )
         )
+        Path(applicationPaths.USERS_BASE_PATH, userId.toString()).createDirectory()
         val authToken = jwtTokenUtil.generateToken(userId.toString())
         return AuthModel(authToken, userId)
     }

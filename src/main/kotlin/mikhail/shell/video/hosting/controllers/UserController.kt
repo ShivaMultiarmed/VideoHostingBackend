@@ -7,6 +7,8 @@ import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ValidationRules.TEL_REGEX
 import mikhail.shell.video.hosting.dto.UserDto
 import mikhail.shell.video.hosting.dto.toDto
+import mikhail.shell.video.hosting.errors.FileError
+import mikhail.shell.video.hosting.errors.ValidationException
 import mikhail.shell.video.hosting.service.AuthService
 import mikhail.shell.video.hosting.service.UserService
 import org.springframework.beans.factory.annotation.Autowired
@@ -62,6 +64,13 @@ class UserController @Autowired constructor(
         @RequestPart("avatar") @Image avatar: MultipartFile?,
         @AuthenticationPrincipal userId: Long
     ): UserDto {
+        val errors = mutableMapOf<String, FileError>()
+        if (EditAction.valueOf(user.avatarAction!!.uppercase()) == EditAction.EDIT && avatar == null) {
+            errors["avatar"] = FileError.EMPTY
+        }
+        if (errors.isNotEmpty()) {
+            throw ValidationException(errors)
+        }
         return userService.edit(
             user = UserEditingModel(
                 userId = userId,
@@ -70,7 +79,7 @@ class UserController @Autowired constructor(
                 bio = user.bio,
                 tel = user.tel,
                 email = user.email,
-                avatar = when (EditAction.valueOf(user.avatarAction!!.uppercase())) {
+                avatar = when (EditAction.valueOf(user.avatarAction.uppercase())) {
                     EditAction.KEEP -> EditingAction.Keep
                     EditAction.REMOVE -> EditingAction.Remove
                     EditAction.EDIT -> EditingAction.Edit(avatar!!.toUploadedFile())

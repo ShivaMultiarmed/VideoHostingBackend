@@ -13,9 +13,9 @@ import kotlin.io.path.Path
 import kotlin.math.min
 
 data class UploadedFile(
-    val fileName: String,
+    val name: String,
     val mimeType: String,
-    val bytes: ByteArray
+    val content: ByteArray
 ) {
     override fun equals(other: Any?): Boolean {
         if (javaClass != other?.javaClass) return false
@@ -23,15 +23,15 @@ data class UploadedFile(
 
         other as UploadedFile
 
-        return fileName == other.fileName
+        return name == other.name
                 && mimeType == other.mimeType
-                && bytes.contentEquals(other.bytes)
+                && content.contentEquals(other.content)
     }
 
     override fun hashCode(): Int {
-        var result = fileName.hashCode()
+        var result = name.hashCode()
         result = 31 * result + mimeType.hashCode()
-        result = 31 * result + bytes.contentHashCode()
+        result = 31 * result + content.contentHashCode()
         return result
     }
 }
@@ -95,7 +95,7 @@ suspend fun uploadImage(
     height: Int = -1,
     compress: Boolean = false
 ): Boolean {
-    return uploadedFile.bytes.inputStream().use {
+    return uploadedFile.content.inputStream().use {
         uploadImage(
             uploadedFile = it,
             targetFile = targetFile,

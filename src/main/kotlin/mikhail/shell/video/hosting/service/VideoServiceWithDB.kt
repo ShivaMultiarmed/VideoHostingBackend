@@ -19,6 +19,7 @@ import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import mikhail.shell.video.hosting.controllers.VideoMetaData
+import mikhail.shell.video.hosting.controllers.advices.camelToSnakeCase
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.elastic.documents.VideoDocument
 import mikhail.shell.video.hosting.elastic.documents.toDocument
@@ -55,7 +56,9 @@ class VideoServiceWithDB @Autowired constructor(
     private val userLikeVideoRepository: UserLikeVideoRepository,
     private val channelRepository: ChannelRepository,
     private val fcm: FirebaseMessaging,
-    private val appPaths: ApplicationPathsInitializer
+    private val appPaths: ApplicationPaths,
+    private val imageValidator: FileValidator.ImageValidator,
+    private val videoValidator: FileValidator.VideoValidator
 ) : VideoService {
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -218,6 +221,7 @@ class VideoServiceWithDB @Autowired constructor(
         return videoWithChannelsRepository.findAllById(ids).map { it.toDomain() }
     }
 
+    @OptIn(ExperimentalPathApi::class)
     override fun save(
         userId: Long,
         video: VideoCreationModel
@@ -226,14 +230,31 @@ class VideoServiceWithDB @Autowired constructor(
         if (!channelRepository.existsById(video.channelId)) {
             errors["channel_id"] = NumericError.NOT_EXISTS
         }
-        if (errors.isNotEmpty()) {
-            throw ValidationException(errors)
-        }
         if (!channelRepository.existsByOwnerIdAndChannelId(userId, video.channelId)) {
             throw IllegalAccessException()
         }
+        val tmpId = UUID.randomUUID()
+        val tmpPath = Path(appPaths.TEMP_PATH, tmpId.toString()).createDirectory()
+        video.cover?.let {
+            val ext = it.name.parseExtension()
+            val coverPath = tmpPath.resolve("cover.$ext")
+            runBlocking(Dispatchers.IO) {
+                uploadImage(
+                    uploadedFile = it,
+                    targetFile = coverPath.toString()
+                )
+                imageValidator.validate(coverPath.toFile()).onFailure { error ->
+                    errors["cover"] = error
+                }
+            }
+        }
+        if (errors.isNotEmpty()) {
+            tmpPath.deleteRecursively()
+            throw ValidationException(errors)
+        }
         val pendingVideoEntity = pendingVideosRepository.save(
             PendingVideoEntity(
+                tmpId = tmpId,
                 channelId = video.channelId,
                 title = video.title,
                 description = video.description,
@@ -243,19 +264,8 @@ class VideoServiceWithDB @Autowired constructor(
                 size = video.source.size!!
             )
         )
-        val tmpPath = Path(appPaths.TEMP_PATH, pendingVideoEntity.tmpId.toString()).createDirectory()
-        video.cover?.let {
-            val ext = it.fileName.parseExtension()
-            val coverPath = tmpPath.resolve("cover.$ext").createFile()
-            runBlocking {
-                uploadImage(
-                    uploadedFile = it,
-                    targetFile = coverPath.toString()
-                )
-            }
-        }
         return PendingVideo(
-            tmpId = pendingVideoEntity.tmpId,
+            tmpId = tmpId,
             channelId = pendingVideoEntity.channelId
         )
     }
@@ -301,6 +311,17 @@ class VideoServiceWithDB @Autowired constructor(
                 tmpPath = tmpPath,
                 metaData = sourceMetaData
             )
+            val tmpSource = findFileByName(tmpPath, "source")!!
+            val errors = mutableMapOf<String, Error>()
+            videoValidator.validate(tmpSource).onFailure { error ->
+                errors["source"] = error
+            }
+            if (errors.isNotEmpty()) {
+                pendingVideosRepository.delete(pending)
+                tmpPath.deleteRecursively()
+                notifyCreatorOnFailure(pending.channelId, errors)
+                return@launch
+            }
             val videoEntity = videoRepository.save(
                 VideoEntity(
                     channelId = pending.channelId,
@@ -323,10 +344,10 @@ class VideoServiceWithDB @Autowired constructor(
                     videoId = videoEntity.videoId!!
                 )
             }
-            val videoWithChannel = videoWithChannelsRepository.findById(videoEntity.videoId!!).orElseThrow().toDomain()
+            setOf(sourceJob, coversJob).joinAll()
             pendingVideosRepository.delete(pending)
-            joinAll(sourceJob, coversJob)
             tmpPath.deleteRecursively()
+            val videoWithChannel = videoWithChannelsRepository.findById(videoEntity.videoId!!).orElseThrow().toDomain()
             notifyAllOnSuccess(videoWithChannel)
         }
     }
@@ -362,8 +383,10 @@ class VideoServiceWithDB @Autowired constructor(
                 file.inputStream().use { fis ->
                     fis.copyTo(fos)
                 }
+                file.delete()
             }
         }
+        tmpPath.resolve("source").deleteExisting()
     }
 
     private fun moveVideoSource(
@@ -459,15 +482,15 @@ class VideoServiceWithDB @Autowired constructor(
 
     private fun notifyCreatorOnFailure(
         channelId: Long,
-        error: Error = UnexpectedError
+        errors: Map<String, Error>
     ) {
         val topic = "channels.$channelId.uploads"
-        val data = mapOf("source_error" to error)
-            .map { it.key to it.value.toString() }
+        val errors = errors
+            .map { "${it.key}Error".camelToSnakeCase() to it.value.toString() }
             .toMap()
         val message = Message.builder()
             .setTopic(topic)
-            .putAllData(data)
+            .putAllData(errors)
             .build()
         fcm.send(message)
     }
@@ -536,6 +559,26 @@ class VideoServiceWithDB @Autowired constructor(
         if (!videoWithChannelsRepository.existsByChannel_OwnerIdAndVideoId(userId, video.videoId)) {
             throw IllegalAccessException()
         }
+        val errors = mutableMapOf<String, Error>()
+        val tmpId = UUID.randomUUID()
+        val tmpPath = Path(appPaths.TEMP_PATH, tmpId.toString()).createDirectory()
+        if (video.cover is EditingAction.Edit) {
+            val ext = video.cover.value.name.parseExtension()
+            val tmpCoverPath = tmpPath.resolve("cover.$ext").createFile()
+            runBlocking(Dispatchers.IO) {
+                uploadImage(
+                    uploadedFile = video.cover.value,
+                    targetFile = tmpCoverPath.toString()
+                )
+                imageValidator.validate(tmpCoverPath.toFile()).onFailure { error ->
+                    errors["cover"] = error
+                }
+            }
+        }
+        if (errors.isNotEmpty()) {
+            tmpPath.deleteRecursively()
+            throw ValidationException(errors)
+        }
         val updatedVideoEntity = videoRepository.save(
             videoEntity.copy(
                 title = video.title,
@@ -543,18 +586,6 @@ class VideoServiceWithDB @Autowired constructor(
             )
         )
         videoSearchRepository.save(updatedVideoEntity.toDocument())
-        val tmpId = UUID.randomUUID()
-        val tmpPath = Path(appPaths.TEMP_PATH, tmpId.toString()).createDirectory()
-        if (video.cover is EditingAction.Edit) {
-            val ext = video.cover.value.fileName.parseExtension()
-            val tmpCoverPath = tmpPath.resolve("cover.$ext").createFile()
-            runBlocking {
-                uploadImage(
-                    uploadedFile = video.cover.value,
-                    targetFile = tmpCoverPath.toString()
-                )
-            }
-        }
         val videoPath = Path(appPaths.VIDEOS_BASE_PATH, video.videoId.toString())
         val coverPath = videoPath.resolve("cover")
         if (video.cover is EditingAction.Remove) {

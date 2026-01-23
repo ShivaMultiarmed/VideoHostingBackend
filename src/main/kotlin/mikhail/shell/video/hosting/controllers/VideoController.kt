@@ -8,6 +8,7 @@ import mikhail.shell.video.hosting.domain.ValidationRules.FILE_NAME_REGEX
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_VIDEO_SIZE
 import mikhail.shell.video.hosting.dto.*
 import mikhail.shell.video.hosting.errors.FileError
+import mikhail.shell.video.hosting.errors.ValidationException
 import mikhail.shell.video.hosting.service.ChannelService
 import mikhail.shell.video.hosting.service.VideoService
 import org.springframework.beans.factory.annotation.Autowired
@@ -29,7 +30,7 @@ import kotlin.io.path.Path
 class VideoController @Autowired constructor(
     private val videoService: VideoService,
     private val channelService: ChannelService,
-    private val appPaths: ApplicationPathsInitializer
+    private val appPaths: ApplicationPaths
 ) {
     @GetMapping("/{video_id}")
     fun get(@PathVariable("video_id") @LongId videoId: Long?): VideoDto {
@@ -178,12 +179,13 @@ class VideoController @Autowired constructor(
         } else if (source.size > MAX_VIDEO_SIZE) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("source" to FileError.LARGE))
         }
-        if (source.fileName == null || !source.fileName.matches(FILE_NAME_REGEX.toRegex())) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("source" to FileError.NAME_NOT_VALID))
-        }
         // TODO: check video type here and after assembling
         //val detectedMimeType = MimetypesFileTypeMap.getDefaultFileTypeMap().getContentType(source.fileName)?: ""
-        if (!source.mimeType!!.startsWith("video")) { // || detectedMimeType != source.mimeType) {
+        if (
+            source.fileName == null
+            || !source.fileName.matches(FILE_NAME_REGEX.toRegex())
+            || !source.mimeType!!.startsWith("video")
+            ) { // || detectedMimeType != source.mimeType) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("source" to FileError.NOT_SUPPORTED))
         }
         return videoService.save(
@@ -222,7 +224,7 @@ class VideoController @Autowired constructor(
                 userId = userId,
                 tmpId = UUID.fromString(tmpId!!),
                 start = start,
-                end = end + 1,
+                end = end,
                 source = it
             )
         }
@@ -250,13 +252,20 @@ class VideoController @Autowired constructor(
         @RequestPart("cover") @Image cover: MultipartFile?,
         @AuthenticationPrincipal userId: Long
     ): VideoDto {
+        val errors = mutableMapOf<String, FileError>()
+        if (EditAction.valueOf(video.coverAction!!.uppercase()) == EditAction.EDIT && cover == null) {
+            errors["cover"] = FileError.EMPTY
+        }
+        if (errors.isNotEmpty()) {
+            throw ValidationException(errors)
+        }
         return videoService.edit(
             userId = userId,
             video = VideoEditingModel(
                 videoId = video.videoId!!,
                 title = video.title!!,
                 description = video.description,
-                cover = when (EditAction.valueOf(video.coverAction!!.uppercase())) {
+                cover = when (EditAction.valueOf(video.coverAction.uppercase())) {
                     EditAction.KEEP -> EditingAction.Keep
                     EditAction.REMOVE -> EditingAction.Remove
                     EditAction.EDIT -> EditingAction.Edit(cover!!.toUploadedFile())

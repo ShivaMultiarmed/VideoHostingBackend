@@ -4,7 +4,7 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 
 @Component
-class ApplicationPathsInitializer(
+class ApplicationPaths(
     @Value("\${video-hosting.storage.path}") val STORAGE_BASE_PATH: String,
 ) {
     val CHANNELS_BASE_PATH = "$STORAGE_BASE_PATH/channels"

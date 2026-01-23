@@ -5,6 +5,8 @@ import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.dto.ChannelDto
 import mikhail.shell.video.hosting.dto.ChannelWithUserDto
 import mikhail.shell.video.hosting.dto.toDto
+import mikhail.shell.video.hosting.errors.FileError
+import mikhail.shell.video.hosting.errors.ValidationException
 import mikhail.shell.video.hosting.service.ChannelService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
@@ -85,6 +87,16 @@ class ChannelController @Autowired constructor(
         @RequestPart("header", required = false) @Image header: MultipartFile?,
         @AuthenticationPrincipal userId: Long
     ): ChannelDto {
+        val errors = mutableMapOf<String, FileError>()
+        if (EditAction.valueOf(channel.logoAction!!.uppercase()) == EditAction.EDIT && logo == null) {
+            errors["logo"] = FileError.EMPTY
+        }
+        if (EditAction.valueOf(channel.headerAction!!.uppercase()) == EditAction.EDIT && header == null) {
+            errors["header"] = FileError.EMPTY
+        }
+        if (errors.isNotEmpty()) {
+            throw ValidationException(errors)
+        }
         return channelService.editChannel(
             channel = ChannelEditingModel(
                 channelId = channel.channelId!!,
@@ -92,12 +104,12 @@ class ChannelController @Autowired constructor(
                 title = channel.title!!,
                 alias = channel.alias,
                 description = channel.description,
-                header = when (EditAction.valueOf(channel.headerAction!!.uppercase())) {
+                header = when (EditAction.valueOf(channel.headerAction.uppercase())) {
                     EditAction.KEEP -> EditingAction.Keep
                     EditAction.REMOVE -> EditingAction.Remove
                     EditAction.EDIT -> EditingAction.Edit(header!!.toUploadedFile())
                 },
-                logo = when (EditAction.valueOf(channel.logoAction!!.uppercase())) {
+                logo = when (EditAction.valueOf(channel.logoAction.uppercase())) {
                     EditAction.KEEP -> EditingAction.Keep
                     EditAction.REMOVE -> EditingAction.Remove
                     EditAction.EDIT -> EditingAction.Edit(logo!!.toUploadedFile())

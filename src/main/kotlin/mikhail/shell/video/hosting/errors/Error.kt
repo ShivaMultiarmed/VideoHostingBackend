@@ -90,9 +90,9 @@ enum class OptionError: Error {
 }
 
 enum class FileError: Error {
-    NAME_NOT_VALID,
     NOT_FOUND,
     EMPTY,
     LARGE,
-    NOT_SUPPORTED
+    NOT_SUPPORTED,
+    NOT_VALID
 }

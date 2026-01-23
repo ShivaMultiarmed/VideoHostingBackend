@@ -14,15 +14,15 @@ class DocumentController {
     private lateinit var androidDomainVerificationFilePath: String
     @GetMapping("/privacy-policy")
     fun providePrivacyPolicy(): String {
-        return "docs/PrivacyPolicy"
+        return "docs/privacy_policy"
     }
     @GetMapping("/account-deletion")
     fun provideAccountDeletionInstruction(): String {
-        return "docs/AccountDeletion"
+        return "docs/account_deletion"
     }
     @GetMapping("/standards-against-csae")
     fun provideStandardsAgainstCsae(): String {
-        return "docs/StandardsAgainstCsae"
+        return "docs/standards_against_csae"
     }
     @GetMapping("/android-domain-verification", produces = ["application/json"])
     @ResponseBody
