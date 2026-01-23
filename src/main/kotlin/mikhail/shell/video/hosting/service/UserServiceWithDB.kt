@@ -9,6 +9,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.supervisorScope
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.errors.Error
 import mikhail.shell.video.hosting.errors.TextError
@@ -18,6 +19,8 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.io.FileSystemResource
 import org.springframework.core.io.Resource
 import org.springframework.stereotype.Service
+import java.io.File
+import java.nio.file.Path
 import java.util.UUID
 import javax.annotation.PreDestroy
 import kotlin.io.path.*
@@ -33,7 +36,7 @@ class UserServiceWithDB @Autowired constructor(
     private val appPaths: ApplicationPaths,
     private val imageValidator: FileValidator.ImageValidator
 ) : UserService {
-    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val coroutineScope = CoroutineScope(Dispatchers.IO)
 
     override fun get(userId: Long): User {
         return userRepository.findById(userId).orElseThrow().toDomain()
@@ -83,40 +86,52 @@ class UserServiceWithDB @Autowired constructor(
             avatarPath.deleteRecursively()
         } else if (user.avatar is EditingAction.Edit) {
             val ext = user.avatar.value.name.parseExtension()
-            val tmpAvatarPath = tmpPath.resolve("avatar.$ext")
-            runBlocking {
-                val smallImageJob = launch {
+            val tmpAvatar = tmpPath.resolve("avatar.$ext").toFile()
+            moveAvatars(
+                original = tmpAvatar,
+                userId = editedUser.userId
+            )
+        }
+        tmpPath.deleteRecursively()
+        return editedUser
+    }
+
+    private fun moveAvatars(
+        original: File,
+        userId: Long
+    ) {
+        val userPath = Path(appPaths.USERS_BASE_PATH, userId.toString(), "avatar").createDirectories()
+        runBlocking {
+            supervisorScope {
+                launch {
                     uploadImage(
-                        uploadedFile = tmpAvatarPath.toFile(),
-                        targetFile = "$avatarPath/small.$ext",
+                        uploadedFile = original,
+                        targetFile = "$userPath/small.${original.extension}",
                         width = 64,
                         height = 64,
                         compress = true
                     )
                 }
-                val mediumImageJob = launch {
+                launch {
                     uploadImage(
-                        uploadedFile = tmpAvatarPath.toFile(),
-                        targetFile = "$avatarPath/medium.$ext",
+                        uploadedFile = original,
+                        targetFile = "$userPath/medium.${original.extension}",
                         width = 192,
                         height = 192,
                         compress = true
                     )
                 }
-                val largeImageJob = launch {
+                launch {
                     uploadImage(
-                        uploadedFile = tmpAvatarPath.toFile(),
-                        targetFile = "$avatarPath/large.$ext",
+                        uploadedFile = original,
+                        targetFile = "$userPath/large.${original.extension}",
                         width = 512,
                         height = 512,
                         compress = true
                     )
                 }
-                setOf(smallImageJob, mediumImageJob, largeImageJob).joinAll()
             }
         }
-        tmpPath.deleteRecursively()
-        return editedUser
     }
 
     override fun existsByNick(userId: Long?, nick: String): Boolean {

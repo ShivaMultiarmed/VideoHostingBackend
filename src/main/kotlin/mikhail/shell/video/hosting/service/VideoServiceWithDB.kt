@@ -18,6 +18,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.supervisorScope
 import mikhail.shell.video.hosting.controllers.VideoMetaData
 import mikhail.shell.video.hosting.controllers.advices.camelToSnakeCase
 import mikhail.shell.video.hosting.domain.*
@@ -60,7 +61,7 @@ class VideoServiceWithDB @Autowired constructor(
     private val imageValidator: FileValidator.ImageValidator,
     private val videoValidator: FileValidator.VideoValidator
 ) : VideoService {
-    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val coroutineScope = CoroutineScope(Dispatchers.IO)
 
     override fun get(videoId: Long): Video {
         return videoRepository.findById(videoId).orElseThrow().toDomain()
@@ -338,13 +339,15 @@ class VideoServiceWithDB @Autowired constructor(
                     videoId = videoEntity.videoId!!
                 )
             }
-            val coversJob = launch {
-                moveVideoCovers(
-                    tmpPath = tmpPath,
-                    videoId = videoEntity.videoId!!
-                )
+            val coversJob = findFileByName(tmpPath, "cover")?.let {
+                launch {
+                    moveVideoCovers(
+                        original = it,
+                        videoId = videoEntity.videoId!!
+                    )
+                }
             }
-            setOf(sourceJob, coversJob).joinAll()
+            setOfNotNull(sourceJob, coversJob).joinAll()
             pendingVideosRepository.delete(pending)
             tmpPath.deleteRecursively()
             val videoWithChannel = videoWithChannelsRepository.findById(videoEntity.videoId!!).orElseThrow().toDomain()
@@ -424,41 +427,38 @@ class VideoServiceWithDB @Autowired constructor(
     }
 
     private suspend fun moveVideoCovers(
-        tmpPath: Path,
+        original: File,
         videoId: Long
-    ) = coroutineScope {
-        val tmpCover = findFileByName(tmpPath, "cover")
-        tmpCover?.let {
-            val coverPath = Path(appPaths.VIDEOS_BASE_PATH, videoId.toString(), "cover").createDirectories()
-            val smallImage = launch {
-                uploadImage(
-                    uploadedFile = it,
-                    targetFile = "$coverPath/small.${it.extension}",
-                    width = 128,
-                    height = 72,
-                    compress = true
-                )
-            }
-            val mediumImage = launch {
-                uploadImage(
-                    uploadedFile = it,
-                    targetFile = "$coverPath/medium.${it.extension}",
-                    width = 320,
-                    height = 180,
-                    compress = true
-                )
-            }
-            val largeImage = launch {
-                uploadImage(
-                    uploadedFile = it,
-                    targetFile = "$coverPath/large.${it.extension}",
-                    width = 512,
-                    height = 288,
-                    compress = true
-                )
-            }
-            setOf(smallImage, mediumImage, largeImage).joinAll()
+    ) = supervisorScope {
+        val coverPath = Path(appPaths.VIDEOS_BASE_PATH, videoId.toString(), "cover").createDirectories()
+        launch {
+            uploadImage(
+                uploadedFile = original,
+                targetFile = "$coverPath/small.${original.extension}",
+                width = 128,
+                height = 72,
+                compress = true
+            )
         }
+        launch {
+            uploadImage(
+                uploadedFile = original,
+                targetFile = "$coverPath/medium.${original.extension}",
+                width = 320,
+                height = 180,
+                compress = true
+            )
+        }
+        launch {
+            uploadImage(
+                uploadedFile = original,
+                targetFile = "$coverPath/large.${original.extension}",
+                width = 512,
+                height = 288,
+                compress = true
+            )
+        }
+
     }
 
     private fun notifyAllOnSuccess(videoWithChannel: VideoWithChannel) {
@@ -599,10 +599,12 @@ class VideoServiceWithDB @Autowired constructor(
                 coverPath.listDirectoryEntries().forEach { it.deleteIfExists() }
             }
             runBlocking {
-                moveVideoCovers(
-                    tmpPath = tmpPath,
-                    videoId = videoEntity.videoId!!
-                )
+                findFileByName(tmpPath, "cover")?.let {
+                    moveVideoCovers(
+                        original = it,
+                        videoId = videoEntity.videoId!!
+                    )
+                }
             }
         }
         tmpPath.deleteRecursively()
