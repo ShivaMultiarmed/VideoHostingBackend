@@ -4,12 +4,10 @@ package mikhail.shell.video.hosting.service
 import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.supervisorScope
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.errors.Error
 import mikhail.shell.video.hosting.errors.TextError
@@ -59,7 +57,7 @@ class UserServiceWithDB @Autowired constructor(
             runBlocking(Dispatchers.IO) {
                 uploadImage(
                     uploadedFile = user.avatar.value,
-                    targetFile = tmpAvatarPath.toString()
+                    targetFile = tmpAvatarPath
                 )
                 imageValidator.validate(tmpAvatarPath.toFile()).onFailure { error ->
                     errors["avatar"] = error
@@ -80,16 +78,16 @@ class UserServiceWithDB @Autowired constructor(
                 email = user.email
             )
         ).toDomain()
-        val userPath = Path(appPaths.USERS_BASE_PATH, user.userId.toString())
+        val userPath = Path(appPaths.USERS_BASE_PATH, user.userId.toString()).createDirectories()
         val avatarPath = userPath.resolve("avatar")
         if (user.avatar is EditingAction.Remove) {
             avatarPath.deleteRecursively()
         } else if (user.avatar is EditingAction.Edit) {
             val ext = user.avatar.value.name.parseExtension()
-            val tmpAvatar = tmpPath.resolve("avatar.$ext").toFile()
+            val tmpAvatar = tmpPath.resolve("avatar.$ext")
             moveAvatars(
                 original = tmpAvatar,
-                userId = editedUser.userId
+                userPath = userPath
             )
         }
         tmpPath.deleteRecursively()
@@ -97,39 +95,37 @@ class UserServiceWithDB @Autowired constructor(
     }
 
     private fun moveAvatars(
-        original: File,
-        userId: Long
+        original: Path,
+        userPath: Path
     ) {
-        val userPath = Path(appPaths.USERS_BASE_PATH, userId.toString(), "avatar").createDirectories()
+        val avatarPath = userPath.resolve("avatar").createDirectories()
         runBlocking {
-            supervisorScope {
-                launch {
-                    uploadImage(
-                        uploadedFile = original,
-                        targetFile = "$userPath/small.${original.extension}",
-                        width = 64,
-                        height = 64,
-                        compress = true
-                    )
-                }
-                launch {
-                    uploadImage(
-                        uploadedFile = original,
-                        targetFile = "$userPath/medium.${original.extension}",
-                        width = 192,
-                        height = 192,
-                        compress = true
-                    )
-                }
-                launch {
-                    uploadImage(
-                        uploadedFile = original,
-                        targetFile = "$userPath/large.${original.extension}",
-                        width = 512,
-                        height = 512,
-                        compress = true
-                    )
-                }
+            launch {
+                uploadImage(
+                    uploadedFile = original,
+                    targetFile = avatarPath.resolve("small.${original.extension}"),
+                    width = 64,
+                    height = 64,
+                    compress = true
+                )
+            }
+            launch {
+                uploadImage(
+                    uploadedFile = original,
+                    targetFile = avatarPath.resolve("medium.${original.extension}"),
+                    width = 192,
+                    height = 192,
+                    compress = true
+                )
+            }
+            launch {
+                uploadImage(
+                    uploadedFile = original,
+                    targetFile = avatarPath.resolve("large.${original.extension}"),
+                    width = 512,
+                    height = 512,
+                    compress = true
+                )
             }
         }
     }

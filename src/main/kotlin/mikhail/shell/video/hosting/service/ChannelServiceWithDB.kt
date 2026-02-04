@@ -2,6 +2,7 @@ package mikhail.shell.video.hosting.service
 
 import com.google.firebase.messaging.FirebaseMessaging
 import jakarta.transaction.Transactional
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -25,6 +26,7 @@ import org.springframework.core.io.Resource
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import java.io.File
+import java.nio.file.Path
 import java.util.UUID
 import kotlin.io.path.*
 
@@ -80,7 +82,7 @@ class ChannelServiceWithDB @Autowired constructor(
                 async(Dispatchers.IO) {
                     uploadImage(
                         uploadedFile = channel.header,
-                        targetFile = tmpHeaderPath.toString()
+                        targetFile = tmpHeaderPath
                     )
                     imageValidator.validate(tmpHeaderPath.toFile())
                 }
@@ -91,7 +93,7 @@ class ChannelServiceWithDB @Autowired constructor(
                 async(Dispatchers.IO) {
                     uploadImage(
                         uploadedFile = channel.logo,
-                        targetFile = tmpLogoPath.toString()
+                        targetFile = tmpLogoPath
                     )
                     imageValidator.validate(tmpLogoPath.toFile())
                 }
@@ -115,97 +117,93 @@ class ChannelServiceWithDB @Autowired constructor(
                 description = channel.description
             )
         ).toDomain()
+        val channelPath = Path(appPaths.CHANNELS_BASE_PATH, createdChannel.channelId.toString()).createDirectory()
         findFileByName(tmpPath, "header")?.let {
             moveHeaders(
-                original = it,
-                channelId = createdChannel.channelId
+                original = it.toPath(),
+                channelPath = channelPath
             )
         }
         findFileByName(tmpPath, "logo")?.let {
             moveLogos(
-                original = it,
-                channelId = createdChannel.channelId
+                original = it.toPath(),
+                channelPath = channelPath
             )
         }
+        tmpPath.deleteRecursively()
         return createdChannel
     }
 
     private fun moveLogos(
-        original: File,
-        channelId: Long
+        original: Path,
+        channelPath: Path
     ): Job {
-        val channelPath = Path(appPaths.CHANNELS_BASE_PATH, channelId.toString()).createDirectory()
-        val logoPath = channelPath.resolve("logo").createDirectory()
-        val ext = original.name.parseExtension()
+        val logoPath = channelPath.resolve("logo").createDirectories()
+        val ext = original.extension
         return runBlocking(Dispatchers.IO) {
-            supervisorScope {
-                launch {
-                    uploadImage(
-                        uploadedFile = original,
-                        targetFile = "$logoPath/small.$ext",
-                        width = 64,
-                        height = 64,
-                        compress = true
-                    )
-                }
-                launch {
-                    uploadImage(
-                        uploadedFile = original,
-                        targetFile = "$logoPath/medium.$ext",
-                        width = 192,
-                        height = 192,
-                        compress = true
-                    )
-                }
-                launch {
-                    uploadImage(
-                        uploadedFile = original,
-                        targetFile = "$logoPath/large.$ext",
-                        width = 512,
-                        height = 512,
-                        compress = true
-                    )
-                }
+            launch {
+                uploadImage(
+                    uploadedFile = original,
+                    targetFile = logoPath.resolve("small.$ext"),
+                    width = 64,
+                    height = 64,
+                    compress = true
+                )
+            }
+            launch {
+                uploadImage(
+                    uploadedFile = original,
+                    targetFile = logoPath.resolve("medium.$ext"),
+                    width = 192,
+                    height = 192,
+                    compress = true
+                )
+            }
+            launch {
+                uploadImage(
+                    uploadedFile = original,
+                    targetFile = logoPath.resolve("large.$ext"),
+                    width = 512,
+                    height = 512,
+                    compress = true
+                )
             }
         }
     }
 
     private fun moveHeaders(
-        original: File,
-        channelId: Long
+        original: Path,
+        channelPath: Path
     ): Job {
-        val channelPath = Path(appPaths.CHANNELS_BASE_PATH, channelId.toString()).createDirectory()
-        val headerPath = channelPath.resolve("header").createDirectory()
-        val ext = original.name.parseExtension()
+        val headerPath = channelPath.resolve("header").createDirectories()
+        val ext = original.extension
         return runBlocking(Dispatchers.IO) {
-            supervisorScope {
-                launch {
-                    uploadImage(
-                        uploadedFile = original,
-                        targetFile = "$headerPath/small.$ext",
-                        width = 600,
-                        height = 100,
-                        compress = true
-                    )
-                }
-                launch {
-                    uploadImage(
-                        uploadedFile = original,
-                        targetFile = "$headerPath/medium.$ext",
-                        width = 1200,
-                        height = 200,
-                        compress = true
-                    )
-                }
-                launch {
-                    uploadImage(
-                        uploadedFile = original,
-                        targetFile = "$headerPath/large.$ext",
-                        width = 2400,
-                        height = 400,
-                        compress = true
-                    )
-                }
+            launch {
+                uploadImage(
+                    uploadedFile = original,
+                    targetFile = headerPath.resolve("small.$ext"),
+                    width = 600,
+                    height = 100,
+                    compress = true
+                )
+            }
+            launch {
+                uploadImage(
+                    uploadedFile = original,
+                    targetFile = headerPath.resolve("medium.$ext"),
+                    width = 1200,
+                    height = 200,
+                    compress = true
+                )
+            }
+            launch {
+                uploadImage(
+                    uploadedFile = original,
+                    targetFile = headerPath.resolve("large.$ext"),
+                    width = 2400,
+                    height = 400,
+                    compress = true
+                )
             }
         }
     }
@@ -309,33 +307,35 @@ class ChannelServiceWithDB @Autowired constructor(
         val tmpId = UUID.randomUUID()
         val tmpPath = Path(appPaths.TEMP_PATH, tmpId.toString()).createDirectory()
         runBlocking {
-            val headerJob = if (channel.header is EditingAction.Edit) {
-                val ext = channel.header.value.name.parseExtension()
-                val tmpHeaderPath = tmpPath.resolve("header.$ext")
-                async(Dispatchers.IO) {
-                    uploadImage(
-                        uploadedFile = channel.header.value,
-                        targetFile = tmpHeaderPath.toString()
-                    )
-                    imageValidator.validate(tmpHeaderPath.toFile())
+            supervisorScope {
+                val headerJob = if (channel.header is EditingAction.Edit) {
+                    val ext = channel.header.value.name.parseExtension()
+                    val tmpHeaderPath = tmpPath.resolve("header.$ext")
+                    async(Dispatchers.IO) {
+                        uploadImage(
+                            uploadedFile = channel.header.value,
+                            targetFile = tmpHeaderPath
+                        )
+                        imageValidator.validate(tmpHeaderPath.toFile())
+                    }
+                } else null
+                val logoJob = if (channel.logo is EditingAction.Edit) {
+                    val ext = channel.logo.value.name.parseExtension()
+                    val tmpLogoPath = tmpPath.resolve("logo.$ext")
+                    async(Dispatchers.IO) {
+                        uploadImage(
+                            uploadedFile = channel.logo.value,
+                            targetFile = tmpLogoPath
+                        )
+                        imageValidator.validate(tmpLogoPath.toFile())
+                    }
+                } else null
+                headerJob?.await()?.onFailure { error ->
+                    errors["header"] = error
                 }
-            } else null
-            val logoJob = if (channel.logo is EditingAction.Edit) {
-                val ext = channel.logo.value.name.parseExtension()
-                val tmpLogoPath = tmpPath.resolve("logo.$ext")
-                async(Dispatchers.IO) {
-                    uploadImage(
-                        uploadedFile = channel.logo.value,
-                        targetFile = tmpLogoPath.toString()
-                    )
-                    imageValidator.validate(tmpLogoPath.toFile())
+                logoJob?.await()?.onFailure { error ->
+                    errors["logo"] = error
                 }
-            } else null
-            headerJob?.await()?.onFailure { error ->
-                errors["header"] = error
-            }
-            logoJob?.await()?.onFailure { error ->
-                errors["logo"] = error
             }
         }
         if (errors.isNotEmpty()) {
@@ -349,7 +349,7 @@ class ChannelServiceWithDB @Autowired constructor(
                 description = channel.description
             )
         ).toDomain()
-        val channelPath = Path(appPaths.CHANNELS_BASE_PATH, editedChannel.channelId.toString())
+        val channelPath = Path(appPaths.CHANNELS_BASE_PATH, editedChannel.channelId.toString()).createDirectories()
         val headerPath = channelPath.resolve("header")
         if (channel.header == EditingAction.Remove) {
             headerPath.deleteRecursively()
@@ -361,8 +361,8 @@ class ChannelServiceWithDB @Autowired constructor(
             }
             findFileByName(tmpPath, "header")?.let {
                 moveHeaders(
-                    original = it,
-                    channelId = editedChannel.channelId
+                    original = it.toPath(),
+                    channelPath = channelPath
                 )
             }
         }
@@ -377,8 +377,8 @@ class ChannelServiceWithDB @Autowired constructor(
             }
             findFileByName(tmpPath, "logo")?.let {
                 moveLogos(
-                    original = it,
-                    channelId = editedChannel.channelId
+                    original = it.toPath(),
+                    channelPath = channelPath
                 )
             }
         }

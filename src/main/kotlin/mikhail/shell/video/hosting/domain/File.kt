@@ -57,30 +57,16 @@ fun String.parseFileName(): String {
 }
 
 suspend fun uploadImage(
-    uploadedFile: UploadedFile,
-    targetFile: String,
-    width: Int = -1,
-    height: Int = -1,
-    compress: Boolean = false
-) = uploadImage(
-    uploadedFile = uploadedFile,
-    targetFile = File(targetFile),
-    width = width,
-    height = height,
-    compress = compress
-)
-
-suspend fun uploadImage(
-    uploadedFile: File,
-    targetFile: String,
+    uploadedFile: Path,
+    targetFile: Path,
     width: Int = -1,
     height: Int = -1,
     compress: Boolean = false
 ): Boolean {
-    return uploadedFile.inputStream().use {
+    return uploadedFile.toFile().inputStream().use {
         uploadImage(
             uploadedFile = it,
-            targetFile = File(targetFile),
+            targetFile = targetFile,
             width = width,
             height = height,
             compress = compress
@@ -90,7 +76,7 @@ suspend fun uploadImage(
 
 suspend fun uploadImage(
     uploadedFile: UploadedFile,
-    targetFile: File,
+    targetFile: Path,
     width: Int = -1,
     height: Int = -1,
     compress: Boolean = false
@@ -106,9 +92,9 @@ suspend fun uploadImage(
     }
 }
 
-suspend fun uploadImage(
+internal suspend fun uploadImage(
     uploadedFile: InputStream,
-    targetFile: File,
+    targetFile: Path,
     width: Int = -1,
     height: Int = -1,
     compress: Boolean = false
@@ -148,7 +134,7 @@ fun InputStream.toImage(): BufferedImage? {
             .useExifOrientation(true)
             .scale(1.0)
             .asBufferedImage()
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         null
     }
 }
@@ -175,13 +161,13 @@ fun BufferedImage.crop(
 }
 
 fun BufferedImage.save(
-    output: File,
+    output: Path,
     compressionCoefficient: Float = this.compressionCoefficient
 ) {
     return Thumbnails.of(this)
         .scale(1.0)
         .outputQuality(compressionCoefficient)
-        .toFile(output)
+        .toFile(output.toFile())
 }
 
 val BufferedImage.compressionCoefficient: Float
@@ -193,10 +179,3 @@ val BufferedImage.compressionCoefficient: Float
             else -> 1f
         }
     }
-
-fun getMimeType(fileName: String): String {
-    return MediaTypeFactory
-        .getMediaType(fileName)
-        .orElseThrow { IllegalArgumentException() }
-        .toString()
-}

@@ -429,7 +429,7 @@ class ImagingValidator : FileValidator.ImageValidator {
                 info != null
                 && info.width > 0
                 && info.height > 0
-                && allowedExtensions[info.formatName?.lowercase()]?.contains(extension) == true
+                && allowedExtensions[info.format?.name?.lowercase()]?.contains(extension) == true
             ) {
                 Result.Success(Unit)
             } else {

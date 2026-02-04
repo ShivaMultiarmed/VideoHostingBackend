@@ -87,17 +87,6 @@ class MainControllerAdvice {
                 }
             )
     }
-
-    @ExceptionHandler(NoResourceFoundException::class)
-    fun handleNotFoundResource(e: NoResourceFoundException): ResponseEntity<Unit> {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).build()
-    }
-
-    @ExceptionHandler(Exception::class)
-    fun handleExceptions(e: Exception): ResponseEntity<Unit> {
-        e.printStackTrace()
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
-    }
 }
 
 fun String.camelToSnakeCase(): String {
