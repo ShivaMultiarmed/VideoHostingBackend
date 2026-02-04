@@ -12,15 +12,13 @@ import com.google.firebase.messaging.Message
 import jakarta.transaction.Transactional
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.supervisorScope
 import mikhail.shell.video.hosting.controllers.VideoMetaData
-import mikhail.shell.video.hosting.controllers.advices.camelToSnakeCase
+import mikhail.shell.video.hosting.advices.camelToSnakeCase
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.elastic.documents.VideoDocument
 import mikhail.shell.video.hosting.elastic.documents.toDocument
@@ -465,7 +463,7 @@ class VideoServiceWithDB @Autowired constructor(
         val channelId = videoWithChannel.channel.channelId
         val subscribersTopic = "channels.$channelId.subscribers"
         val creatorTopic = "channels.$channelId.uploads"
-        val data = mapOf(
+        val videoWithChannelDto = mapOf(
             "channel_title" to videoWithChannel.channel.title,
             "video_title" to videoWithChannel.video.title,
             "video_id" to videoWithChannel.video.videoId.toString()
@@ -473,7 +471,7 @@ class VideoServiceWithDB @Autowired constructor(
         val message = { topic: String ->
             Message.builder()
                 .setTopic(topic)
-                .putAllData(data)
+                .putAllData(videoWithChannelDto)
                 .build()!!
         }
         fcm.send(message(subscribersTopic))
@@ -485,12 +483,12 @@ class VideoServiceWithDB @Autowired constructor(
         errors: Map<String, Error>
     ) {
         val topic = "channels.$channelId.uploads"
-        val errors = errors
+        val errorsDto = errors
             .map { "${it.key}Error".camelToSnakeCase() to it.value.toString() }
             .toMap()
         val message = Message.builder()
             .setTopic(topic)
-            .putAllData(errors)
+            .putAllData(errorsDto)
             .build()
         fcm.send(message)
     }

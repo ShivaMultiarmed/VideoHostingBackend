@@ -1,4 +1,4 @@
-package mikhail.shell.video.hosting.controllers.advices
+package mikhail.shell.video.hosting.advices
 
 import mikhail.shell.video.hosting.errors.*
 import org.springframework.http.HttpStatus
@@ -8,6 +8,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.method.annotation.HandlerMethodValidationException
+import org.springframework.web.servlet.resource.NoResourceFoundException
 
 @RestControllerAdvice
 class MainControllerAdvice {
@@ -85,6 +86,11 @@ class MainControllerAdvice {
                     }
                 }
             )
+    }
+
+    @ExceptionHandler(NoResourceFoundException::class)
+    fun handleNotFoundResource(e: NoResourceFoundException): ResponseEntity<Unit> {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).build()
     }
 
     @ExceptionHandler(Exception::class)

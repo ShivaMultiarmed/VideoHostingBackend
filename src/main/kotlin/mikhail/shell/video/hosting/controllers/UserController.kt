@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.Pattern
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ValidationRules.TEL_REGEX
+import mikhail.shell.video.hosting.dto.EditingActionDto
 import mikhail.shell.video.hosting.dto.UserDto
 import mikhail.shell.video.hosting.dto.toDto
 import mikhail.shell.video.hosting.errors.FileError
@@ -65,7 +66,7 @@ class UserController @Autowired constructor(
         @AuthenticationPrincipal userId: Long
     ): UserDto {
         val errors = mutableMapOf<String, FileError>()
-        if (EditAction.valueOf(user.avatarAction!!.uppercase()) == EditAction.EDIT && avatar == null) {
+        if (EditingActionDto.valueOf(user.avatarAction!!.uppercase()) == EditingActionDto.EDIT && avatar == null) {
             errors["avatar"] = FileError.EMPTY
         }
         if (errors.isNotEmpty()) {
@@ -79,10 +80,10 @@ class UserController @Autowired constructor(
                 bio = user.bio,
                 tel = user.tel,
                 email = user.email,
-                avatar = when (EditAction.valueOf(user.avatarAction.uppercase())) {
-                    EditAction.KEEP -> EditingAction.Keep
-                    EditAction.REMOVE -> EditingAction.Remove
-                    EditAction.EDIT -> EditingAction.Edit(avatar!!.toUploadedFile())
+                avatar = when (EditingActionDto.valueOf(user.avatarAction.uppercase())) {
+                    EditingActionDto.KEEP -> EditingAction.Keep
+                    EditingActionDto.REMOVE -> EditingAction.Remove
+                    EditingActionDto.EDIT -> EditingAction.Edit(avatar!!.toUploadedFile())
                 }
             )
         ).toDto()
@@ -144,6 +145,6 @@ data class UserEditingRequest(
     val tel: String?,
     @field:Email(message = "PATTERN")
     val email: String?,
-    @field:ValidEnum(enumClass = EditAction::class)
+    @field:ValidEnum(enumClass = EditingActionDto::class)
     val avatarAction: String?
 )

@@ -4,6 +4,7 @@ import jakarta.validation.Valid
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.dto.ChannelDto
 import mikhail.shell.video.hosting.dto.ChannelWithUserDto
+import mikhail.shell.video.hosting.dto.EditingActionDto
 import mikhail.shell.video.hosting.dto.toDto
 import mikhail.shell.video.hosting.errors.FileError
 import mikhail.shell.video.hosting.errors.ValidationException
@@ -88,10 +89,10 @@ class ChannelController @Autowired constructor(
         @AuthenticationPrincipal userId: Long
     ): ChannelDto {
         val errors = mutableMapOf<String, FileError>()
-        if (EditAction.valueOf(channel.logoAction!!.uppercase()) == EditAction.EDIT && logo == null) {
+        if (EditingActionDto.valueOf(channel.logoAction!!.uppercase()) == EditingActionDto.EDIT && logo == null) {
             errors["logo"] = FileError.EMPTY
         }
-        if (EditAction.valueOf(channel.headerAction!!.uppercase()) == EditAction.EDIT && header == null) {
+        if (EditingActionDto.valueOf(channel.headerAction!!.uppercase()) == EditingActionDto.EDIT && header == null) {
             errors["header"] = FileError.EMPTY
         }
         if (errors.isNotEmpty()) {
@@ -104,15 +105,15 @@ class ChannelController @Autowired constructor(
                 title = channel.title!!,
                 alias = channel.alias,
                 description = channel.description,
-                header = when (EditAction.valueOf(channel.headerAction.uppercase())) {
-                    EditAction.KEEP -> EditingAction.Keep
-                    EditAction.REMOVE -> EditingAction.Remove
-                    EditAction.EDIT -> EditingAction.Edit(header!!.toUploadedFile())
+                header = when (EditingActionDto.valueOf(channel.headerAction.uppercase())) {
+                    EditingActionDto.KEEP -> EditingAction.Keep
+                    EditingActionDto.REMOVE -> EditingAction.Remove
+                    EditingActionDto.EDIT -> EditingAction.Edit(header!!.toUploadedFile())
                 },
-                logo = when (EditAction.valueOf(channel.logoAction.uppercase())) {
-                    EditAction.KEEP -> EditingAction.Keep
-                    EditAction.REMOVE -> EditingAction.Remove
-                    EditAction.EDIT -> EditingAction.Edit(logo!!.toUploadedFile())
+                logo = when (EditingActionDto.valueOf(channel.logoAction.uppercase())) {
+                    EditingActionDto.KEEP -> EditingAction.Keep
+                    EditingActionDto.REMOVE -> EditingAction.Remove
+                    EditingActionDto.EDIT -> EditingAction.Edit(logo!!.toUploadedFile())
                 }
             )
         ).toDto()
@@ -212,8 +213,8 @@ data class ChannelEditingRequest(
     val alias: String?,
     @field:Description
     val description: String?,
-    @field:ValidEnum(EditAction::class)
+    @field:ValidEnum(EditingActionDto::class)
     val headerAction: String?,
-    @field:ValidEnum(EditAction::class)
+    @field:ValidEnum(EditingActionDto::class)
     val logoAction: String?
 )

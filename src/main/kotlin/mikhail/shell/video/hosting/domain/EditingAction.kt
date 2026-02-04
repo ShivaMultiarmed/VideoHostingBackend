@@ -1,9 +1,5 @@
 package mikhail.shell.video.hosting.domain
 
-enum class EditAction {
-    KEEP, REMOVE, EDIT
-}
-
 sealed class EditingAction<out I> {
     data object Keep : EditingAction<Nothing>()
     data object Remove : EditingAction<Nothing>()

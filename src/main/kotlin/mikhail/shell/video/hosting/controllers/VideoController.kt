@@ -152,7 +152,7 @@ class VideoController @Autowired constructor(
     @GetMapping("/search")
     fun search(
         @RequestParam("query") @Title query: String?,
-        @RequestParam("cursor") @LongIdNullable cursor: Long?,
+        @RequestParam("cursor") @LongIdNullable cursor: Long? = null,
         @RequestParam("part_size") @PartSize partSize: Int = 10
     ): List<VideoWithChannelDto> {
         return videoService.getByQuery(
@@ -253,7 +253,7 @@ class VideoController @Autowired constructor(
         @AuthenticationPrincipal userId: Long
     ): VideoDto {
         val errors = mutableMapOf<String, FileError>()
-        if (EditAction.valueOf(video.coverAction!!.uppercase()) == EditAction.EDIT && cover == null) {
+        if (EditingActionDto.valueOf(video.coverAction!!.uppercase()) == EditingActionDto.EDIT && cover == null) {
             errors["cover"] = FileError.EMPTY
         }
         if (errors.isNotEmpty()) {
@@ -265,10 +265,10 @@ class VideoController @Autowired constructor(
                 videoId = video.videoId!!,
                 title = video.title!!,
                 description = video.description,
-                cover = when (EditAction.valueOf(video.coverAction.uppercase())) {
-                    EditAction.KEEP -> EditingAction.Keep
-                    EditAction.REMOVE -> EditingAction.Remove
-                    EditAction.EDIT -> EditingAction.Edit(cover!!.toUploadedFile())
+                cover = when (EditingActionDto.valueOf(video.coverAction.uppercase())) {
+                    EditingActionDto.KEEP -> EditingAction.Keep
+                    EditingActionDto.REMOVE -> EditingAction.Remove
+                    EditingActionDto.EDIT -> EditingAction.Edit(cover!!.toUploadedFile())
                 }
             )
         ).toDto()
@@ -333,7 +333,7 @@ data class VideoEditingRequest(
     val videoId: Long?,
     @field:Title
     val title: String?,
-    @field:ValidEnum(EditAction::class)
+    @field:ValidEnum(EditingActionDto::class)
     val coverAction: String?,
     @field:Description
     val description: String?
