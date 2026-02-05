@@ -12,6 +12,7 @@ import com.google.firebase.messaging.Message
 import jakarta.transaction.Transactional
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
@@ -35,6 +36,7 @@ import org.springframework.data.elasticsearch.client.elc.NativeQuery
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations
 import org.springframework.data.elasticsearch.core.search
 import org.springframework.stereotype.Service
+import java.awt.image.BufferedImage
 import java.io.File
 import java.io.InputStream
 import java.nio.file.Path
@@ -239,8 +241,7 @@ class VideoServiceWithDB @Autowired constructor(
             val ext = it.name.parseExtension()
             val coverPath = tmpPath.resolve("cover.$ext")
             runBlocking(Dispatchers.IO) {
-                uploadImage(
-                    uploadedFile = it,
+                it.content.inputStream().uploadFile(
                     targetFile = coverPath
                 )
                 imageValidator.validate(coverPath.toFile()).onFailure { error ->
@@ -286,12 +287,13 @@ class VideoServiceWithDB @Autowired constructor(
         }
         val path = Path(appPaths.TEMP_PATH, tmpId.toString()).createDirectories()
         val sourcePath = path.resolve("source").createDirectories()
-        writeToFile(
-            inputStream = source,
-            path = sourcePath
-                .resolve("$start-$end.tmp")
-                .createFile()
-        )
+        runBlocking {
+            source.uploadFile(
+                targetFile = sourcePath
+                    .resolve("$start-$end.tmp")
+                    .createFile()
+            )
+        }
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -338,10 +340,12 @@ class VideoServiceWithDB @Autowired constructor(
                 )
             }
             val coversJob = findFileByName(tmpPath, "cover")?.let {
+                val cover = it.inputStream().toImage() ?: return@let null
+                val coverDirectoryPath = videoPath.resolve("cover")
                 launch {
-                    moveVideoCovers(
-                        original = it.toPath(),
-                        videoPath = videoPath
+                    cover.moveVideoCovers(
+                        tmpCoverPath = it.toPath(),
+                        coverDirectoryPath = coverDirectoryPath
                     )
                 }
             }
@@ -422,35 +426,31 @@ class VideoServiceWithDB @Autowired constructor(
             .toList()
     }
 
-    private suspend fun moveVideoCovers(
-        original: Path,
-        videoPath: Path
-    ) = coroutineScope {
-        val coverPath = videoPath.resolve("cover").createDirectories()
+    private suspend fun BufferedImage.moveVideoCovers(
+        tmpCoverPath: Path,
+        coverDirectoryPath: Path
+    ): Job = coroutineScope {
         launch {
             uploadImage(
-                uploadedFile = original,
-                targetFile = coverPath.resolve("small.${original.extension}"),
-                width = 128,
-                height = 72,
+                targetFile = coverDirectoryPath.resolve("small.${tmpCoverPath.extension}"),
+                targetWidth = 128,
+                targetHeight = 72,
                 compress = true
             )
         }
         launch {
             uploadImage(
-                uploadedFile = original,
-                targetFile = coverPath.resolve("medium.${original.extension}"),
-                width = 320,
-                height = 180,
+                targetFile = coverDirectoryPath.resolve("medium.${tmpCoverPath.extension}"),
+                targetWidth = 320,
+                targetHeight = 180,
                 compress = true
             )
         }
         launch {
             uploadImage(
-                uploadedFile = original,
-                targetFile = coverPath.resolve("large.${original.extension}"),
-                width = 512,
-                height = 288,
+                targetFile = coverDirectoryPath.resolve("large.${tmpCoverPath.extension}"),
+                targetWidth = 512,
+                targetHeight = 288,
                 compress = true
             )
         }
@@ -500,12 +500,9 @@ class VideoServiceWithDB @Autowired constructor(
             }
     }
 
-    private fun writeToFile(
-        inputStream: InputStream,
-        path: Path
-    ) {
+    private fun InputStream.writeToFile(path: Path) {
         path.outputStream().use { outputStream ->
-            inputStream.copyTo(outputStream, BUFFER_SIZE)
+            copyTo(outputStream, BUFFER_SIZE)
         }
     }
 
@@ -561,8 +558,7 @@ class VideoServiceWithDB @Autowired constructor(
             val ext = video.cover.value.name.parseExtension()
             val tmpCoverPath = tmpPath.resolve("cover.$ext").createFile()
             runBlocking(Dispatchers.IO) {
-                uploadImage(
-                    uploadedFile = video.cover.value,
+                video.cover.value.content.inputStream().uploadFile(
                     targetFile = tmpCoverPath
                 )
                 imageValidator.validate(tmpCoverPath.toFile()).onFailure { error ->
@@ -595,9 +591,11 @@ class VideoServiceWithDB @Autowired constructor(
             }
             runBlocking {
                 findFileByName(tmpPath, "cover")?.let {
-                    moveVideoCovers(
-                        original = it.toPath(),
-                        videoPath = videoPath
+                    val cover = it.inputStream().toImage()?: return@let
+                    val coverDirectoryPath = videoPath.resolve("cover")
+                    cover.moveVideoCovers(
+                        tmpCoverPath = it.toPath(),
+                        coverDirectoryPath = coverDirectoryPath
                     )
                 }
             }

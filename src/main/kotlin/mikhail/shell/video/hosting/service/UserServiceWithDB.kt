@@ -17,7 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.io.FileSystemResource
 import org.springframework.core.io.Resource
 import org.springframework.stereotype.Service
-import java.io.File
+import java.awt.image.BufferedImage
 import java.nio.file.Path
 import java.util.UUID
 import javax.annotation.PreDestroy
@@ -55,10 +55,7 @@ class UserServiceWithDB @Autowired constructor(
             val ext = user.avatar.value.name.parseExtension()
             val tmpAvatarPath = tmpPath.resolve("avatar.$ext")
             runBlocking(Dispatchers.IO) {
-                uploadImage(
-                    uploadedFile = user.avatar.value,
-                    targetFile = tmpAvatarPath
-                )
+                user.avatar.value.content.inputStream().uploadFile(tmpAvatarPath)
                 imageValidator.validate(tmpAvatarPath.toFile()).onFailure { error ->
                     errors["avatar"] = error
                 }
@@ -84,46 +81,44 @@ class UserServiceWithDB @Autowired constructor(
             avatarPath.deleteRecursively()
         } else if (user.avatar is EditingAction.Edit) {
             val ext = user.avatar.value.name.parseExtension()
-            val tmpAvatar = tmpPath.resolve("avatar.$ext")
-            moveAvatars(
-                original = tmpAvatar,
-                userPath = userPath
+            val tmpAvatarPath = tmpPath.resolve("avatar.$ext")
+            val avatar = tmpAvatarPath.inputStream().toImage()
+            val avatarDirectoryPath = userPath.resolve("avatar").createDirectories()
+            avatar?.moveAvatars(
+                tmpAvatarPath = tmpAvatarPath,
+                avatarDirectoryPath = avatarDirectoryPath
             )
         }
         tmpPath.deleteRecursively()
         return editedUser
     }
 
-    private fun moveAvatars(
-        original: Path,
-        userPath: Path
+    private fun BufferedImage.moveAvatars(
+        tmpAvatarPath: Path,
+        avatarDirectoryPath: Path
     ) {
-        val avatarPath = userPath.resolve("avatar").createDirectories()
         runBlocking {
             launch {
                 uploadImage(
-                    uploadedFile = original,
-                    targetFile = avatarPath.resolve("small.${original.extension}"),
-                    width = 64,
-                    height = 64,
+                    targetFile = avatarDirectoryPath.resolve("small.${tmpAvatarPath.extension}"),
+                    targetWidth = 64,
+                    targetHeight = 64,
                     compress = true
                 )
             }
             launch {
                 uploadImage(
-                    uploadedFile = original,
-                    targetFile = avatarPath.resolve("medium.${original.extension}"),
-                    width = 192,
-                    height = 192,
+                    targetFile = avatarDirectoryPath.resolve("medium.${tmpAvatarPath.extension}"),
+                    targetWidth = 192,
+                    targetHeight = 192,
                     compress = true
                 )
             }
             launch {
                 uploadImage(
-                    uploadedFile = original,
-                    targetFile = avatarPath.resolve("large.${original.extension}"),
-                    width = 512,
-                    height = 512,
+                    targetFile = avatarDirectoryPath.resolve("large.${tmpAvatarPath.extension}"),
+                    targetWidth = 512,
+                    targetHeight = 512,
                     compress = true
                 )
             }

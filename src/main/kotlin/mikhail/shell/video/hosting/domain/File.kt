@@ -1,15 +1,13 @@
 package mikhail.shell.video.hosting.domain
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import net.coobird.thumbnailator.Thumbnails
 import net.coobird.thumbnailator.geometry.Positions
-import org.springframework.http.MediaTypeFactory
 import java.awt.image.BufferedImage
 import java.io.File
 import java.io.InputStream
 import java.nio.file.Path
 import kotlin.io.path.Path
+import kotlin.io.path.outputStream
 import kotlin.math.min
 
 data class UploadedFile(
@@ -56,71 +54,49 @@ fun String.parseFileName(): String {
     return substringBeforeLast(".")
 }
 
-suspend fun uploadImage(
-    uploadedFile: Path,
-    targetFile: Path,
-    width: Int = -1,
-    height: Int = -1,
-    compress: Boolean = false
-): Boolean {
-    return uploadedFile.toFile().inputStream().use {
-        uploadImage(
-            uploadedFile = it,
-            targetFile = targetFile,
-            width = width,
-            height = height,
-            compress = compress
-        )
+suspend fun InputStream.uploadFile(targetFile: Path): Boolean {
+    return try {
+        targetFile.outputStream().use(::copyTo)
+        true
+    } catch (e: Exception) {
+        e.printStackTrace()
+        false
     }
 }
 
-suspend fun uploadImage(
-    uploadedFile: UploadedFile,
+suspend fun BufferedImage.uploadImage(
     targetFile: Path,
-    width: Int = -1,
-    height: Int = -1,
-    compress: Boolean = false
-): Boolean {
-    return uploadedFile.content.inputStream().use {
-        uploadImage(
-            uploadedFile = it,
-            targetFile = targetFile,
-            width = width,
-            height = height,
-            compress = compress
-        )
-    }
-}
-
-internal suspend fun uploadImage(
-    uploadedFile: InputStream,
-    targetFile: Path,
-    width: Int = -1,
-    height: Int = -1,
+    targetWidth: Int = width,
+    targetHeight: Int = height,
     compress: Boolean = false
 ): Boolean {
     return try {
-        val inputImage = withContext(Dispatchers.IO) {
-            uploadedFile.toImage()!!
-        }
-        val outputImage = when {
-            width == -1 && height == -1 -> inputImage
-            else -> withContext(Dispatchers.Default) {
-                inputImage.crop(
-                    width = if (width > 0) width else inputImage.width,
-                    height = if (height > 0) height else inputImage.height
-                )
+        require(targetWidth > 0 && targetHeight > 0)
+        Thumbnails.of(this)
+            .let {
+                when {
+                    targetWidth == width && targetHeight == height -> it
+                    else -> {
+                        val (croppingWidth, croppingHeight) = evaluateCropDimensions(
+                            targetWidth,
+                            targetHeight
+                        )
+                        it.crop(
+                            targetWidth = targetWidth,
+                            targetHeight = targetHeight,
+                            cropWidth = croppingWidth,
+                            cropHeight = croppingHeight
+                        )
+                    }
+                }
             }
-        }
-        withContext(Dispatchers.IO) {
-            outputImage.save(
+            .save(
                 output = targetFile,
                 compressionCoefficient = when (compress) {
-                    true -> outputImage.compressionCoefficient
+                    true -> evaluateCompressionCoefficient(targetWidth, targetHeight)
                     false -> 1f
                 }
             )
-        }
         true
     } catch (e: Exception) {
         e.printStackTrace()
@@ -130,52 +106,59 @@ internal suspend fun uploadImage(
 
 fun InputStream.toImage(): BufferedImage? {
     return try {
-        Thumbnails.of(this)
-            .useExifOrientation(true)
-            .scale(1.0)
-            .asBufferedImage()
+        use { inputStream ->
+            Thumbnails.of(inputStream)
+                .useExifOrientation(true)
+                .scale(1.0)
+                .asBufferedImage()
+        }
     } catch (_: Exception) {
         null
     }
 }
 
-fun BufferedImage.crop(
-    width: Int = this.width,
-    height: Int = this.height
-): BufferedImage {
-    val actualRatio = this.width.toFloat() / this.height
-    val cropRatio = width.toFloat() / height
-    val cropWidth: Int
-    val cropHeight: Int
-    if (cropRatio > actualRatio) {
-        cropWidth = this.width
-        cropHeight = (cropWidth / cropRatio).toInt()
-    } else {
-        cropHeight = this.height
-        cropWidth = (cropHeight * cropRatio).toInt()
-    }
-    return Thumbnails.of(this)
-        .sourceRegion(Positions.CENTER, cropWidth, cropHeight)
-        .size(min(cropWidth, width), min(cropHeight, height))
-        .asBufferedImage()
+private fun Thumbnails.Builder<BufferedImage>.crop(
+    targetWidth: Int,
+    targetHeight: Int,
+    cropWidth: Int,
+    cropHeight: Int
+): Thumbnails.Builder<BufferedImage> {
+    return sourceRegion(Positions.CENTER, cropWidth, cropHeight)
+        .size(min(targetWidth, cropWidth), min(targetHeight, cropHeight))
 }
 
-fun BufferedImage.save(
+private fun Thumbnails.Builder<BufferedImage>.save(
     output: Path,
-    compressionCoefficient: Float = this.compressionCoefficient
+    compressionCoefficient: Float
 ) {
-    return Thumbnails.of(this)
-        .scale(1.0)
+    return scale(1.0)
         .outputQuality(compressionCoefficient)
         .toFile(output.toFile())
 }
 
-val BufferedImage.compressionCoefficient: Float
-    get() {
-        return when {
-            width > 1024 || height > 1024 -> 0.7f
-            width > 512 || height > 512 -> 0.8f
-            width > 128 || height > 128 -> 0.9f
-            else -> 1f
-        }
+private fun BufferedImage.evaluateCropDimensions(
+    targetWidth: Int,
+    targetHeight: Int
+): Pair<Int, Int> {
+    val actualRatio = width.toFloat() / height
+    val cropRatio = targetWidth.toFloat() / targetHeight
+    val cropWidth: Int
+    val cropHeight: Int
+    if (cropRatio > actualRatio) {
+        cropWidth = width
+        cropHeight = (cropWidth / cropRatio).toInt()
+    } else {
+        cropHeight = height
+        cropWidth = (cropHeight * cropRatio).toInt()
     }
+    return cropWidth to cropHeight
+}
+
+private fun evaluateCompressionCoefficient(width: Int, height: Int): Float {
+    return when {
+        width > 1024 || height > 1024 -> 0.7f
+        width > 512 || height > 512 -> 0.8f
+        width > 128 || height > 128 -> 0.9f
+        else -> 1f
+    }
+}
