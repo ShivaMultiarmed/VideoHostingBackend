@@ -58,8 +58,8 @@ class CommentController @Autowired constructor(
     fun get(
         request: HttpServletRequest,
         @PathVariable("video_id") @LongId videoId: Long,
-        @RequestParam("before") before: Instant,
-        @RequestParam("part_size") partSize: Int,
+        @RequestParam("before") before: Instant?,
+        @RequestParam("part_size") partSize: Int = 10
     ): List<CommentWithUserDto> {
         return commentService.get(
             videoId = videoId,

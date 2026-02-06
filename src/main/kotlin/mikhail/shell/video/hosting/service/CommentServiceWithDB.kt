@@ -1,5 +1,6 @@
 package mikhail.shell.video.hosting.service
 
+import kotlinx.datetime.Clock
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.entities.CommentEntity
 import mikhail.shell.video.hosting.entities.toDomain
@@ -44,10 +45,10 @@ class CommentServiceWithDB @Autowired constructor(
         commentRepository.delete(commentEntity)
     }
 
-    override fun get(videoId: Long, before: Instant, partSize: Int): List<CommentWithUser> {
+    override fun get(videoId: Long, before: Instant?, partSize: Int): List<CommentWithUser> {
         return commentWithUserRepository.findByVideoIdAndDateTimeBeforeOrderByDateTimeDesc(
             videoId = videoId,
-            before = before,
+            before = before?: Instant.now(),
             pageable = PageRequest.of(0, partSize)
         ).map { it.toDomain() }
     }

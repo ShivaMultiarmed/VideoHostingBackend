@@ -422,7 +422,7 @@ class VideoServiceWithDB @Autowired constructor(
                 likesWeight = recommendationWeights.likes,
                 dislikesWeight = recommendationWeights.dislikes,
                 pageable = PageRequest.of(partIndex.toInt(), partSize)
-            ).map { it.toDomain() }
+            ).content.map { it.toDomain() }
             .toList()
     }
 

@@ -4,7 +4,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.stereotype.Component
 
 @Component
-@ConfigurationProperties(prefix = "hosting.application.ranking.weights")
+@ConfigurationProperties(prefix = "video-hosting.application.ranking.weights")
 class RecommendationWeights {
     var dateTime = 0.0
     var subscribers = 0.0

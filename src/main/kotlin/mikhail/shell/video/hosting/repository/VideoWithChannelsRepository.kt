@@ -16,11 +16,12 @@ interface VideoWithChannelsRepository: JpaRepository<VideoWithChannelEntity, Lon
             SELECT v FROM VideoWithChannelEntity v
             LEFT OUTER JOIN Subscriber s ON v.channelId = s.id.channelId AND s.id.userId = :user_id 
             ORDER BY (
-            :date_time_weight * (CAST(FUNCTION('unix_timestamp', v.dateTime) AS Long) + 0.0) + 
-            :subscribers_weight * (v.channel.subscribers + 0.0) +  
-            :views_weight * (v.views + 0.0) + 
-            :likes_weight * (v.likes + 0.0) +  
-            :dislikes_weight * (v.dislikes + 0.0)) DESC
+            :date_time_weight * CAST(FUNCTION('unix_timestamp', v.dateTime) AS DOUBLE) + 
+            :subscribers_weight * CAST(v.channel.subscribers AS DOUBLE) +  
+            :views_weight * CAST(v.views AS DOUBLE) + 
+            :likes_weight * CAST(v.likes AS DOUBLE) +  
+            :dislikes_weight * CAST(v.dislikes AS DOUBLE) 
+            ) DESC
         """
     )
     fun findRecommendedVideos(

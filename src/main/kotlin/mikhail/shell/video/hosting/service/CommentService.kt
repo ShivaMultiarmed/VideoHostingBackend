@@ -8,7 +8,7 @@ import java.time.Instant
 
 interface CommentService {
     fun get(commentId: Long): Comment
-    fun get(videoId: Long, before: Instant, partSize: Int): List<CommentWithUser>
+    fun get(videoId: Long, before: Instant?, partSize: Int): List<CommentWithUser>
     fun remove(userId: Long, commentId: Long)
     fun removeAllByUserId(userId: Long): Boolean
     fun post(comment: CommentCreationModel): CommentWithUser
