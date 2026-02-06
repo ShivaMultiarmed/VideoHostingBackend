@@ -239,12 +239,12 @@ class VideoServiceWithDB @Autowired constructor(
         val tmpPath = Path(appPaths.TEMP_PATH, tmpId.toString()).createDirectory()
         video.cover?.let {
             val ext = it.name.parseExtension()
-            val coverPath = tmpPath.resolve("cover.$ext")
+            val tmpCoverPath = tmpPath.resolve("cover.$ext")
             runBlocking(Dispatchers.IO) {
                 it.content.inputStream().uploadFile(
-                    targetFile = coverPath
+                    targetFile = tmpCoverPath
                 )
-                imageValidator.validate(coverPath.toFile()).onFailure { error ->
+                imageValidator.validate(tmpCoverPath.toFile()).onFailure { error ->
                     errors["cover"] = error
                 }
             }
@@ -341,7 +341,7 @@ class VideoServiceWithDB @Autowired constructor(
             }
             val coversJob = findFileByName(tmpPath, "cover")?.let {
                 val cover = it.inputStream().toImage() ?: return@let null
-                val coverDirectoryPath = videoPath.resolve("cover")
+                val coverDirectoryPath = videoPath.resolve("cover").createDirectory()
                 launch {
                     cover.moveVideoCovers(
                         tmpCoverPath = it.toPath(),

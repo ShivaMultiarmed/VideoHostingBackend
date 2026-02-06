@@ -131,8 +131,7 @@ private fun Thumbnails.Builder<BufferedImage>.save(
     output: Path,
     compressionCoefficient: Float
 ) {
-    return scale(1.0)
-        .outputQuality(compressionCoefficient)
+    return outputQuality(compressionCoefficient)
         .toFile(output.toFile())
 }
 
