@@ -8,6 +8,7 @@ import mikhail.shell.video.hosting.domain.ValidationRules.TEL_REGEX
 import mikhail.shell.video.hosting.dto.EditingActionDto
 import mikhail.shell.video.hosting.dto.UserDto
 import mikhail.shell.video.hosting.dto.toDto
+import mikhail.shell.video.hosting.dto.toUploadedFile
 import mikhail.shell.video.hosting.errors.FileError
 import mikhail.shell.video.hosting.errors.ValidationException
 import mikhail.shell.video.hosting.service.AuthService
@@ -34,11 +35,11 @@ class UserController @Autowired constructor(
 
     @GetMapping("/existence")
     fun exists(
-        @RequestParam("purpose") @ValidEnum(NickCheckPurpose::class) purpose: String?,
+        @RequestParam("purpose") purpose: NickCheckPurpose,
         @RequestParam("nick") @Nick nick: String?,
         @AuthenticationPrincipal userId: Long?
     ): ResponseEntity<Unit> {
-        return when(NickCheckPurpose.valueOf(purpose!!.uppercase())) {
+        return when(purpose) {
             NickCheckPurpose.SIGN_UP -> {
                 if (!userService.existsByNick(nick = nick!!)) {
                     ResponseEntity.status(HttpStatus.OK).build()
@@ -66,7 +67,7 @@ class UserController @Autowired constructor(
         @AuthenticationPrincipal userId: Long
     ): UserDto {
         val errors = mutableMapOf<String, FileError>()
-        if (EditingActionDto.valueOf(user.avatarAction!!.uppercase()) == EditingActionDto.EDIT && avatar == null) {
+        if (user.avatarAction == EditingActionDto.EDIT && avatar == null) {
             errors["avatar"] = FileError.EMPTY
         }
         if (errors.isNotEmpty()) {
@@ -80,7 +81,7 @@ class UserController @Autowired constructor(
                 bio = user.bio,
                 tel = user.tel,
                 email = user.email,
-                avatar = when (EditingActionDto.valueOf(user.avatarAction.uppercase())) {
+                avatar = when (user.avatarAction) {
                     EditingActionDto.KEEP -> EditingAction.Keep
                     EditingActionDto.REMOVE -> EditingAction.Remove
                     EditingActionDto.EDIT -> EditingAction.Edit(avatar!!.toUploadedFile())
@@ -102,9 +103,9 @@ class UserController @Autowired constructor(
     @GetMapping("/{user_id}/avatar")
     fun getAvatar(
         @PathVariable("user_id") @LongId userId: Long,
-        @RequestParam("size") @ValidEnum(ImageSize::class) size: String?
+        @RequestParam("size") size: ImageSize
     ): ResponseEntity<Resource> {
-        val image = userService.getAvatar(userId, ImageSize.valueOf(size!!.uppercase()))
+        val image = userService.getAvatar(userId, size)
         return ResponseEntity.status(HttpStatus.OK)
             .contentType(MediaType.parseMediaType("image/${image.file.extension}"))
             .body(image)
@@ -145,6 +146,5 @@ data class UserEditingRequest(
     val tel: String?,
     @field:Email(message = "PATTERN")
     val email: String?,
-    @field:ValidEnum(enumClass = EditingActionDto::class)
-    val avatarAction: String?
+    val avatarAction: EditingActionDto = EditingActionDto.KEEP
 )

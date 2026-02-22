@@ -327,31 +327,6 @@ class NotBlankNullableValidator : ConstraintValidator<NotBlankNullable, String?>
     }
 }
 
-@Target(
-    AnnotationTarget.FIELD,
-    AnnotationTarget.VALUE_PARAMETER
-)
-@Retention(AnnotationRetention.RUNTIME)
-@Constraint(validatedBy = [EnumValidator::class])
-annotation class ValidEnum(
-    val enumClass: KClass<out Enum<*>>,
-    val message: String = "PATTERN",
-    val groups: Array<KClass<*>> = [],
-    val payload: Array<KClass<out Payload>> = []
-)
-
-class EnumValidator : ConstraintValidator<ValidEnum, String?> {
-    private lateinit var acceptedValues: Set<String>
-
-    override fun initialize(annotation: ValidEnum) {
-        acceptedValues = annotation.enumClass.java.enumConstants.map { it.name }.toSet()
-    }
-
-    override fun isValid(value: String?, context: ConstraintValidatorContext): Boolean {
-        return acceptedValues.contains(value?.uppercase())
-    }
-}
-
 @NotNull(message = "EMPTY")
 @Size(max = 4, message = "LONG")
 @Pattern(regexp = "^[A-Za-z0-9]{4}$", message = "PATTERN")

@@ -3,40 +3,22 @@ package mikhail.shell.video.hosting.config
 import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.*
+import com.fasterxml.jackson.databind.deser.ContextualDeserializer
+import com.fasterxml.jackson.databind.exc.InvalidFormatException
 import com.fasterxml.jackson.databind.module.SimpleModule
+import org.springframework.boot.convert.ApplicationConversionService
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry
+import org.springframework.core.convert.ConversionFailedException
+import org.springframework.core.convert.TypeDescriptor
+import org.springframework.core.convert.converter.Converter
+import org.springframework.core.convert.converter.ConverterFactory
+import org.springframework.format.FormatterRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 
 @Configuration
-class WebConfiguration {
-    @Bean
-    fun lowerSnakeEnumModule(): Module {
-        val module = SimpleModule()
-        module.addSerializer(
-            Enum::class.java, object : JsonSerializer<Enum<*>?>() {
-                override fun serialize(
-                    value: Enum<*>?,
-                    gen: JsonGenerator,
-                    serializers: SerializerProvider,
-                ) {
-                    val lowerSnake = value?.name?.lowercase()?: return gen.writeNull()
-                    gen.writeString(lowerSnake)
-                }
-            }
-        )
-        module.addDeserializer(
-            Enum::class.java, object : JsonDeserializer<Enum<*>?>() {
-                override fun deserialize(
-                    p: JsonParser?, ctxt: DeserializationContext?
-                ): Enum<*>? {
-                    val raw = p?.valueAsString ?: return null
-                    val enumClass = ctxt?.contextualType?.rawClass as? Class<out Enum<*>> ?: return null
-                    return java.lang.Enum.valueOf(enumClass, raw.uppercase())
-                }
-            }
-        )
-        return module
+class WebConfiguration : WebMvcConfigurer {
+    override fun addFormatters(registry: FormatterRegistry) {
+        ApplicationConversionService.configure(registry)
     }
 }

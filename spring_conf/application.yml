@@ -7,6 +7,8 @@ spring:
     request-parameter-naming-strategy: SNAKE_CASE
   jackson:
     property-naming-strategy: SNAKE_CASE
+    mapper:
+      accept-case-insensitive-enums: true
   servlet:
     multipart:
       max-file-size: 50MB

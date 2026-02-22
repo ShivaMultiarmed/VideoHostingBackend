@@ -355,10 +355,9 @@ class ChannelServiceWithDB @Autowired constructor(
             findFileByName(tmpPath, "header")?.let {
                 val header = it.inputStream().toImage()?: return@let
                 val tmpHeaderPath = tmpPath.resolve("header.${it.extension}")
-                val headerDirectoryPath = channelPath.resolve("header").createDirectories()
                 header.moveHeaders(
                     tmpHeaderPath = tmpHeaderPath,
-                    headerDirectoryPath = headerDirectoryPath
+                    headerDirectoryPath = headerPath
                 )
             }
         }

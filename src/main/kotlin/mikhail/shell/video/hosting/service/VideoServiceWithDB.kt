@@ -20,7 +20,7 @@ import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import mikhail.shell.video.hosting.controllers.VideoMetaData
-import mikhail.shell.video.hosting.advices.camelToSnakeCase
+import mikhail.shell.video.hosting.dto.camelToSnakeCase
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.elastic.documents.VideoDocument
 import mikhail.shell.video.hosting.elastic.documents.toDocument
@@ -587,15 +587,14 @@ class VideoServiceWithDB @Autowired constructor(
             if (coverPath.notExists()) {
                 coverPath.createDirectory()
             } else {
-                coverPath.listDirectoryEntries().forEach { it.deleteIfExists() }
+                coverPath.listDirectoryEntries().forEach { it.deleteExisting() }
             }
             runBlocking {
                 findFileByName(tmpPath, "cover")?.let {
                     val cover = it.inputStream().toImage()?: return@let
-                    val coverDirectoryPath = videoPath.resolve("cover")
                     cover.moveVideoCovers(
                         tmpCoverPath = it.toPath(),
-                        coverDirectoryPath = coverDirectoryPath
+                        coverDirectoryPath = coverPath
                     )
                 }
             }

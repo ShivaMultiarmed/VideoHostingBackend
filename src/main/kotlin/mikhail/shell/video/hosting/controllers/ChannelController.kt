@@ -6,6 +6,7 @@ import mikhail.shell.video.hosting.dto.ChannelDto
 import mikhail.shell.video.hosting.dto.ChannelWithUserDto
 import mikhail.shell.video.hosting.dto.EditingActionDto
 import mikhail.shell.video.hosting.dto.toDto
+import mikhail.shell.video.hosting.dto.toUploadedFile
 import mikhail.shell.video.hosting.errors.FileError
 import mikhail.shell.video.hosting.errors.ValidationException
 import mikhail.shell.video.hosting.service.ChannelService
@@ -43,9 +44,9 @@ class ChannelController @Autowired constructor(
     @GetMapping("/{channel_id}/header")
     fun getHeader(
         @PathVariable("channel_id") @LongId channelId: Long?,
-        @RequestParam("size") @ValidEnum(ImageSize::class) size: String?
+        @RequestParam("size") size: ImageSize
     ): ResponseEntity<Resource> {
-        val image = channelService.getHeader(channelId!!, ImageSize.valueOf(size!!.uppercase()))
+        val image = channelService.getHeader(channelId!!, size)
         return ResponseEntity.status(HttpStatus.OK)
             .contentType(MediaType.parseMediaType("image/${image.file.extension}"))
             .body(image)
@@ -54,9 +55,9 @@ class ChannelController @Autowired constructor(
     @GetMapping("/{channel_id}/logo")
     fun getLogo(
         @PathVariable("channel_id") @LongId channelId: Long?,
-        @RequestParam("size") @ValidEnum(ImageSize::class) size: String?
+        @RequestParam("size") size: ImageSize
     ): ResponseEntity<Resource> {
-        val image = channelService.getLogo(channelId!!, ImageSize.valueOf(size!!.uppercase()))
+        val image = channelService.getLogo(channelId!!, size)
         return ResponseEntity.status(HttpStatus.OK)
                 .contentType(MediaType.parseMediaType("image/${image.file.extension}"))
                 .body(image)
@@ -67,7 +68,7 @@ class ChannelController @Autowired constructor(
         @RequestPart("channel") @Valid channel: ChannelCreationRequest,
         @RequestPart("logo", required = false) @Image logo: MultipartFile?,
         @RequestPart("header", required = false) @Image header: MultipartFile?,
-        @AuthenticationPrincipal userId: Long,
+        @AuthenticationPrincipal userId: Long
     ): ChannelDto {
         return channelService.createChannel(
             channel = ChannelCreationModel(
@@ -89,10 +90,10 @@ class ChannelController @Autowired constructor(
         @AuthenticationPrincipal userId: Long
     ): ChannelDto {
         val errors = mutableMapOf<String, FileError>()
-        if (EditingActionDto.valueOf(channel.logoAction!!.uppercase()) == EditingActionDto.EDIT && logo == null) {
+        if (channel.logoAction == EditingActionDto.EDIT && logo == null) {
             errors["logo"] = FileError.EMPTY
         }
-        if (EditingActionDto.valueOf(channel.headerAction!!.uppercase()) == EditingActionDto.EDIT && header == null) {
+        if (channel.headerAction == EditingActionDto.EDIT && header == null) {
             errors["header"] = FileError.EMPTY
         }
         if (errors.isNotEmpty()) {
@@ -105,12 +106,12 @@ class ChannelController @Autowired constructor(
                 title = channel.title!!,
                 alias = channel.alias,
                 description = channel.description,
-                header = when (EditingActionDto.valueOf(channel.headerAction.uppercase())) {
+                header = when (channel.headerAction!!) {
                     EditingActionDto.KEEP -> EditingAction.Keep
                     EditingActionDto.REMOVE -> EditingAction.Remove
                     EditingActionDto.EDIT -> EditingAction.Edit(header!!.toUploadedFile())
                 },
-                logo = when (EditingActionDto.valueOf(channel.logoAction.uppercase())) {
+                logo = when (channel.logoAction!!) {
                     EditingActionDto.KEEP -> EditingAction.Keep
                     EditingActionDto.REMOVE -> EditingAction.Remove
                     EditingActionDto.EDIT -> EditingAction.Edit(logo!!.toUploadedFile())
@@ -148,14 +149,14 @@ class ChannelController @Autowired constructor(
     @PatchMapping("/{channel_id}/subscription")
     fun subscribe(
         @PathVariable("channel_id") @LongId channelId: Long?,
-        @RequestParam("subscription") @ValidEnum(Subscription::class) subscription: String?,
+        @RequestParam("subscription") subscription: Subscription,
         @RequestHeader("Messaging-Token") token: String?,
         @AuthenticationPrincipal userId: Long
     ): ChannelWithUserDto {
         return channelService.subscribe(
             subscriberId = userId,
             channelId = channelId!!,
-            subscription = Subscription.valueOf(subscription!!.uppercase()),
+            subscription = subscription,
             token = token
         ).toDto()
     }
@@ -213,8 +214,6 @@ data class ChannelEditingRequest(
     val alias: String?,
     @field:Description
     val description: String?,
-    @field:ValidEnum(EditingActionDto::class)
-    val headerAction: String?,
-    @field:ValidEnum(EditingActionDto::class)
-    val logoAction: String?
+    val headerAction: EditingActionDto? = EditingActionDto.KEEP,
+    val logoAction: EditingActionDto? = EditingActionDto.KEEP
 )

@@ -56,7 +56,6 @@ class CommentController @Autowired constructor(
 
     @GetMapping("/videos/{video_id}")
     fun get(
-        request: HttpServletRequest,
         @PathVariable("video_id") @LongId videoId: Long,
         @RequestParam("before") before: Instant?,
         @RequestParam("part_size") partSize: Int = 10

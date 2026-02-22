@@ -1,6 +1,5 @@
 package mikhail.shell.video.hosting.controllers
 
-import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
 import mikhail.shell.video.hosting.domain.AuthModel
 import mikhail.shell.video.hosting.domain.Code
@@ -9,7 +8,6 @@ import mikhail.shell.video.hosting.domain.Password
 import mikhail.shell.video.hosting.domain.UserCreatingModel
 import mikhail.shell.video.hosting.domain.UserName
 import mikhail.shell.video.hosting.domain.UserNameCheckPurpose
-import mikhail.shell.video.hosting.domain.ValidEnum
 import mikhail.shell.video.hosting.errors.UnauthenticatedException
 import mikhail.shell.video.hosting.security.JwtTokenUtil
 import mikhail.shell.video.hosting.service.AuthService
@@ -22,18 +20,18 @@ class AuthController(
     private val authService: AuthService
 ) {
 
-    @PostMapping("/signin/password")
+    @PostMapping("/sign-in/password")
     fun signInWithPassword(
         @RequestParam("user_name") @UserName userName: String,
         @RequestParam("password") @Password password: String
     ) = authService.signInWithPassword(userName = userName, password = password)
 
-    @PostMapping("/signup/password/request")
+    @PostMapping("/sign-up/password/request")
     fun requestSignUpWithPassword(@RequestParam("user_name") @UserName userName: String?) {
         authService.requestSignUpWithPassword(userName!!)
     }
 
-    @PostMapping("/signup/password/verification")
+    @PostMapping("/sign-up/password/verification")
     fun verifySignUpWithPassword(
         @RequestParam("user_name") @UserName userName: String?,
         @RequestParam("code") @Code code: String?
@@ -41,7 +39,7 @@ class AuthController(
         return authService.verifySignUpWithPassword(userName!!, code!!)
     }
 
-    @PostMapping("/signup/password/confirm")
+    @PostMapping("/sign-up/password/confirm")
     fun confirmSignUpWithPassword(
         @RequestHeader("Authorization") authorization: String,
         @RequestBody @Valid user: UserCreatingRequest
@@ -89,7 +87,7 @@ class AuthController(
         return authService.confirmPasswordReset(userId, password)
     }
 
-    @PostMapping("/signout")
+    @PostMapping("/sign-out")
     fun signOut(
         @RequestHeader("Authorization") authorization: String
     ) {
@@ -98,11 +96,11 @@ class AuthController(
 
     @GetMapping("/existence")
     fun existsByUserName(
-        @RequestParam("purpose") @ValidEnum(UserNameCheckPurpose::class) purpose: String?,
+        @RequestParam("purpose") purpose: UserNameCheckPurpose,
         @RequestParam("user_name") @UserName userName: String?
     ) {
         authService.existsByUserName(
-            purpose = UserNameCheckPurpose.valueOf(purpose!!.uppercase()),
+            purpose = purpose,
             userName = userName!!
         )
     }

@@ -14,8 +14,6 @@ class UnauthenticatedException: RuntimeException()
 
 class UniquenessViolationException: RuntimeException()
 
-class ExpiredException: RuntimeException()
-
 class ValidationException(val errors: Map<String, Error>): RuntimeException()
 
 class CompoundError<T: Error>(): Error {
@@ -82,11 +80,8 @@ enum class NumericError: Error {
     EMPTY,
     LOW,
     HIGH,
-    NOT_EXISTS
-}
-
-enum class OptionError: Error {
-    EMPTY
+    NOT_EXISTS,
+    NOT_VALID
 }
 
 enum class FileError: Error {

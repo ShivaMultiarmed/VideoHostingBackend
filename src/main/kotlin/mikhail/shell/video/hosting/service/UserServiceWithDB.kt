@@ -83,10 +83,14 @@ class UserServiceWithDB @Autowired constructor(
             val ext = user.avatar.value.name.parseExtension()
             val tmpAvatarPath = tmpPath.resolve("avatar.$ext")
             val avatar = tmpAvatarPath.inputStream().toImage()
-            val avatarDirectoryPath = userPath.resolve("avatar").createDirectories()
+            if (avatarPath.notExists()) {
+                avatarPath.createDirectory()
+            } else {
+                avatarPath.listDirectoryEntries().forEach { it.deleteExisting() }
+            }
             avatar?.moveAvatars(
                 tmpAvatarPath = tmpAvatarPath,
-                avatarDirectoryPath = avatarDirectoryPath
+                avatarDirectoryPath = avatarPath
             )
         }
         tmpPath.deleteRecursively()

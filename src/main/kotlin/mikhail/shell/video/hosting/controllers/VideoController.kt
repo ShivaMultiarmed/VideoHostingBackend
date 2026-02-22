@@ -7,6 +7,7 @@ import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ValidationRules.FILE_NAME_REGEX
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_VIDEO_SIZE
 import mikhail.shell.video.hosting.dto.*
+import mikhail.shell.video.hosting.errors.Error
 import mikhail.shell.video.hosting.errors.FileError
 import mikhail.shell.video.hosting.errors.ValidationException
 import mikhail.shell.video.hosting.service.ChannelService
@@ -53,13 +54,13 @@ class VideoController @Autowired constructor(
     @PatchMapping("/{video_id}/rate")
     fun rateVideo(
         @PathVariable("video_id") @LongId videoId: Long?,
-        @RequestParam("liking") @ValidEnum(Liking::class) liking: String?,
+        @RequestParam("liking") liking: Liking,
         @AuthenticationPrincipal userId: Long
     ): VideoWithUserDto {
         return videoService.rate(
             videoId = videoId!!,
             userId = userId,
-            liking = Liking.valueOf(liking!!.uppercase())
+            liking = liking
         ).toDto()
     }
 
@@ -141,9 +142,9 @@ class VideoController @Autowired constructor(
     @GetMapping("/{video_id}/cover")
     fun provideVideoCover(
         @PathVariable("video_id") @LongId videoId: Long?,
-        @RequestParam("size") @ValidEnum(ImageSize::class) size: String?
+        @RequestParam("size") size: ImageSize
     ): ResponseEntity<Resource> {
-        val image = videoService.getCover(videoId!!, ImageSize.valueOf(size!!.uppercase()))
+        val image = videoService.getCover(videoId!!, size)
         return ResponseEntity.status(HttpStatus.OK)
             .contentType(MediaType.parseMediaType("image/${image.file.extension}"))
             .body(image)
@@ -174,10 +175,13 @@ class VideoController @Autowired constructor(
         @RequestPart("cover") @Image cover: MultipartFile?,
         @AuthenticationPrincipal userId: Long
     ): ResponseEntity<*> {
+        val errors = mutableMapOf<String, Error>()
         if (source.size == 0L || source.size == null) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("source" to FileError.EMPTY))
+            errors["source"] = FileError.EMPTY
+            throw ValidationException(errors)
         } else if (source.size > MAX_VIDEO_SIZE) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("source" to FileError.LARGE))
+            errors["source"] = FileError.LARGE
+            throw ValidationException(errors)
         }
         // TODO: check video type here and after assembling
         //val detectedMimeType = MimetypesFileTypeMap.getDefaultFileTypeMap().getContentType(source.fileName)?: ""
@@ -186,7 +190,8 @@ class VideoController @Autowired constructor(
             || !source.fileName.matches(FILE_NAME_REGEX.toRegex())
             || !source.mimeType!!.startsWith("video")
             ) { // || detectedMimeType != source.mimeType) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("source" to FileError.NOT_SUPPORTED))
+            errors["source"] = FileError.NOT_SUPPORTED
+            throw ValidationException(errors)
         }
         return videoService.save(
             userId = userId,
@@ -253,7 +258,7 @@ class VideoController @Autowired constructor(
         @AuthenticationPrincipal userId: Long
     ): VideoDto {
         val errors = mutableMapOf<String, FileError>()
-        if (EditingActionDto.valueOf(video.coverAction!!.uppercase()) == EditingActionDto.EDIT && cover == null) {
+        if (video.coverAction == EditingActionDto.EDIT && cover == null) {
             errors["cover"] = FileError.EMPTY
         }
         if (errors.isNotEmpty()) {
@@ -265,7 +270,7 @@ class VideoController @Autowired constructor(
                 videoId = video.videoId!!,
                 title = video.title!!,
                 description = video.description,
-                cover = when (EditingActionDto.valueOf(video.coverAction.uppercase())) {
+                cover = when (video.coverAction) {
                     EditingActionDto.KEEP -> EditingAction.Keep
                     EditingActionDto.REMOVE -> EditingAction.Remove
                     EditingActionDto.EDIT -> EditingAction.Edit(cover!!.toUploadedFile())
@@ -333,8 +338,7 @@ data class VideoEditingRequest(
     val videoId: Long?,
     @field:Title
     val title: String?,
-    @field:ValidEnum(EditingActionDto::class)
-    val coverAction: String?,
+    val coverAction: EditingActionDto = EditingActionDto.KEEP,
     @field:Description
     val description: String?
 )
