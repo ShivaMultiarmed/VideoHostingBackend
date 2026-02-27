@@ -3,6 +3,7 @@ package mikhail.shell.video.hosting.repository
 import mikhail.shell.video.hosting.entities.VideoWithChannelEntity
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Slice
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
@@ -14,6 +15,7 @@ interface VideoWithChannelsRepository: JpaRepository<VideoWithChannelEntity, Lon
     @Query(
         value = """
             SELECT v FROM VideoWithChannelEntity v
+            JOIN FETCH v.channel 
             LEFT OUTER JOIN Subscriber s ON v.channelId = s.id.channelId AND s.id.userId = :user_id 
             ORDER BY (
             :date_time_weight * CAST(FUNCTION('unix_timestamp', v.dateTime) AS DOUBLE) + 
@@ -32,5 +34,5 @@ interface VideoWithChannelsRepository: JpaRepository<VideoWithChannelEntity, Lon
         @Param("likes_weight") likesWeight: Double,
         @Param("dislikes_weight") dislikesWeight: Double,
         pageable: Pageable
-    ): Page<VideoWithChannelEntity>
+    ): Slice<VideoWithChannelEntity>
 }

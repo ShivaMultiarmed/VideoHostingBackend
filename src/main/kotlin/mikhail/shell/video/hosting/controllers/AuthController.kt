@@ -27,7 +27,9 @@ class AuthController(
     ) = authService.signInWithPassword(userName = userName, password = password)
 
     @PostMapping("/sign-up/password/request")
-    fun requestSignUpWithPassword(@RequestParam("user_name") @UserName userName: String?) {
+    fun requestSignUpWithPassword(
+        @RequestParam("user_name") @UserName userName: String?
+    ) {
         authService.requestSignUpWithPassword(userName!!)
     }
 
@@ -48,18 +50,19 @@ class AuthController(
         if (!jwtTokenUtil.validateToken(token)) {
             throw UnauthenticatedException()
         }
-        val userName = jwtTokenUtil.extractSubject(token)?: throw UnauthenticatedException()
         return authService.confirmSignUpWithPassword(
             user = UserCreatingModel(
-                userName = userName,
                 password = user.password!!,
                 nick = user.nick!!
-            )
+            ),
+            token = token
         )
     }
 
     @PostMapping("/reset/password/request")
-    fun requestPasswordReset(@RequestParam("user_name") @UserName userName: String?): Long {
+    fun requestPasswordReset(
+        @RequestParam("user_name") @UserName userName: String?
+    ): Long {
         return authService.requestPasswordReset(userName!!)
     }
 
@@ -83,8 +86,7 @@ class AuthController(
         if (!jwtTokenUtil.validateToken(token)) {
             throw UnauthenticatedException()
         }
-        val userId = jwtTokenUtil.extractSubject(token)?.toLongOrNull()?: throw UnauthenticatedException()
-        return authService.confirmPasswordReset(userId, password)
+        return authService.confirmPasswordReset(token, password)
     }
 
     @PostMapping("/sign-out")

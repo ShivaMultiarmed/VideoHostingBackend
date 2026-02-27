@@ -1,7 +1,5 @@
 package mikhail.shell.video.hosting.controllers
 
-import jakarta.servlet.http.HttpServletRequest
-import jakarta.servlet.http.HttpServletResponse
 import jakarta.validation.Valid
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ValidationRules.FILE_NAME_REGEX
@@ -13,18 +11,21 @@ import mikhail.shell.video.hosting.errors.ValidationException
 import mikhail.shell.video.hosting.service.ChannelService
 import mikhail.shell.video.hosting.service.VideoService
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.core.io.FileSystemResource
 import org.springframework.core.io.Resource
+import org.springframework.core.io.support.ResourceRegion
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
+import org.springframework.http.MediaTypeFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 import java.io.InputStream
-import java.io.RandomAccessFile
 import java.util.*
 import kotlin.io.path.Path
+import kotlin.math.min
 
 @RestController
 @RequestMapping("/api/v2/videos")
@@ -65,65 +66,31 @@ class VideoController @Autowired constructor(
     }
 
     @GetMapping("/{video_id}/source")
-    fun playVideo(
+    fun provideVideoSource(
         @PathVariable("video_id") @LongId videoId: Long?,
-        request: HttpServletRequest,
-        response: HttpServletResponse
-    ): ResponseEntity<Any> {
-        val sourceDirectory = Path(appPaths.VIDEOS_BASE_PATH, videoId.toString(), "source")
-        val file = findFileByName(sourceDirectory, "original")
-        if (file == null || !videoService.checkExistence(videoId!!)) {
+        @RequestHeader headers: HttpHeaders
+    ): ResponseEntity<ResourceRegion> {
+        val path = Path(appPaths.VIDEOS_BASE_PATH, videoId.toString(), "source")
+        val file = findFileByName(path, "original")
+        if (!videoService.checkExistence(videoId!!) || file == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build()
         }
-        val rangeHeader = request.getHeader(HttpHeaders.RANGE)
-
-        if (rangeHeader == null) {
-            response.contentType = "video/${file.name.parseExtension()}"
-            response.setContentLengthLong(file.length())
-            file.inputStream().use {
-                it.copyTo(response.outputStream)
-            }
-            return ResponseEntity.ok().build()
-        }
-
-        val range = rangeHeader.replace("bytes=", "").split("-")
-        val start = range[0].toLong()
-        val end = if (range.size > 1 && range[1].isNotEmpty()) {
-            range[1].toLong()
+        val source = FileSystemResource(file)
+        val contentLength = source.contentLength()
+        val range = headers.range.firstOrNull()
+        val chunkSize = 10 * 1024 * 1024L
+        val region = if (range == null) {
+            ResourceRegion(source, 0, min(chunkSize, contentLength))
         } else {
-            file.length() - 1
+            val start = range.getRangeStart(contentLength)
+            val end = range.getRangeEnd(contentLength)
+            val rangeSize = end - start + 1
+            ResourceRegion(source, start, min(chunkSize, rangeSize))
         }
-
-        if (start > end || end >= file.length()) {
-            return ResponseEntity.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE)
-                .header(HttpHeaders.CONTENT_RANGE, "bytes */${file.length()}")
-                .build()
-        }
-
-        val contentLength = end - start + 1
-        response.status = HttpStatus.PARTIAL_CONTENT.value()
-        response.contentType = "video/${file.name.parseExtension()}"
-        response.setHeader(HttpHeaders.ACCEPT_RANGES, "bytes")
-        response.setHeader(HttpHeaders.CONTENT_RANGE, "bytes $start-$end/${file.length()}")
-        response.setContentLengthLong(contentLength)
-
-        RandomAccessFile(file, "r").use {
-            it.seek(start)
-            val buffer = ByteArray(1024 * 8)
-            var bytesRead: Int
-            var bytesLeft = contentLength
-            while (bytesLeft > 0) {
-                bytesRead = it.read(buffer, 0, minOf(buffer.size.toLong(), bytesLeft).toInt())
-                if (bytesRead == -1) {
-                    break
-                }
-                response.outputStream.write(buffer, 0, bytesRead)
-                response.outputStream.flush()
-                bytesLeft -= bytesRead
-            }
-        }
-
-        return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT).build()
+        return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT)
+            .contentType(MediaTypeFactory.getMediaType(source).orElse(MediaType.APPLICATION_OCTET_STREAM))
+            .header(HttpHeaders.ACCEPT_RANGES, "bytes")
+            .body(region)
     }
 
     @GetMapping("/channel/{channel_id}")
@@ -171,26 +138,23 @@ class VideoController @Autowired constructor(
     @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun upload(
         @RequestPart("video") @Valid video: VideoCreationRequest,
-        @RequestPart("source") source: VideoMetaData,
+        @RequestPart("source") source: VideoMetaDataDto,
         @RequestPart("cover") @Image cover: MultipartFile?,
         @AuthenticationPrincipal userId: Long
-    ): ResponseEntity<*> {
+    ): ResponseEntity<PendingVideoDto> {
         val errors = mutableMapOf<String, Error>()
         if (source.size == 0L || source.size == null) {
             errors["source"] = FileError.EMPTY
-            throw ValidationException(errors)
         } else if (source.size > MAX_VIDEO_SIZE) {
             errors["source"] = FileError.LARGE
-            throw ValidationException(errors)
-        }
-        // TODO: check video type here and after assembling
-        //val detectedMimeType = MimetypesFileTypeMap.getDefaultFileTypeMap().getContentType(source.fileName)?: ""
-        if (
+        } else if (
             source.fileName == null
             || !source.fileName.matches(FILE_NAME_REGEX.toRegex())
             || !source.mimeType!!.startsWith("video")
-            ) { // || detectedMimeType != source.mimeType) {
+            ) {
             errors["source"] = FileError.NOT_SUPPORTED
+        }
+        if (errors.isNotEmpty()) {
             throw ValidationException(errors)
         }
         return videoService.save(
@@ -200,7 +164,7 @@ class VideoController @Autowired constructor(
                 title = video.title!!,
                 description = video.description,
                 cover = cover?.toUploadedFile(),
-                source = source
+                source = source.toDomain()
             )
         ).let {
             ResponseEntity.status(HttpStatus.OK).body(PendingVideoDto(tmpId = it.tmpId))
@@ -314,7 +278,7 @@ class VideoController @Autowired constructor(
     }
 
     private companion object {
-        const val BUFFER_SIZE = 1024 * 1024
+        const val BUFFER_SIZE = 10 * 1024 * 1024
     }
 }
 
@@ -327,10 +291,22 @@ data class VideoCreationRequest(
     val description: String?
 )
 
-data class VideoMetaData(
+data class VideoMetaDataDto(
     val fileName: String?,
     val mimeType: String?,
     val size: Long?
+)
+
+fun VideoMetaDataDto.toDomain() = VideoMetaData(
+    fileName = fileName,
+    mimeType = mimeType,
+    size = size
+)
+
+fun VideoMetaData.toDto() = VideoMetaDataDto(
+    fileName = fileName,
+    mimeType = mimeType,
+    size = size
 )
 
 data class VideoEditingRequest(

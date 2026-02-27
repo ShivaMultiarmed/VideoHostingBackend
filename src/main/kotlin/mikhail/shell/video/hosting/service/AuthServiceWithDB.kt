@@ -122,9 +122,16 @@ class AuthServiceWithDB(
         }
     }
 
-    override fun confirmSignUpWithPassword(user: UserCreatingModel): AuthModel {
+    override fun confirmSignUpWithPassword(
+        user: UserCreatingModel,
+        token: String
+    ): AuthModel {
+        if (invalidTokenRepository.existsById(token)) {
+            throw UnauthenticatedException()
+        }
+        val userName = jwtTokenUtil.extractSubject(token)?: throw UnauthenticatedException()
         val errors = mutableMapOf<String, Error>()
-        if (authDetailRepository.existsByUserNameAndId_Method(user.userName, AuthenticationMethod.EMAIL)) {
+        if (authDetailRepository.existsByUserNameAndId_Method(userName, AuthenticationMethod.EMAIL)) {
             errors["userName"] = TextError.EXISTS
         }
         if (userRepository.existsByNick(user.nick)) {
@@ -133,6 +140,7 @@ class AuthServiceWithDB(
         if (errors.isNotEmpty()) {
             throw ValidationException(errors)
         }
+        invalidTokenRepository.save(InvalidTokenEntity(token))
         val userId = userRepository.save(
             UserEntity(
                 nick = user.nick,
@@ -145,7 +153,7 @@ class AuthServiceWithDB(
         authDetailRepository.save(
             AuthDetailEntity(
                 id = AuthDetailEntityId(userId, AuthenticationMethod.EMAIL),
-                userName = user.userName
+                userName = userName
             )
         )
         passwordRepository.save(
@@ -217,9 +225,13 @@ class AuthServiceWithDB(
     }
 
     override fun confirmPasswordReset(
-        userId: Long,
+        token: String,
         password: String
     ): AuthModel {
+        if (invalidTokenRepository.existsById(token)) {
+            throw UnauthenticatedException()
+        }
+        val userId = jwtTokenUtil.extractSubject(token)?.toLongOrNull()?: throw UnauthenticatedException()
         val authEntity = authDetailRepository
             .findById(AuthDetailEntityId(userId, AuthenticationMethod.EMAIL))
             .orElseThrow {
@@ -229,12 +241,13 @@ class AuthServiceWithDB(
             }
         val passwordEntity = passwordRepository.findById(authEntity.id.userId).orElseThrow {
             ValidationException(
-                mapOf("userName" to NumericError.NOT_EXISTS)
+                mapOf("userId" to NumericError.NOT_EXISTS)
             )
         }.copy(password = passwordEncoder.encode(password))
+        invalidTokenRepository.save(InvalidTokenEntity(token))
         passwordRepository.save(passwordEntity)
-        val token = jwtTokenUtil.generateToken(userId.toString())
-        return AuthModel(token, authEntity.id.userId)
+        val authToken = jwtTokenUtil.generateToken(userId.toString())
+        return AuthModel(authToken, authEntity.id.userId)
     }
 
     override fun existsByUserName(

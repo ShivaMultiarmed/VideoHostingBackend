@@ -16,7 +16,10 @@ interface AuthService {
         code: String
     ): String
 
-    fun confirmSignUpWithPassword(user: UserCreatingModel): AuthModel
+    fun confirmSignUpWithPassword(
+        user: UserCreatingModel,
+        token: String
+    ): AuthModel
     fun requestPasswordReset(userName: String): Long
     fun verifyPasswordReset(
         userId: Long,
@@ -24,7 +27,7 @@ interface AuthService {
     ): String
 
     fun confirmPasswordReset(
-        userId: Long,
+        token: String,
         password: String
     ): AuthModel
 

@@ -19,14 +19,16 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import mikhail.shell.video.hosting.controllers.VideoMetaData
 import mikhail.shell.video.hosting.dto.camelToSnakeCase
 import mikhail.shell.video.hosting.domain.*
+import mikhail.shell.video.hosting.domain.ValidationRules.FILE_NAME_REGEX
+import mikhail.shell.video.hosting.domain.ValidationRules.MAX_VIDEO_SIZE
 import mikhail.shell.video.hosting.elastic.documents.VideoDocument
 import mikhail.shell.video.hosting.elastic.documents.toDocument
 import mikhail.shell.video.hosting.elastic.repository.VideoSearchRepository
 import mikhail.shell.video.hosting.entities.*
 import mikhail.shell.video.hosting.errors.*
+import mikhail.shell.video.hosting.os.Executable
 import mikhail.shell.video.hosting.repository.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.io.FileSystemResource
@@ -36,6 +38,7 @@ import org.springframework.data.elasticsearch.client.elc.NativeQuery
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations
 import org.springframework.data.elasticsearch.core.search
 import org.springframework.stereotype.Service
+import ws.schild.jave.process.ffmpeg.DefaultFFMPEGLocator
 import java.awt.image.BufferedImage
 import java.io.File
 import java.io.InputStream
@@ -60,7 +63,8 @@ class VideoServiceWithDB @Autowired constructor(
     private val fcm: FirebaseMessaging,
     private val appPaths: ApplicationPaths,
     private val imageValidator: FileValidator.ImageValidator,
-    private val videoValidator: FileValidator.VideoValidator
+    private val videoValidator: FileValidator.VideoValidator,
+    private val videoMetaDataExtractor: VideoMetaDataExtractor
 ) : VideoService {
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -260,7 +264,7 @@ class VideoServiceWithDB @Autowired constructor(
                 title = video.title,
                 description = video.description,
                 dateTime = Instant.now(),
-                fileName = video.source.fileName!!,
+                fileName = "source." + video.source.fileName!!.parseExtension(),
                 mimeType = video.source.mimeType!!,
                 size = video.source.size!!
             )
@@ -301,21 +305,36 @@ class VideoServiceWithDB @Autowired constructor(
         userId: Long,
         tmpId: UUID
     ) {
+        val errors = mutableMapOf<String, Error>()
         val pending = pendingVideosRepository.findById(tmpId).orElseThrow()
         if (!channelRepository.existsByOwnerIdAndChannelId(userId, pending.channelId)) {
             throw IllegalAccessException()
         }
         coroutineScope.launch {
-            val sourceMetaData = getSourceMetaData(pending.tmpId)
+            val pendingSourceMetaData = getSourceMetaData(pending.tmpId)
             val tmpPath = Path(appPaths.TEMP_PATH, tmpId.toString()).createDirectories()
             assembleVideoSource(
                 tmpPath = tmpPath,
-                metaData = sourceMetaData
+                metaData = pendingSourceMetaData
             )
             val tmpSource = findFileByName(tmpPath, "source")!!
-            val errors = mutableMapOf<String, Error>()
-            videoValidator.validate(tmpSource).onFailure { error ->
-                errors["source"] = error
+            val tmpSourceMetaData = videoMetaDataExtractor.extract(tmpSource)!!
+            if (tmpSourceMetaData.size == null || tmpSourceMetaData.size == 0L) {
+                errors["source"] = FileError.EMPTY
+            } else if (tmpSourceMetaData.size > MAX_VIDEO_SIZE) {
+                errors["source"] = FileError.LARGE
+            } else if (
+                tmpSourceMetaData.fileName == null
+                || !tmpSourceMetaData.fileName.matches(FILE_NAME_REGEX.toRegex())
+                || !tmpSourceMetaData.mimeType!!.startsWith("video")
+            ) {
+                errors["source"] = FileError.NOT_SUPPORTED
+            } else if (pendingSourceMetaData != tmpSourceMetaData) {
+                errors["source"] = FileError.NOT_VALID
+            } else {
+                videoValidator.validate(tmpSource).onFailure { error ->
+                    errors["source"] = error
+                }
             }
             if (errors.isNotEmpty()) {
                 pendingVideosRepository.delete(pending)
@@ -402,7 +421,39 @@ class VideoServiceWithDB @Autowired constructor(
         val extension = tmpSource.extension
         val sourcePath = videoPath.resolve("source").createDirectory()
         val source = sourcePath.resolve("original.$extension")
-        tmpSource.moveTo(source)
+        repairVideo(tmpSource.toFile(), source.toFile())
+    }
+
+    private fun repairVideo(
+        input: File,
+        output: File
+    ) {
+        try {
+            val exe = Executable(DefaultFFMPEGLocator().executablePath)
+            val fastCommand = arrayOf(
+                "-i", input.absolutePath,
+                "-c", "copy",
+                "-movflags", "faststart",
+                "-y",
+                output.absolutePath
+            )
+            var result = exe.execute(fastCommand)
+            if (result != 0) {
+                val fullScaleCommand = arrayOf(
+                    "-i", input.absolutePath,
+                    "-c:v", "libx264", "-preset", "ultrafast",
+                    "-c:a", "aac", "-movflags", "faststart",
+                    "-y", output.absolutePath
+                )
+                result = exe.execute(fullScaleCommand)
+            }
+            if (result != 0) {
+                throw RuntimeException()
+            }
+        } catch (e: Exception) {
+            input.toPath().moveTo(output.toPath())
+            e.printStackTrace()
+        }
     }
 
     override fun getRecommendations(
@@ -500,12 +551,6 @@ class VideoServiceWithDB @Autowired constructor(
             }
     }
 
-    private fun InputStream.writeToFile(path: Path) {
-        path.outputStream().use { outputStream ->
-            copyTo(outputStream, BUFFER_SIZE)
-        }
-    }
-
     @Transactional
     override fun incrementViews(videoId: Long): Video {
         val video = videoRepository.findById(videoId).orElseThrow()
@@ -591,7 +636,7 @@ class VideoServiceWithDB @Autowired constructor(
             }
             runBlocking {
                 findFileByName(tmpPath, "cover")?.let {
-                    val cover = it.inputStream().toImage()?: return@let
+                    val cover = it.inputStream().toImage() ?: return@let
                     cover.moveVideoCovers(
                         tmpCoverPath = it.toPath(),
                         coverDirectoryPath = coverPath
@@ -606,9 +651,5 @@ class VideoServiceWithDB @Autowired constructor(
     @PreDestroy
     fun preDestroy() {
         coroutineScope.cancel()
-    }
-
-    private companion object {
-        const val BUFFER_SIZE = 10 * 1024 * 1024
     }
 }

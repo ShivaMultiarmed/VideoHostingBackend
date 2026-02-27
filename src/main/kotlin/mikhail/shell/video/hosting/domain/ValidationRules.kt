@@ -20,6 +20,7 @@ import org.springframework.stereotype.Component
 import org.springframework.web.multipart.MultipartFile
 import ws.schild.jave.MultimediaObject
 import java.io.File
+import java.nio.file.Files
 import kotlin.reflect.KClass
 
 object ValidationRules {
@@ -413,5 +414,20 @@ class ImagingValidator : FileValidator.ImageValidator {
         } catch (_: Exception) {
             Result.Failure(FileError.NOT_VALID)
         }
+    }
+}
+
+interface VideoMetaDataExtractor {
+    fun extract(file: File): VideoMetaData?
+}
+
+@Component
+class StandardVideoMetaDataExtractor : VideoMetaDataExtractor {
+    override fun extract(file: File): VideoMetaData? {
+        return VideoMetaData(
+            fileName = file.name,
+            mimeType = Files.probeContentType(file.toPath()),
+            size = file.length()
+        )
     }
 }

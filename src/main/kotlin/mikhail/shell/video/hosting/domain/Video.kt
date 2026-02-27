@@ -1,6 +1,5 @@
 package mikhail.shell.video.hosting.domain
 
-import mikhail.shell.video.hosting.controllers.VideoMetaData
 import java.time.Instant
 import java.util.UUID
 
@@ -53,6 +52,12 @@ data class VideoCreationModel(
 data class PendingVideo(
     val tmpId: UUID,
     val channelId: Long
+)
+
+data class VideoMetaData(
+    val fileName: String?,
+    val mimeType: String?,
+    val size: Long?
 )
 
 data class VideoEditingModel(
