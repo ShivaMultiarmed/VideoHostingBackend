@@ -1,5 +1,5 @@
 server:
-  port: ${HOSTING_HTTP_PORT}
+  port: ${VIDEO_HOSTING_HTTP_PORT}
   address: 0.0.0.0
 
 spring:
@@ -52,7 +52,7 @@ video-hosting:
     host: ${HOST}
     base-url: ${BASE_URL}
   application:
-    path: ${HOSTING_APP_PATH}
+    path: ${VIDEO_HOSTING_APP_PATH}
     ranking:
       weights:
         date-time: 0.000005
@@ -65,4 +65,4 @@ video-hosting:
       verification:
         url: ${ANDROID_DOMAIN_VERIFICATION}
   storage:
-    path: ${HOSTING_STORAGE_PATH}
+    path: ${VIDEO_HOSTING_STORAGE_PATH}

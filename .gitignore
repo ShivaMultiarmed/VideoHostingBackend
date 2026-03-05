@@ -41,6 +41,7 @@ out/
 
 ### Docker Configuration ###
 .env
+docker-compose.override.yml
 
 ### Linux Launch Configuration ###
 launch.sh

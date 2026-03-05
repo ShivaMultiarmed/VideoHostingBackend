@@ -13,13 +13,12 @@ services:
       video_hosting_search:
         condition: service_healthy
     volumes:
-      - "${HOSTING_APP_LOCATION}/spring_conf:${HOSTING_CONFIG_PATH}"
-      - "video_hosting_app_volume:${HOSTING_STORAGE_PATH}"
+      - "${VIDEO_HOSTING_APP_LOCATION}/spring_conf:${VIDEO_HOSTING_CONFIG_PATH}"
+      - "video_hosting_app_volume:${VIDEO_HOSTING_STORAGE_PATH}"
     ports:
-      - "${HOSTING_HTTP_PORT}:${HOSTING_HTTP_PORT}"
-      - "127.0.0.1:${HOSTING_DEBUG_PORT}:${HOSTING_DEBUG_PORT}"
+      - "${VIDEO_HOSTING_HTTP_PORT}:${VIDEO_HOSTING_HTTP_PORT}"
     environment:
-      SPRING_CONFIG_LOCATION: "file:${HOSTING_CONFIG_PATH}/application.yml"
+      SPRING_CONFIG_LOCATION: "file:${VIDEO_HOSTING_CONFIG_PATH}/application.yml"
     networks:
       - video_hosting_network
     extra_hosts:
