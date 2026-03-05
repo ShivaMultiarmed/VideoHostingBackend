@@ -106,12 +106,12 @@ class ChannelController @Autowired constructor(
                 title = channel.title!!,
                 alias = channel.alias,
                 description = channel.description,
-                header = when (channel.headerAction!!) {
+                header = when (channel.headerAction) {
                     EditingActionDto.KEEP -> EditingAction.Keep
                     EditingActionDto.REMOVE -> EditingAction.Remove
                     EditingActionDto.EDIT -> EditingAction.Edit(header!!.toUploadedFile())
                 },
-                logo = when (channel.logoAction!!) {
+                logo = when (channel.logoAction) {
                     EditingActionDto.KEEP -> EditingAction.Keep
                     EditingActionDto.REMOVE -> EditingAction.Remove
                     EditingActionDto.EDIT -> EditingAction.Edit(logo!!.toUploadedFile())
@@ -214,6 +214,6 @@ data class ChannelEditingRequest(
     val alias: String?,
     @field:Description
     val description: String?,
-    val headerAction: EditingActionDto? = EditingActionDto.KEEP,
-    val logoAction: EditingActionDto? = EditingActionDto.KEEP
+    val headerAction: EditingActionDto = EditingActionDto.KEEP,
+    val logoAction: EditingActionDto = EditingActionDto.KEEP
 )

@@ -2,9 +2,12 @@ package mikhail.shell.video.hosting.service
 
 import com.google.firebase.messaging.FirebaseMessaging
 import jakarta.transaction.Transactional
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -27,6 +30,7 @@ import org.springframework.stereotype.Service
 import java.awt.image.BufferedImage
 import java.nio.file.Path
 import java.util.UUID
+import javax.annotation.PreDestroy
 import kotlin.io.path.*
 
 @Service
@@ -40,6 +44,8 @@ class ChannelServiceWithDB @Autowired constructor(
     private val appPaths: ApplicationPaths,
     private val imageValidator: FileValidator.ImageValidator
 ) : ChannelService {
+    private val coroutineScope = CoroutineScope(Dispatchers.IO)
+
     override fun get(channelId: Long): Channel {
         return channelRepository.findById(channelId).orElseThrow().toDomain()
     }
@@ -277,10 +283,12 @@ class ChannelServiceWithDB @Autowired constructor(
         )
         val topic = "channels.$channelId.subscribers"
         if (token != null) {
-            if (subscription == SUBSCRIBED) {
-                fcm.subscribeToTopic(listOf(token), topic)
-            } else {
-                fcm.unsubscribeFromTopic(listOf(token), topic)
+            coroutineScope.launch {
+                if (subscription == SUBSCRIBED) {
+                    fcm.subscribeToTopic(listOf(token), topic)
+                } else {
+                    fcm.unsubscribeFromTopic(listOf(token), topic)
+                }
             }
         }
         return savedChannel.toDomain() with subscription
@@ -428,6 +436,11 @@ class ChannelServiceWithDB @Autowired constructor(
 
     override fun existsById(channelId: Long): Boolean {
         return channelRepository.existsById(channelId)
+    }
+
+    @PreDestroy
+    fun preDestroy() {
+        coroutineScope.cancel()
     }
 
     private companion object {
