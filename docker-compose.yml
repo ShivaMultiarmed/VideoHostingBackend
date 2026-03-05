@@ -17,7 +17,7 @@ services:
       - "video_hosting_app_volume:${HOSTING_STORAGE_PATH}"
     ports:
       - "${HOSTING_HTTP_PORT}:${HOSTING_HTTP_PORT}"
-      - "${HOSTING_DEBUG_PORT}:${HOSTING_DEBUG_PORT}"
+      - "127.0.0.1:${HOSTING_DEBUG_PORT}:${HOSTING_DEBUG_PORT}"
     environment:
       SPRING_CONFIG_LOCATION: "file:${HOSTING_CONFIG_PATH}/application.yml"
     networks:

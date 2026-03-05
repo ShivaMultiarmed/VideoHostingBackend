@@ -1,13 +1,10 @@
 package mikhail.shell.video.hosting.security
 
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.security.SecureRandom
 
 @Component
-class CryptoUtils(
-    @Value("\${CRYPTO_KEY}") private val CRYPTO_KEY: String
-) {
+class CryptoUtils {
     private val random = SecureRandom()
     fun generateChar(): Char {
         val generateNumber = random.nextFloat() > (26 * 2).toFloat() / (10 + 26 * 2)
