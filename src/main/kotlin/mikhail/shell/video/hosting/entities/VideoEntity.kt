@@ -112,7 +112,8 @@ data class PendingVideoEntity(
 @Entity
 @Table(name = "video_likings")
 data class VideoLiking(
-    @EmbeddedId val id: VideoLikingId,
+    @EmbeddedId
+    val id: VideoLikingId,
     @Enumerated(value = EnumType.STRING)
     val liking: Liking
 )
