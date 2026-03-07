@@ -534,7 +534,7 @@ class VideoServiceWithDB @Autowired constructor(
     ) {
         val topic = "channels.$channelId.uploads"
         val errorsDto = errors
-            .map { "${it.key}Error".camelToSnakeCase() to it.value.toString() }
+            .map { "${it.key}Error".camelToSnakeCase() to it.value.toString().lowercase() }
             .toMap()
         val message = Message.builder()
             .setTopic(topic)
