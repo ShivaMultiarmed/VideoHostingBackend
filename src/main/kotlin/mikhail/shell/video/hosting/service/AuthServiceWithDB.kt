@@ -74,13 +74,13 @@ class AuthServiceWithDB(
             )
         }
         val code = cryptoUtils.generateString(4)
-        SimpleMailMessage().apply {
+        val mailMessage = SimpleMailMessage().apply {
+            from = noReplyEmail
             setTo(userName)
-            from = "trendy@no-reply.com"
             subject = "Signing up"
             text = "Code to proceed signing up: $code"
-            mailSender.send(this)
         }
+        mailSender.send(mailMessage)
         verificationRepository.save(
             VerificationEntity(
                 userName = userName,
@@ -129,7 +129,7 @@ class AuthServiceWithDB(
         if (invalidTokenRepository.existsById(token)) {
             throw UnauthenticatedException()
         }
-        val userName = jwtTokenUtil.extractSubject(token)?: throw UnauthenticatedException()
+        val userName = jwtTokenUtil.extractSubject(token) ?: throw UnauthenticatedException()
         val errors = mutableMapOf<String, Error>()
         if (authDetailRepository.existsByUserNameAndId_Method(userName, AuthenticationMethod.EMAIL)) {
             errors["userName"] = TextError.EXISTS
@@ -180,13 +180,13 @@ class AuthServiceWithDB(
             )
         }
         val resetCode = cryptoUtils.generateString(4)
-        SimpleMailMessage().apply {
+        val mailMessage = SimpleMailMessage().apply {
+            from = noReplyEmail
             setTo(userName)
-            from = "trendy@no-reply.com"
             subject = "Password recovery"
             text = "Your password recovery code: $resetCode"
-            mailSender.send(this)
         }
+        mailSender.send(mailMessage)
         verificationRepository.save(
             VerificationEntity(
                 userName = authEntity.id.userId.toString(),
@@ -231,7 +231,7 @@ class AuthServiceWithDB(
         if (invalidTokenRepository.existsById(token)) {
             throw UnauthenticatedException()
         }
-        val userId = jwtTokenUtil.extractSubject(token)?.toLongOrNull()?: throw UnauthenticatedException()
+        val userId = jwtTokenUtil.extractSubject(token)?.toLongOrNull() ?: throw UnauthenticatedException()
         val authEntity = authDetailRepository
             .findById(AuthDetailEntityId(userId, AuthenticationMethod.EMAIL))
             .orElseThrow {
@@ -261,11 +261,15 @@ class AuthServiceWithDB(
                     throw UniquenessViolationException()
                 }
             }
+
             UserNameCheckPurpose.SIGN_IN, UserNameCheckPurpose.RESET -> {
                 if (!exists) {
                     throw NoSuchElementException()
                 }
             }
         }
+    }
+    private companion object {
+        const val noReplyEmail = "no-reply@trendy-app.ru"
     }
 }

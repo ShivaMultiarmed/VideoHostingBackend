@@ -84,8 +84,10 @@ class VideoServiceWithDB @Autowired constructor(
         }
         val likingId = VideoLikingId(userId, videoId)
 
-        val liking = if (!userLikeVideoRepository.existsById(likingId)) Liking.NONE
-        else userLikeVideoRepository.findById(likingId).get().liking
+        val liking = when {
+            !userLikeVideoRepository.existsById(likingId) -> Liking.NONE
+            else -> userLikeVideoRepository.findById(likingId).get().liking
+        }
 
         return videoRepository.findById(videoId).get().toDomain() with liking
     }
