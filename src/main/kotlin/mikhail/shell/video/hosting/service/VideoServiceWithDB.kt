@@ -266,9 +266,9 @@ class VideoServiceWithDB @Autowired constructor(
                 title = video.title,
                 description = video.description,
                 dateTime = Instant.now(),
-                fileName = "source." + video.source.fileName!!.parseExtension(),
-                mimeType = video.source.mimeType!!,
-                size = video.source.size!!
+                fileName = "source." + video.source.fileName.parseExtension(),
+                mimeType = video.source.mimeType,
+                size = video.source.size
             )
         )
         return PendingVideo(
@@ -321,14 +321,13 @@ class VideoServiceWithDB @Autowired constructor(
             )
             val tmpSource = findFileByName(tmpPath, "source")!!
             val tmpSourceMetaData = videoMetaDataExtractor.extract(tmpSource)!!
-            if (tmpSourceMetaData.size == null || tmpSourceMetaData.size == 0L) {
+            if (tmpSourceMetaData.size == 0L) {
                 errors["source"] = FileError.EMPTY
             } else if (tmpSourceMetaData.size > MAX_VIDEO_SIZE) {
                 errors["source"] = FileError.LARGE
             } else if (
-                tmpSourceMetaData.fileName == null
-                || !tmpSourceMetaData.fileName.matches(FILE_NAME_REGEX.toRegex())
-                || !tmpSourceMetaData.mimeType!!.startsWith("video")
+                !tmpSourceMetaData.fileName.matches(FILE_NAME_REGEX.toRegex())
+                || !tmpSourceMetaData.mimeType.startsWith("video")
             ) {
                 errors["source"] = FileError.NOT_SUPPORTED
             } else if (pendingSourceMetaData.size != tmpSourceMetaData.size
@@ -394,7 +393,7 @@ class VideoServiceWithDB @Autowired constructor(
         metaData: VideoMetaData
     ) {
         val extension = metaData
-            .fileName!!
+            .fileName
             .parseExtension()
         val tmpSourceChunks = tmpPath
             .resolve("source")

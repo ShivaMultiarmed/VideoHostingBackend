@@ -150,7 +150,7 @@ class VideoController @Autowired constructor(
         } else if (
             source.fileName == null
             || !source.fileName.matches(FILE_NAME_REGEX.toRegex())
-            || !source.mimeType!!.startsWith("video")
+            || source.mimeType?.startsWith("video") != true
             ) {
             errors["source"] = FileError.NOT_SUPPORTED
         }
@@ -298,9 +298,9 @@ data class VideoMetaDataDto(
 )
 
 fun VideoMetaDataDto.toDomain() = VideoMetaData(
-    fileName = fileName,
-    mimeType = mimeType,
-    size = size
+    fileName = fileName!!,
+    mimeType = mimeType!!,
+    size = size!!
 )
 
 fun VideoMetaData.toDto() = VideoMetaDataDto(

@@ -57,9 +57,9 @@ data class PendingVideo(
 )
 
 data class VideoMetaData(
-    val fileName: String?,
-    val mimeType: String?,
-    val size: Long?
+    val fileName: String,
+    val mimeType: String,
+    val size: Long
 )
 
 data class VideoEditingModel(
