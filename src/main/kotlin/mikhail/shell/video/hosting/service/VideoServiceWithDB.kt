@@ -331,7 +331,8 @@ class VideoServiceWithDB @Autowired constructor(
                 || !tmpSourceMetaData.mimeType!!.startsWith("video")
             ) {
                 errors["source"] = FileError.NOT_SUPPORTED
-            } else if (pendingSourceMetaData != tmpSourceMetaData) {
+            } else if (pendingSourceMetaData.size != tmpSourceMetaData.size
+                || pendingSourceMetaData.fileName != tmpSourceMetaData.fileName) {
                 errors["source"] = FileError.NOT_VALID
             } else {
                 videoValidator.validate(tmpSource).onFailure { error ->
@@ -522,7 +523,7 @@ class VideoServiceWithDB @Autowired constructor(
             Message.builder()
                 .setTopic(topic)
                 .putAllData(videoWithChannelDto)
-                .build()!!
+                .build()
         }
         fcm.send(message(subscribersTopic))
         fcm.send(message(creatorTopic))

@@ -13,9 +13,9 @@ import mikhail.shell.video.hosting.domain.ValidationRules.MAX_TITLE_LENGTH
 import mikhail.shell.video.hosting.domain.ValidationRules.MAX_USERNAME_LENGTH
 import mikhail.shell.video.hosting.domain.ValidationRules.PASSWORD_REGEX
 import mikhail.shell.video.hosting.errors.FileError
-import mikhail.shell.video.hosting.errors.TextError
 import org.apache.commons.imaging.Imaging
-import org.hibernate.validator.constraints.UUID
+import org.springframework.http.MediaType
+import org.springframework.http.MediaTypeFactory
 import org.springframework.stereotype.Component
 import org.springframework.web.multipart.MultipartFile
 import ws.schild.jave.MultimediaObject
@@ -426,7 +426,9 @@ class StandardVideoMetaDataExtractor : VideoMetaDataExtractor {
     override fun extract(file: File): VideoMetaData? {
         return VideoMetaData(
             fileName = file.name,
-            mimeType = Files.probeContentType(file.toPath()),
+            mimeType = MediaTypeFactory.getMediaType(file.name)
+                .orElse(MediaType.valueOf("application/octet-stream"))
+                .toString(),
             size = file.length()
         )
     }
