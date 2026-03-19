@@ -44,7 +44,7 @@ class ChannelServiceWithDB @Autowired constructor(
     private val appPaths: ApplicationPaths,
     private val imageValidator: FileValidator.ImageValidator
 ) : ChannelService {
-    private val coroutineScope = CoroutineScope(Dispatchers.IO)
+    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     override fun get(channelId: Long): Channel {
         return channelRepository.findById(channelId).orElseThrow().toDomain()

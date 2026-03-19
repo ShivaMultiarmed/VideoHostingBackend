@@ -3,6 +3,9 @@ server:
   address: 0.0.0.0
 
 spring:
+  threads:
+    virtual:
+      enabled: true
   web:
     request-parameter-naming-strategy: SNAKE_CASE
   jackson:

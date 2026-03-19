@@ -1,6 +1,11 @@
 package mikhail.shell.video.hosting.service
 
 import jakarta.transaction.Transactional
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.toKotlinInstant
 import mikhail.shell.video.hosting.domain.ApplicationPaths
@@ -21,6 +26,7 @@ import org.springframework.mail.SimpleMailMessage
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import java.time.Instant
+import javax.annotation.PreDestroy
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectory
 
@@ -37,6 +43,7 @@ class AuthServiceWithDB(
     private val invalidTokenRepository: InvalidTokenRepository,
     private val applicationPaths: ApplicationPaths
 ) : AuthService {
+    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     override fun signInWithPassword(userName: String, password: String): AuthModel {
         val method = when {
@@ -80,13 +87,15 @@ class AuthServiceWithDB(
             subject = "Signing up"
             text = "Code to proceed signing up: $code"
         }
-        mailSender.send(mailMessage)
+        coroutineScope.launch {
+            mailSender.send(mailMessage)
+        }
         verificationRepository.save(
             VerificationEntity(
                 userName = userName,
                 purpose = VerificationCodePurpose.SIGN_UP,
                 issuedAt = Instant.now(),
-                code = passwordEncoder.encode(code)
+                code = passwordEncoder.encode(code)!!
             )
         )
     }
@@ -159,7 +168,7 @@ class AuthServiceWithDB(
         passwordRepository.save(
             PasswordEntity(
                 userId = userId,
-                password = passwordEncoder.encode(user.password)
+                password = passwordEncoder.encode(user.password)!!
             )
         )
         Path(applicationPaths.USERS_BASE_PATH, userId.toString()).createDirectory()
@@ -186,13 +195,15 @@ class AuthServiceWithDB(
             subject = "Password recovery"
             text = "Your password recovery code: $resetCode"
         }
-        mailSender.send(mailMessage)
+        coroutineScope.launch {
+            mailSender.send(mailMessage)
+        }
         verificationRepository.save(
             VerificationEntity(
                 userName = authEntity.id.userId.toString(),
                 issuedAt = Instant.now(),
                 purpose = VerificationCodePurpose.RESET,
-                code = passwordEncoder.encode(resetCode)
+                code = passwordEncoder.encode(resetCode)!!
             )
         )
         return authEntity.id.userId
@@ -243,7 +254,7 @@ class AuthServiceWithDB(
             ValidationException(
                 mapOf("userId" to NumericError.NOT_EXISTS)
             )
-        }.copy(password = passwordEncoder.encode(password))
+        }.copy(password = passwordEncoder.encode(password)!!)
         invalidTokenRepository.save(InvalidTokenEntity(token))
         passwordRepository.save(passwordEntity)
         val authToken = jwtTokenUtil.generateToken(userId.toString())
@@ -269,6 +280,12 @@ class AuthServiceWithDB(
             }
         }
     }
+
+    @PreDestroy
+    fun preDestroy() {
+        coroutineScope.cancel()
+    }
+
     private companion object {
         const val noReplyEmail = "no-reply@trendy-app.ru"
     }

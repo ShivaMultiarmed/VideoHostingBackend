@@ -1,10 +1,11 @@
 plugins {
-	kotlin("jvm") version "1.9.25"
-	kotlin("plugin.spring") version "1.9.25"
+    val kotlin = "2.3.20"
+	kotlin("jvm") version kotlin
+	kotlin("plugin.spring") version kotlin
 	id("application")
-	id("org.springframework.boot") version "3.4.0"
+	id("org.springframework.boot") version "4.0.3"
 	id("io.spring.dependency-management") version "1.1.6"
-	kotlin("plugin.jpa") version "1.9.25"
+	kotlin("plugin.jpa") version kotlin
 }
 
 application {
@@ -16,10 +17,10 @@ version = "2.0.0"
 
 java {
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(17)
+		languageVersion = JavaLanguageVersion.of(25)
 	}
-	sourceCompatibility = JavaVersion.VERSION_17
-	targetCompatibility = JavaVersion.VERSION_17
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
 }
 
 configurations {
@@ -41,7 +42,6 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-mail")
 	runtimeOnly("com.mysql:mysql-connector-j")
 	implementation("org.springframework.boot:spring-boot-starter-security")
-	implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
 	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation ("io.jsonwebtoken:jjwt:0.9.1")
 	implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
@@ -56,7 +56,7 @@ dependencies {
 	// JAXB Runtime
 	implementation ("org.glassfish.jaxb:jaxb-runtime:2.3.1")
 
-	implementation ("com.google.firebase:firebase-admin:9.4.3")
+	implementation ("com.google.firebase:firebase-admin:9.8.0")
 
 	implementation("net.coobird:thumbnailator:0.4.8")
 
@@ -75,9 +75,8 @@ dependencies {
 kotlin {
 	compilerOptions {
 		freeCompilerArgs.addAll("-Xjsr305=strict")
-        freeCompilerArgs
 	}
-	jvmToolchain(17)
+	jvmToolchain(25)
 }
 
 allOpen {

@@ -4,6 +4,7 @@ package mikhail.shell.video.hosting.service
 import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
@@ -34,7 +35,7 @@ class UserServiceWithDB @Autowired constructor(
     private val appPaths: ApplicationPaths,
     private val imageValidator: FileValidator.ImageValidator
 ) : UserService {
-    private val coroutineScope = CoroutineScope(Dispatchers.IO)
+    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     override fun get(userId: Long): User {
         return userRepository.findById(userId).orElseThrow().toDomain()

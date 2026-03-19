@@ -147,11 +147,9 @@ class VideoController @Autowired constructor(
             errors["source"] = FileError.EMPTY
         } else if (source.size > MAX_VIDEO_SIZE) {
             errors["source"] = FileError.LARGE
-        } else if (
-            source.fileName == null
-            || !source.fileName.matches(FILE_NAME_REGEX.toRegex())
-            || source.mimeType?.startsWith("video") != true
-            ) {
+        } else if (source.fileName?.matches(FILE_NAME_REGEX.toRegex()) != true) {
+            errors["source"] = FileError.NOT_VALID
+        } else if (source.mimeType?.startsWith("video") != true) {
             errors["source"] = FileError.NOT_SUPPORTED
         }
         if (errors.isNotEmpty()) {

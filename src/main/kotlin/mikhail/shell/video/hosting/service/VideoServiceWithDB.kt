@@ -3,6 +3,7 @@ package mikhail.shell.video.hosting.service
 import co.elastic.clients.elasticsearch._types.Script
 import co.elastic.clients.elasticsearch._types.ScriptSort
 import co.elastic.clients.elasticsearch._types.ScriptSortType
+import co.elastic.clients.elasticsearch._types.ScriptSource
 import co.elastic.clients.elasticsearch._types.SortOptions
 import co.elastic.clients.elasticsearch._types.SortOrder
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders
@@ -172,12 +173,14 @@ class VideoServiceWithDB @Autowired constructor(
         val sortingScript = Script.Builder()
             .lang("painless")
             .source(
-                """
+                ScriptSource.Builder().scriptString(
+                    """
                     return params.date_time * doc['date_time'].value.millis
                      + params.views * doc['views'].value 
                      + params.likes * doc['likes'].value 
                      + params.dislikes * doc['dislikes'].value;
                 """.trimIndent()
+                ).build()
             )
             .params(
                 mapOf(

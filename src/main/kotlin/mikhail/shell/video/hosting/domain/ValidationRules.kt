@@ -24,7 +24,7 @@ import java.nio.file.Files
 import kotlin.reflect.KClass
 
 object ValidationRules {
-    const val FILE_NAME_REGEX = "^\\S+\\.\\S+$"
+    const val FILE_NAME_REGEX = "^\\S{1,100}\\.\\S{1,10}$"
     const val CODE_LENGTH = 4
     const val MAX_TITLE_LENGTH = 100
     const val MAX_NAME_LENGTH = 50
@@ -106,6 +106,24 @@ class FileTypeValidator : ConstraintValidator<FileType, MultipartFile?> {
         return p0 == null || !p0.isEmpty && p0.contentType?.startsWith(mime) ?: false
                 && p0.originalFilename!!.length <= MAX_TITLE_LENGTH
                 && p0.originalFilename!!.matches(FILE_NAME_REGEX.toRegex())
+    }
+}
+
+@Target(
+    AnnotationTarget.VALUE_PARAMETER,
+    AnnotationTarget.ANNOTATION_CLASS
+)
+@Retention(AnnotationRetention.RUNTIME)
+@Constraint(validatedBy = [FileNameValidator::class])
+annotation class FileName(
+    val message: String = "NOT_VALID",
+    val groups: Array<KClass<*>> = [],
+    val payload: Array<KClass<out Payload>> = []
+)
+
+class FileNameValidator : ConstraintValidator<FileName, MultipartFile?> {
+    override fun isValid(p0: MultipartFile?, p1: ConstraintValidatorContext?): Boolean {
+        return p0 == null || p0.originalFilename!!.matches(FILE_NAME_REGEX.toRegex())
     }
 }
 
