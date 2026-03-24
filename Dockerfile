@@ -1,4 +1,4 @@
-FROM openjdk:17-jdk-slim AS base
+FROM openjdk:25-ea-jdk AS base
 WORKDIR /app
 COPY build/libs/video.hosting-2.0.0.jar app.jar
 

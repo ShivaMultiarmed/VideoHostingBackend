@@ -11,7 +11,6 @@ import mikhail.shell.video.hosting.errors.FileError
 import mikhail.shell.video.hosting.errors.ValidationException
 import mikhail.shell.video.hosting.service.ChannelService
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.core.io.Resource
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -25,9 +24,6 @@ import org.springframework.web.multipart.MultipartFile
 class ChannelController @Autowired constructor(
     private val channelService: ChannelService
 ) {
-    @Value("\${video-hosting.server.base-url}")
-    private lateinit var BASE_URL: String
-
     @GetMapping("/{channel_id}")
     fun get(@PathVariable("channel_id") @LongId channelId: Long?): ChannelDto {
         return channelService.getChannel(channelId!!).toDto()

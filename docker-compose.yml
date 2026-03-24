@@ -1,7 +1,6 @@
-version: '3.8'
-
 services:
   video_hosting_app:
+    hostname: video-hosting-app
     build:
       context: .
       dockerfile: Dockerfile
@@ -24,6 +23,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
   video_hosting_db:
+    hostname: video-hosting-db
     image: mysql:8.0
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
@@ -43,7 +43,8 @@ services:
       retries: 5
       start_period: 15s
   video_hosting_search:
-    image: elasticsearch:8.16.2
+    hostname: video-hosting-search
+    image: elasticsearch:9.3.1
     ports:
       - "${ELASTIC_PORT}:${ELASTIC_PORT}"
     volumes:
@@ -73,5 +74,5 @@ networks:
     ipam:
       driver: default
       config:
-        - subnet: "172.16.1.0/24"
+        - subnet: "172.16.1.0/28"
           gateway: "172.16.1.1"

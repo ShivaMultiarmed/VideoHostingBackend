@@ -10,7 +10,7 @@ import java.io.File
 @Controller
 @RequestMapping("/docs")
 class DocumentController {
-    @Value("\${video-hosting.android.domain.verification.url}")
+    @Value("\${video-hosting.android.domain-verification-path}")
     private lateinit var androidDomainVerificationFilePath: String
     @GetMapping("/privacy-policy")
     fun providePrivacyPolicy(): String {

@@ -3,7 +3,7 @@ plugins {
 	kotlin("jvm") version kotlin
 	kotlin("plugin.spring") version kotlin
 	id("application")
-	id("org.springframework.boot") version "4.0.3"
+	id("org.springframework.boot") version "4.0.4"
 	id("io.spring.dependency-management") version "1.1.6"
 	kotlin("plugin.jpa") version kotlin
 }
@@ -42,7 +42,7 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-mail")
 	runtimeOnly("com.mysql:mysql-connector-j")
 	implementation("org.springframework.boot:spring-boot-starter-security")
-	implementation("org.springframework.boot:spring-boot-starter-web")
+	implementation("org.springframework.boot:spring-boot-starter-webmvc")
 	implementation ("io.jsonwebtoken:jjwt:0.9.1")
 	implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
@@ -66,9 +66,8 @@ dependencies {
 
     implementation("org.apache.commons:commons-imaging:1.0.0-alpha6")
 
-    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
-    testImplementation("org.springframework.security:spring-security-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

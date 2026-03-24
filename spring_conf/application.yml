@@ -19,11 +19,11 @@ spring:
   datasource:
     username: ${MYSQL_USER}
     password: ${MYSQL_PASSWORD}
-    url: jdbc:mysql://video_hosting_db:${MYSQL_PORT}/${MYSQL_DATABASE}
+    url: jdbc:mysql://video-hosting-db:${MYSQL_PORT}/${MYSQL_DATABASE}
   jpa:
     show-sql: true
   elasticsearch:
-    uris: http://host.docker.internal:${ELASTIC_PORT}
+    uris: http://video-hosting-search:${ELASTIC_PORT}
     username: ${ELASTIC_USERNAME}
     password: ${ELASTIC_PASSWORD}
     connection-timeout: 5s
@@ -52,8 +52,6 @@ logging:
 
 video-hosting:
   server:
-    host: ${HOST}
-    base-url: ${BASE_URL}
   application:
     path: ${VIDEO_HOSTING_APP_PATH}
     ranking:
@@ -64,8 +62,6 @@ video-hosting:
         likes: 0.005
         dislikes: -0.005
   android:
-    domain:
-      verification:
-        url: ${ANDROID_DOMAIN_VERIFICATION}
+    domain-verification-path: ${ANDROID_DOMAIN_VERIFICATION}
   storage:
     path: ${VIDEO_HOSTING_STORAGE_PATH}

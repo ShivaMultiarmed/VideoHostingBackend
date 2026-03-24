@@ -36,6 +36,7 @@ class VideoController @Autowired constructor(
 ) {
     @GetMapping("/{video_id}")
     fun get(@PathVariable("video_id") @LongId videoId: Long?): VideoDto {
+        println(Thread.currentThread())
         return videoService.get(videoId!!).toDto()
     }
 

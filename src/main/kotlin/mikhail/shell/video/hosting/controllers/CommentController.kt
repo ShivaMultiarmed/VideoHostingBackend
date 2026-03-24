@@ -23,9 +23,6 @@ import java.time.Instant
 class CommentController @Autowired constructor(
     private val commentService: CommentService
 ) {
-    @Value("\${video-hosting.server.base-url}")
-    private lateinit var BASE_URL: String
-
     @PostMapping
     fun post(
         @Valid @RequestBody comment: CommentCreationRequest,
