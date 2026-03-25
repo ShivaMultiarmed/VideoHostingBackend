@@ -26,6 +26,7 @@ import kotlin.reflect.KClass
 object ValidationRules {
     const val FILE_NAME_REGEX = "^.{1,100}\\..{1,10}$"
     const val CODE_LENGTH = 4
+    const val CODE_REGEX = "^[A-Za-z0-9]{4}$"
     const val MAX_TITLE_LENGTH = 100
     const val MAX_NAME_LENGTH = 50
     const val MAX_TEXT_LENGTH = 255
@@ -346,8 +347,8 @@ class NotBlankNullableValidator : ConstraintValidator<NotBlankNullable, String?>
 }
 
 @NotNull(message = "EMPTY")
-@Size(max = 4, message = "LONG")
-@Pattern(regexp = "^[A-Za-z0-9]{4}$", message = "PATTERN")
+@Size(max = ValidationRules.CODE_LENGTH, message = "LONG")
+@Pattern(regexp = ValidationRules.CODE_REGEX, message = "PATTERN")
 @Constraint(validatedBy = [])
 @Target(
     AnnotationTarget.FIELD,

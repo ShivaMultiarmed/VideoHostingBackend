@@ -11,8 +11,6 @@ class HostingToken(
     init {
         isAuthenticated = principal != null
     }
-
     override fun getCredentials() = credentials
-
     override fun getPrincipal() = principal
 }
