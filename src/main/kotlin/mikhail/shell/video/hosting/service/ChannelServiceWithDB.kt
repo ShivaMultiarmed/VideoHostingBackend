@@ -2,16 +2,6 @@ package mikhail.shell.video.hosting.service
 
 import com.google.firebase.messaging.FirebaseMessaging
 import jakarta.transaction.Transactional
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.joinAll
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.supervisorScope
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.Subscription.NOT_SUBSCRIBED
 import mikhail.shell.video.hosting.domain.Subscription.SUBSCRIBED
@@ -30,6 +20,8 @@ import org.springframework.stereotype.Service
 import java.awt.image.BufferedImage
 import java.nio.file.Path
 import java.util.UUID
+import java.util.concurrent.Executors
+import java.util.concurrent.StructuredTaskScope
 import javax.annotation.PreDestroy
 import kotlin.io.path.*
 
@@ -44,7 +36,7 @@ class ChannelServiceWithDB @Autowired constructor(
     private val appPaths: ApplicationPaths,
     private val imageValidator: FileValidator.ImageValidator
 ) : ChannelService {
-    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val executorService = Executors.newVirtualThreadPerTaskExecutor()
 
     override fun get(channelId: Long): Channel {
         return channelRepository.findById(channelId).orElseThrow().toDomain()
@@ -80,31 +72,34 @@ class ChannelServiceWithDB @Autowired constructor(
         }
         val tmpId = UUID.randomUUID()
         val tmpPath = Path(appPaths.TEMP_PATH, tmpId.toString()).createDirectory()
-        runBlocking {
+        StructuredTaskScope.open(
+            StructuredTaskScope.Joiner.awaitAll<Result<Unit, FileError>>()
+        ).use { scope ->
             val headerJob = channel.header?.let {
                 val ext = it.name.parseExtension()
                 val tmpHeaderPath = tmpPath.resolve("header.$ext")
-                async(Dispatchers.IO) {
-                    it.content.inputStream().uploadFile(
-                        targetFile = tmpHeaderPath
-                    )
+                val runnable = Runnable {
+                    it.content.inputStream().uploadFile(targetFile = tmpHeaderPath)
                     imageValidator.validate(tmpHeaderPath.toFile())
                 }
+                scope.fork<Result<Unit, FileError>>(runnable)
             }
             val logoJob = channel.logo?.let {
                 val ext = it.name.parseExtension()
                 val tmpLogoPath = tmpPath.resolve("logo.$ext")
-                async(Dispatchers.IO) {
+                val runnable = Runnable {
                     it.content.inputStream().uploadFile(
                         targetFile = tmpLogoPath
                     )
                     imageValidator.validate(tmpLogoPath.toFile())
                 }
+                scope.fork<Result<Unit, FileError>>(runnable)
             }
-            headerJob?.await()?.onFailure { error ->
+            scope.join()
+            headerJob?.get()?.onFailure { error ->
                 errors["header"] = error
             }
-            logoJob?.await()?.onFailure { error ->
+            logoJob?.get()?.onFailure { error ->
                 errors["logo"] = error
             }
         }
@@ -122,7 +117,7 @@ class ChannelServiceWithDB @Autowired constructor(
         ).toDomain()
         val channelPath = Path(appPaths.CHANNELS_BASE_PATH, createdChannel.channelId.toString()).createDirectory()
         findFileByName(tmpPath, "header")?.let {
-            val header = it.inputStream().toImage()?: return@let
+            val header = it.inputStream().toImage() ?: return@let
             val tmpHeaderPath = tmpPath.resolve("header.${it.extension}")
             val headerDirectoryPath = channelPath.resolve("header").createDirectory()
             header.moveHeaders(
@@ -131,7 +126,7 @@ class ChannelServiceWithDB @Autowired constructor(
             )
         }
         findFileByName(tmpPath, "logo")?.let {
-            val logo = it.inputStream().toImage()?: return@let
+            val logo = it.inputStream().toImage() ?: return@let
             val tmpLogoPath = tmpPath.resolve("logo.${it.extension}")
             val logoDirectoryPath = channelPath.resolve("logo").createDirectory()
             logo.moveLogos(
@@ -146,66 +141,82 @@ class ChannelServiceWithDB @Autowired constructor(
     private fun BufferedImage.moveLogos(
         tmpLogoPath: Path,
         logoDirectoryPath: Path
-    ): Job {
+    ) {
         val ext = tmpLogoPath.extension
-        return runBlocking(Dispatchers.IO) {
-            launch {
-                uploadImage(
-                    targetFile = logoDirectoryPath.resolve("small.$ext"),
-                    targetWidth = 64,
-                    targetHeight = 64,
-                    compress = true
-                )
+        StructuredTaskScope.open(
+            StructuredTaskScope.Joiner.awaitAll<Boolean>()
+        ).use { scope ->
+            val runnables = setOf(
+                Runnable {
+                    uploadImage(
+                        targetFile = logoDirectoryPath.resolve("small.$ext"),
+                        targetWidth = 64,
+                        targetHeight = 64,
+                        compress = true
+                    )
+                },
+                Runnable {
+                    uploadImage(
+                        targetFile = logoDirectoryPath.resolve("medium.$ext"),
+                        targetWidth = 192,
+                        targetHeight = 192,
+                        compress = true
+                    )
+                },
+                Runnable {
+                    uploadImage(
+                        targetFile = logoDirectoryPath.resolve("large.$ext"),
+                        targetWidth = 512,
+                        targetHeight = 512,
+                        compress = true
+                    )
+                }
+            )
+            runnables.forEach { runnable ->
+                scope.fork<Boolean>(runnable)
             }
-            launch {
-                uploadImage(
-                    targetFile = logoDirectoryPath.resolve("medium.$ext"),
-                    targetWidth = 192,
-                    targetHeight = 192,
-                    compress = true
-                )
-            }
-            launch {
-                uploadImage(
-                    targetFile = logoDirectoryPath.resolve("large.$ext"),
-                    targetWidth = 512,
-                    targetHeight = 512,
-                    compress = true
-                )
-            }
+            scope.join()
         }
     }
 
     private fun BufferedImage.moveHeaders(
         tmpHeaderPath: Path,
         headerDirectoryPath: Path
-    ): Job {
+    ) {
         val ext = tmpHeaderPath.extension
-        return runBlocking(Dispatchers.IO) {
-            launch {
-                uploadImage(
-                    targetFile = headerDirectoryPath.resolve("small.$ext"),
-                    targetWidth = 600,
-                    targetHeight = 100,
-                    compress = true
-                )
+        StructuredTaskScope.open(
+            StructuredTaskScope.Joiner.awaitAll<Boolean>()
+        ).use { scope ->
+            val runnables = setOf(
+                Runnable {
+                    uploadImage(
+                        targetFile = headerDirectoryPath.resolve("small.$ext"),
+                        targetWidth = 600,
+                        targetHeight = 100,
+                        compress = true
+                    )
+                },
+                Runnable {
+                    uploadImage(
+                        targetFile = headerDirectoryPath.resolve("medium.$ext"),
+                        targetWidth = 1200,
+                        targetHeight = 200,
+                        compress = true
+                    )
+                },
+                Runnable {
+                    uploadImage(
+                        targetFile = headerDirectoryPath.resolve("large.$ext"),
+                        targetWidth = 2400,
+                        targetHeight = 400,
+                        compress = true
+                    )
+                }
+            )
+            runnables.forEach { runnable ->
+                scope.fork<Boolean>(runnable)
             }
-            launch {
-                uploadImage(
-                    targetFile = headerDirectoryPath.resolve("medium.$ext"),
-                    targetWidth = 1200,
-                    targetHeight = 200,
-                    compress = true
-                )
-            }
-            launch {
-                uploadImage(
-                    targetFile = headerDirectoryPath.resolve("large.$ext"),
-                    targetWidth = 2400,
-                    targetHeight = 400,
-                    compress = true
-                )
-            }
+            scope.join()
         }
     }
 
@@ -283,7 +294,7 @@ class ChannelServiceWithDB @Autowired constructor(
         )
         val topic = "channels.$channelId.subscribers"
         if (token != null) {
-            coroutineScope.launch {
+            executorService.execute {
                 if (subscription == SUBSCRIBED) {
                     fcm.subscribeToTopic(listOf(token), topic)
                 } else {
@@ -309,34 +320,33 @@ class ChannelServiceWithDB @Autowired constructor(
         }
         val tmpId = UUID.randomUUID()
         val tmpPath = Path(appPaths.TEMP_PATH, tmpId.toString()).createDirectory()
-        runBlocking {
-            supervisorScope {
-                val headerJob = if (channel.header is EditingAction.Edit) {
-                    val ext = channel.header.value.name.parseExtension()
-                    val tmpHeaderPath = tmpPath.resolve("header.$ext")
-                    async(Dispatchers.IO) {
-                        channel.header.value.content.inputStream().uploadFile(
-                            targetFile = tmpHeaderPath
-                        )
-                        imageValidator.validate(tmpHeaderPath.toFile())
-                    }
-                } else null
-                val logoJob = if (channel.logo is EditingAction.Edit) {
-                    val ext = channel.logo.value.name.parseExtension()
-                    val tmpLogoPath = tmpPath.resolve("logo.$ext")
-                    async(Dispatchers.IO) {
-                        channel.logo.value.content.inputStream().uploadFile(
-                            targetFile = tmpLogoPath
-                        )
-                        imageValidator.validate(tmpLogoPath.toFile())
-                    }
-                } else null
-                headerJob?.await()?.onFailure { error ->
-                    errors["header"] = error
+        StructuredTaskScope.open(
+            StructuredTaskScope.Joiner.awaitAll<Result<Unit, FileError>>()
+        ).use { scope ->
+            val headerJob = if (channel.header is EditingAction.Edit) {
+                val ext = channel.header.value.name.parseExtension()
+                val tmpHeaderPath = tmpPath.resolve("header.$ext")
+                val runnable = Runnable {
+                    channel.header.value.content.inputStream().uploadFile(targetFile = tmpHeaderPath)
+                    imageValidator.validate(tmpHeaderPath.toFile())
                 }
-                logoJob?.await()?.onFailure { error ->
-                    errors["logo"] = error
+                scope.fork<Result<Unit, FileError>>(runnable)
+            } else null
+            val logoJob = if (channel.logo is EditingAction.Edit) {
+                val ext = channel.logo.value.name.parseExtension()
+                val tmpLogoPath = tmpPath.resolve("logo.$ext")
+                val runnable = Runnable {
+                    channel.logo.value.content.inputStream().uploadFile(targetFile = tmpLogoPath)
+                    imageValidator.validate(tmpLogoPath.toFile())
                 }
+                scope.fork<Result<Unit, FileError>>(runnable)
+            } else null
+            scope.join()
+            headerJob?.get()?.onFailure { error ->
+                errors["header"] = error
+            }
+            logoJob?.get()?.onFailure { error ->
+                errors["logo"] = error
             }
         }
         if (errors.isNotEmpty()) {
@@ -361,7 +371,7 @@ class ChannelServiceWithDB @Autowired constructor(
                 headerPath.listDirectoryEntries().forEach { it.deleteIfExists() }
             }
             findFileByName(tmpPath, "header")?.let {
-                val header = it.inputStream().toImage()?: return@let
+                val header = it.inputStream().toImage() ?: return@let
                 val tmpHeaderPath = tmpPath.resolve("header.${it.extension}")
                 header.moveHeaders(
                     tmpHeaderPath = tmpHeaderPath,
@@ -379,7 +389,7 @@ class ChannelServiceWithDB @Autowired constructor(
                 logoPath.listDirectoryEntries().forEach { it.deleteIfExists() }
             }
             findFileByName(tmpPath, "logo")?.let {
-                val logo = it.inputStream().toImage()?: return@let
+                val logo = it.inputStream().toImage() ?: return@let
                 val tmpLogoPath = tmpPath.resolve("logo.${it.extension}")
                 val logoDirectoryPath = channelPath.resolve("logo").createDirectories()
                 logo.moveLogos(
@@ -401,12 +411,16 @@ class ChannelServiceWithDB @Autowired constructor(
         } else {
             val videoIds = videoRepository.findByChannelId(channelId).map { it.videoId!! }
             videoSearchRepository.deleteAllById(videoIds)
-            runBlocking {
-                videoIds.map {
-                    launch(Dispatchers.IO) {
+            StructuredTaskScope.open(
+                StructuredTaskScope.Joiner.awaitAll<Void>()
+            ).use { scope ->
+                videoIds.forEach {
+                    val runnable = Runnable {
                         Path(appPaths.VIDEOS_BASE_PATH, it.toString()).deleteRecursively()
                     }
-                }.joinAll()
+                    scope.fork<Void>(runnable)
+                }
+                scope.join()
             }
             channelRepository.deleteById(channelId)
             val channelPath = Path(appPaths.CHANNELS_BASE_PATH, channelId.toString())
@@ -440,7 +454,7 @@ class ChannelServiceWithDB @Autowired constructor(
 
     @PreDestroy
     fun preDestroy() {
-        coroutineScope.cancel()
+        executorService.close()
     }
 
     private companion object {

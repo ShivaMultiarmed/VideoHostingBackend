@@ -10,6 +10,7 @@ plugins {
 
 application {
 	mainClass = "mikhail.shell.video.hosting.ApplicationKt"
+    applicationDefaultJvmArgs
 }
 
 group = "mikhail.shell"
@@ -98,6 +99,7 @@ tasks.jar {
 	exclude("application.yml")
 	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
+
 tasks.bootJar {
 	exclude("application.yml")
 }

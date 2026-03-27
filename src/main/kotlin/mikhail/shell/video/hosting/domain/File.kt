@@ -54,7 +54,7 @@ fun String.parseFileName(): String {
     return substringBeforeLast(".")
 }
 
-suspend fun InputStream.uploadFile(targetFile: Path): Boolean {
+fun InputStream.uploadFile(targetFile: Path): Boolean {
     return try {
         targetFile.outputStream().use(::copyTo)
         true
@@ -64,7 +64,7 @@ suspend fun InputStream.uploadFile(targetFile: Path): Boolean {
     }
 }
 
-suspend fun BufferedImage.uploadImage(
+fun BufferedImage.uploadImage(
     targetFile: Path,
     targetWidth: Int = width,
     targetHeight: Int = height,

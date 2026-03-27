@@ -2,13 +2,6 @@ package mikhail.shell.video.hosting.service
 
 
 import com.google.firebase.messaging.FirebaseMessaging
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.joinAll
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.errors.Error
 import mikhail.shell.video.hosting.errors.TextError
@@ -21,8 +14,12 @@ import org.springframework.stereotype.Service
 import java.awt.image.BufferedImage
 import java.nio.file.Path
 import java.util.UUID
+import java.util.concurrent.Callable
+import java.util.concurrent.Executors
+import java.util.concurrent.StructuredTaskScope
 import javax.annotation.PreDestroy
 import kotlin.io.path.*
+import kotlin.use
 
 @Service
 class UserServiceWithDB @Autowired constructor(
@@ -35,7 +32,7 @@ class UserServiceWithDB @Autowired constructor(
     private val appPaths: ApplicationPaths,
     private val imageValidator: FileValidator.ImageValidator
 ) : UserService {
-    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val executorService = Executors.newVirtualThreadPerTaskExecutor()
 
     override fun get(userId: Long): User {
         return userRepository.findById(userId).orElseThrow().toDomain()
@@ -55,11 +52,9 @@ class UserServiceWithDB @Autowired constructor(
         if (user.avatar is EditingAction.Edit) {
             val ext = user.avatar.value.name.parseExtension()
             val tmpAvatarPath = tmpPath.resolve("avatar.$ext")
-            runBlocking(Dispatchers.IO) {
-                user.avatar.value.content.inputStream().uploadFile(tmpAvatarPath)
-                imageValidator.validate(tmpAvatarPath.toFile()).onFailure { error ->
-                    errors["avatar"] = error
-                }
+            user.avatar.value.content.inputStream().uploadFile(tmpAvatarPath)
+            imageValidator.validate(tmpAvatarPath.toFile()).onFailure { error ->
+                errors["avatar"] = error
             }
         }
         if (errors.isNotEmpty()) {
@@ -87,7 +82,7 @@ class UserServiceWithDB @Autowired constructor(
             if (avatarPath.notExists()) {
                 avatarPath.createDirectory()
             } else {
-                avatarPath.listDirectoryEntries().forEach { it.deleteExisting() }
+                avatarPath.listDirectoryEntries().forEach { it.deleteIfExists() }
             }
             avatar?.moveAvatars(
                 tmpAvatarPath = tmpAvatarPath,
@@ -102,31 +97,37 @@ class UserServiceWithDB @Autowired constructor(
         tmpAvatarPath: Path,
         avatarDirectoryPath: Path
     ) {
-        runBlocking {
-            launch {
-                uploadImage(
-                    targetFile = avatarDirectoryPath.resolve("small.${tmpAvatarPath.extension}"),
-                    targetWidth = 64,
-                    targetHeight = 64,
-                    compress = true
-                )
-            }
-            launch {
-                uploadImage(
-                    targetFile = avatarDirectoryPath.resolve("medium.${tmpAvatarPath.extension}"),
-                    targetWidth = 192,
-                    targetHeight = 192,
-                    compress = true
-                )
-            }
-            launch {
-                uploadImage(
-                    targetFile = avatarDirectoryPath.resolve("large.${tmpAvatarPath.extension}"),
-                    targetWidth = 512,
-                    targetHeight = 512,
-                    compress = true
-                )
-            }
+        StructuredTaskScope.open(
+            StructuredTaskScope.Joiner.awaitAll<Boolean>()
+        ).use { scope ->
+            val callables = setOf(
+                Callable {
+                    uploadImage(
+                        targetFile = avatarDirectoryPath.resolve("small.${tmpAvatarPath.extension}"),
+                        targetWidth = 64,
+                        targetHeight = 64,
+                        compress = true
+                    )
+                },
+                Callable {
+                    uploadImage(
+                        targetFile = avatarDirectoryPath.resolve("medium.${tmpAvatarPath.extension}"),
+                        targetWidth = 192,
+                        targetHeight = 192,
+                        compress = true
+                    )
+                },
+                Callable {
+                    uploadImage(
+                        targetFile = avatarDirectoryPath.resolve("large.${tmpAvatarPath.extension}"),
+                        targetWidth = 512,
+                        targetHeight = 512,
+                        compress = true
+                    )
+                }
+            )
+            callables.forEach(scope::fork)
+            scope.join()
         }
     }
 
@@ -143,12 +144,16 @@ class UserServiceWithDB @Autowired constructor(
         if (!userRepository.existsById(userId)) {
             throw NoSuchElementException()
         }
-        runBlocking {
-            channelService.getChannelsByOwnerId(userId).map {
-                launch {
-                    channelService.removeChannel(userId, it.channelId)
+        StructuredTaskScope.open(
+            StructuredTaskScope.Joiner.awaitAll<Void>()
+        ).use { scope ->
+            channelService.getChannelsByOwnerId(userId).forEach { channel ->
+                val runnable = Runnable {
+                    channelService.removeChannel(userId, channel.channelId)
                 }
-            }.joinAll()
+                scope.fork<Void>(runnable)
+            }
+            scope.join()
         }
         commentService.removeAllByUserId(userId)
         val credentialIds = authDetailRepository.findById_UserId(userId).map { it.id }
@@ -170,16 +175,33 @@ class UserServiceWithDB @Autowired constructor(
     override fun subscribeToNotifications(userId: Long, token: String) {
         val subscribedIds = subscriberRepository.findById_UserId(userId).map { it.id.channelId }
         val ownedIds = channelService.getChannelsByOwnerId(userId).map { it.channelId }
-        coroutineScope.launch {
-            subscribedIds.map {
-                launch {
-                    fcm.subscribeToTopic(listOf(token), "channels.$it.subscribers")
+        executorService.execute {
+            StructuredTaskScope.open(
+                StructuredTaskScope.Joiner.awaitAll<Void>()
+            ).use { scope ->
+                StructuredTaskScope.open(
+                    StructuredTaskScope.Joiner.awaitAll<Void>()
+                ).use { scope ->
+                    subscribedIds.forEach {
+                        val runnable = Runnable {
+                            fcm.subscribeToTopic(listOf(token), "channels.$it.subscribers")
+                        }
+                        scope.fork<Void>(runnable)
+                    }
+                    scope.join()
                 }
-            }
-            ownedIds.map {
-                launch {
-                    fcm.subscribeToTopic(listOf(token), "channels.$it.uploads")
+                StructuredTaskScope.open(
+                    StructuredTaskScope.Joiner.awaitAll<Void>()
+                ).use { scope ->
+                    ownedIds.forEach {
+                        val runnable = Runnable {
+                            fcm.subscribeToTopic(listOf(token), "channels.$it.uploads")
+                        }
+                        scope.fork<Void>(runnable)
+                    }
+                    scope.join()
                 }
+                scope.join()
             }
         }
     }
@@ -187,22 +209,39 @@ class UserServiceWithDB @Autowired constructor(
     override fun unsubscribeFromNotifications(userId: Long, token: String) {
         val subscribedIds = subscriberRepository.findById_UserId(userId).map { it.id.channelId }
         val ownedIds = channelService.getChannelsByOwnerId(userId).map { it.channelId }
-        coroutineScope.launch {
-            subscribedIds.map {
-                launch {
-                    fcm.unsubscribeFromTopic(listOf(token), "channels.$it.subscribers")
+        executorService.execute {
+            StructuredTaskScope.open(
+                StructuredTaskScope.Joiner.awaitAll<Void>()
+            ).use { scope ->
+                StructuredTaskScope.open(
+                    StructuredTaskScope.Joiner.awaitAll<Void>()
+                ).use { scope ->
+                    subscribedIds.forEach {
+                        val runnable = Runnable {
+                            fcm.unsubscribeFromTopic(listOf(token), "channels.$it.subscribers")
+                        }
+                        scope.fork<Void>(runnable)
+                    }
+                    scope.join()
                 }
-            }
-            ownedIds.map {
-                launch {
-                    fcm.unsubscribeFromTopic(listOf(token), "channels.$it.uploads")
+                StructuredTaskScope.open(
+                    StructuredTaskScope.Joiner.awaitAll<Void>()
+                ).use { scope ->
+                    ownedIds.forEach {
+                        val runnable = Runnable {
+                            fcm.unsubscribeFromTopic(listOf(token), "channels.$it.uploads")
+                        }
+                        scope.fork<Void>(runnable)
+                    }
+                    scope.join()
                 }
+                scope.join()
             }
         }
     }
 
     @PreDestroy
     fun preDestroy() {
-        coroutineScope.cancel()
+        executorService.close()
     }
 }

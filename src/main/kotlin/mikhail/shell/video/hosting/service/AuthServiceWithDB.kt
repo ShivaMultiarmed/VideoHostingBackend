@@ -1,11 +1,6 @@
 package mikhail.shell.video.hosting.service
 
 import jakarta.transaction.Transactional
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.toKotlinInstant
 import mikhail.shell.video.hosting.domain.ApplicationPaths
@@ -26,6 +21,7 @@ import org.springframework.mail.SimpleMailMessage
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import java.time.Instant
+import java.util.concurrent.Executors
 import javax.annotation.PreDestroy
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectory
@@ -43,8 +39,7 @@ class AuthServiceWithDB(
     private val invalidTokenRepository: InvalidTokenRepository,
     private val applicationPaths: ApplicationPaths
 ) : AuthService {
-    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-
+    private val executorService = Executors.newVirtualThreadPerTaskExecutor()
     override fun signInWithPassword(userName: String, password: String): AuthModel {
         val method = when {
             userName.matches(ValidationRules.EMAIL_REGEX.toRegex()) -> AuthenticationMethod.EMAIL
@@ -87,7 +82,7 @@ class AuthServiceWithDB(
             subject = "Signing up"
             text = "Code to proceed signing up: $code"
         }
-        coroutineScope.launch {
+        executorService.execute {
             mailSender.send(mailMessage)
         }
         verificationRepository.save(
@@ -195,7 +190,7 @@ class AuthServiceWithDB(
             subject = "Password recovery"
             text = "Your password recovery code: $resetCode"
         }
-        coroutineScope.launch {
+        executorService.execute {
             mailSender.send(mailMessage)
         }
         verificationRepository.save(
@@ -283,7 +278,7 @@ class AuthServiceWithDB(
 
     @PreDestroy
     fun preDestroy() {
-        coroutineScope.cancel()
+        executorService.close()
     }
 
     private companion object {

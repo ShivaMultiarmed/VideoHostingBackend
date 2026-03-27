@@ -11,15 +11,6 @@ import co.elastic.clients.json.JsonData
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.Message
 import jakarta.transaction.Transactional
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.joinAll
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import mikhail.shell.video.hosting.dto.camelToSnakeCase
 import mikhail.shell.video.hosting.domain.*
 import mikhail.shell.video.hosting.domain.ValidationRules.FILE_NAME_REGEX
@@ -46,6 +37,8 @@ import java.io.InputStream
 import java.nio.file.Path
 import java.time.Instant
 import java.util.UUID
+import java.util.concurrent.Executors
+import java.util.concurrent.StructuredTaskScope
 import javax.annotation.PreDestroy
 import kotlin.io.extension
 import kotlin.io.path.*
@@ -67,7 +60,7 @@ class VideoServiceWithDB @Autowired constructor(
     private val videoValidator: FileValidator.VideoValidator,
     private val videoMetaDataExtractor: VideoMetaDataExtractor
 ) : VideoService {
-    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val executorService = Executors.newVirtualThreadPerTaskExecutor()
 
     override fun get(videoId: Long): Video {
         return videoRepository.findById(videoId).orElseThrow().toDomain()
@@ -249,13 +242,9 @@ class VideoServiceWithDB @Autowired constructor(
         video.cover?.let {
             val ext = it.name.parseExtension()
             val tmpCoverPath = tmpPath.resolve("cover.$ext")
-            runBlocking(Dispatchers.IO) {
-                it.content.inputStream().uploadFile(
-                    targetFile = tmpCoverPath
-                )
-                imageValidator.validate(tmpCoverPath.toFile()).onFailure { error ->
-                    errors["cover"] = error
-                }
+            it.content.inputStream().uploadFile(targetFile = tmpCoverPath)
+            imageValidator.validate(tmpCoverPath.toFile()).onFailure { error ->
+                errors["cover"] = error
             }
         }
         if (errors.isNotEmpty()) {
@@ -296,13 +285,11 @@ class VideoServiceWithDB @Autowired constructor(
         }
         val path = Path(appPaths.TEMP_PATH, tmpId.toString()).createDirectories()
         val sourcePath = path.resolve("source").createDirectories()
-        runBlocking {
-            source.uploadFile(
-                targetFile = sourcePath
-                    .resolve("$start-$end.tmp")
-                    .createFile()
-            )
-        }
+        source.uploadFile(
+            targetFile = sourcePath
+                .resolve("$start-$end.tmp")
+                .createFile()
+        )
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -315,7 +302,7 @@ class VideoServiceWithDB @Autowired constructor(
         if (!channelRepository.existsByOwnerIdAndChannelId(userId, pending.channelId)) {
             throw IllegalAccessException()
         }
-        coroutineScope.launch {
+        executorService.execute {
             val pendingSourceMetaData = getSourceMetaData(pending.tmpId)
             val tmpPath = Path(appPaths.TEMP_PATH, tmpId.toString()).createDirectories()
             assembleVideoSource(
@@ -334,7 +321,8 @@ class VideoServiceWithDB @Autowired constructor(
             ) {
                 errors["source"] = FileError.NOT_SUPPORTED
             } else if (pendingSourceMetaData.size != tmpSourceMetaData.size
-                || pendingSourceMetaData.fileName != tmpSourceMetaData.fileName) {
+                || pendingSourceMetaData.fileName != tmpSourceMetaData.fileName
+            ) {
                 errors["source"] = FileError.NOT_VALID
             } else {
                 videoValidator.validate(tmpSource).onFailure { error ->
@@ -345,7 +333,7 @@ class VideoServiceWithDB @Autowired constructor(
                 pendingVideosRepository.delete(pending)
                 tmpPath.deleteRecursively()
                 notifyCreatorOnFailure(pending.channelId, errors)
-                return@launch
+                return@execute
             }
             val videoEntity = videoRepository.save(
                 VideoEntity(
@@ -357,23 +345,29 @@ class VideoServiceWithDB @Autowired constructor(
             )
             videoSearchRepository.save(videoEntity.toDocument())
             val videoPath = Path(appPaths.VIDEOS_BASE_PATH, videoEntity.videoId.toString()).createDirectories()
-            val sourceJob = launch {
-                moveVideoSource(
-                    tmpPath = tmpPath,
-                    videoPath = videoPath
-                )
-            }
-            val coversJob = findFileByName(tmpPath, "cover")?.let {
-                val cover = it.inputStream().toImage() ?: return@let null
-                val coverDirectoryPath = videoPath.resolve("cover").createDirectory()
-                launch {
-                    cover.moveVideoCovers(
-                        tmpCoverPath = it.toPath(),
-                        coverDirectoryPath = coverDirectoryPath
+            StructuredTaskScope.open(
+                StructuredTaskScope.Joiner.awaitAll<Void>()
+            ).use { scope ->
+                val sourceRunnable = Runnable {
+                    moveVideoSource(
+                        tmpPath = tmpPath,
+                        videoPath = videoPath
                     )
                 }
+                scope.fork<Void>(sourceRunnable)
+                findFileByName(tmpPath, "cover")?.let {
+                    val cover = it.inputStream().toImage() ?: return@let
+                    val coverDirectoryPath = videoPath.resolve("cover").createDirectory()
+                    val coversRunnable = Runnable {
+                        cover.moveVideoCovers(
+                            tmpCoverPath = it.toPath(),
+                            coverDirectoryPath = coverDirectoryPath
+                        )
+                    }
+                    scope.fork<Void>(coversRunnable)
+                }
+                scope.join()
             }
-            setOfNotNull(sourceJob, coversJob).joinAll()
             pendingVideosRepository.delete(pending)
             tmpPath.deleteRecursively()
             val videoWithChannel = videoWithChannelsRepository.findById(videoEntity.videoId!!).orElseThrow().toDomain()
@@ -482,33 +476,41 @@ class VideoServiceWithDB @Autowired constructor(
             .toList()
     }
 
-    private suspend fun BufferedImage.moveVideoCovers(
+    private fun BufferedImage.moveVideoCovers(
         tmpCoverPath: Path,
         coverDirectoryPath: Path
-    ): Job = coroutineScope {
-        launch {
-            uploadImage(
-                targetFile = coverDirectoryPath.resolve("small.${tmpCoverPath.extension}"),
-                targetWidth = 128,
-                targetHeight = 72,
-                compress = true
+    ) {
+        StructuredTaskScope.open(
+            StructuredTaskScope.Joiner.awaitAll<Boolean>()
+        ).use { scope ->
+            val runnables = setOf(
+                Runnable {
+                    uploadImage(
+                        targetFile = coverDirectoryPath.resolve("small.${tmpCoverPath.extension}"),
+                        targetWidth = 128,
+                        targetHeight = 72,
+                        compress = true
+                    )
+                },
+                Runnable {
+                    uploadImage(
+                        targetFile = coverDirectoryPath.resolve("medium.${tmpCoverPath.extension}"),
+                        targetWidth = 320,
+                        targetHeight = 180,
+                        compress = true
+                    )
+                },
+                Runnable {
+                    uploadImage(
+                        targetFile = coverDirectoryPath.resolve("large.${tmpCoverPath.extension}"),
+                        targetWidth = 512,
+                        targetHeight = 288,
+                        compress = true
+                    )
+                }
             )
-        }
-        launch {
-            uploadImage(
-                targetFile = coverDirectoryPath.resolve("medium.${tmpCoverPath.extension}"),
-                targetWidth = 320,
-                targetHeight = 180,
-                compress = true
-            )
-        }
-        launch {
-            uploadImage(
-                targetFile = coverDirectoryPath.resolve("large.${tmpCoverPath.extension}"),
-                targetWidth = 512,
-                targetHeight = 288,
-                compress = true
-            )
+            runnables.forEach { runnable -> scope.fork<Boolean>(runnable) }
+            scope.join()
         }
     }
 
@@ -607,13 +609,9 @@ class VideoServiceWithDB @Autowired constructor(
         if (video.cover is EditingAction.Edit) {
             val ext = video.cover.value.name.parseExtension()
             val tmpCoverPath = tmpPath.resolve("cover.$ext").createFile()
-            runBlocking(Dispatchers.IO) {
-                video.cover.value.content.inputStream().uploadFile(
-                    targetFile = tmpCoverPath
-                )
-                imageValidator.validate(tmpCoverPath.toFile()).onFailure { error ->
-                    errors["cover"] = error
-                }
+            video.cover.value.content.inputStream().uploadFile(targetFile = tmpCoverPath)
+            imageValidator.validate(tmpCoverPath.toFile()).onFailure { error ->
+                errors["cover"] = error
             }
         }
         if (errors.isNotEmpty()) {
@@ -637,16 +635,14 @@ class VideoServiceWithDB @Autowired constructor(
             if (coverPath.notExists()) {
                 coverPath.createDirectory()
             } else {
-                coverPath.listDirectoryEntries().forEach { it.deleteExisting() }
+                coverPath.listDirectoryEntries().forEach { it.deleteIfExists() }
             }
-            runBlocking {
-                findFileByName(tmpPath, "cover")?.let {
-                    val cover = it.inputStream().toImage() ?: return@let
-                    cover.moveVideoCovers(
-                        tmpCoverPath = it.toPath(),
-                        coverDirectoryPath = coverPath
-                    )
-                }
+            findFileByName(tmpPath, "cover")?.let {
+                val cover = it.inputStream().toImage() ?: return@let
+                cover.moveVideoCovers(
+                    tmpCoverPath = it.toPath(),
+                    coverDirectoryPath = coverPath
+                )
             }
         }
         tmpPath.deleteRecursively()
@@ -655,6 +651,6 @@ class VideoServiceWithDB @Autowired constructor(
 
     @PreDestroy
     fun preDestroy() {
-        coroutineScope.cancel()
+        executorService.close()
     }
 }
